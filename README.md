@@ -1,3 +1,8 @@
+**THIS IS A HARD FORK**  
+That means that no attempt will be made to maintain interoperabilty, or to port any new changes to HasChor into this repo. 
+The git history has been cut off, etc. 
+The original is [here](https://github.com/gshen42/HasChor).
+
 # HasChor
 
 HasChor is a library for *functional choreographic programming* in Haskell, introduced by our [ICFP 2023 paper](https://doi.org/10.1145/3607849).
