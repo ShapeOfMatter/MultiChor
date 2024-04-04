@@ -39,5 +39,5 @@ import Control.Monad.IO.Class
 import Data.Proxy
 
 -- | Run a choreography with a message transport backend.
-runChoreography :: (Backend config, MonadIO m) => config -> Choreo m a -> LocTm -> m a
+runChoreography :: (Backend config, MonadIO m) => config -> Choreo ps m a -> LocTm -> m a
 runChoreography cfg choreo l = runNetwork cfg l (epp choreo l)

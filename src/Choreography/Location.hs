@@ -21,6 +21,7 @@ toLocTm = symbolVal
 -- | Located values.
 --
 -- @a \@ l@ represents a value of type @a@ at location @l@.
+-- TODO type level sets of locations?
 data a @ (l :: LocTy)
   = Wrap a -- ^ A located value @a \@ l@ from location @l@'s perspective.
   | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s

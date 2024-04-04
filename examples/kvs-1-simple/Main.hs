@@ -63,7 +63,7 @@ handleRequest request stateRef = case request of
 kvs ::
   Request @ "client" ->
   IORef State @ "server" ->
-  Choreo IO (Response @ "client")
+  Choreo '["client", "server"] IO (Response @ "client")
 kvs request stateRef = do
   -- send the request to the server
   request' <- (client, request) ~> server
@@ -76,12 +76,13 @@ kvs request stateRef = do
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.
-mainChoreo :: Choreo IO ()
+-- HIII :> (*>_*)
+mainChoreo :: Choreo '["client", "server"] IO ()
 mainChoreo = do
   stateRef <- server `locally` \_ -> newIORef (Map.empty :: State)
   loop stateRef
   where
-    loop :: IORef State @ "server" -> Choreo IO ()
+    loop :: IORef State @ "server" -> Choreo '["client", "server"] IO ()
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef
