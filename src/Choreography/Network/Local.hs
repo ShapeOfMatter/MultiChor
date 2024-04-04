@@ -39,7 +39,7 @@ locs :: LocalConfig -> [LocTm]
 locs = HashMap.keys . locToBuf
 
 runNetworkLocal :: MonadIO m => LocalConfig -> LocTm -> Network m a -> m a
-runNetworkLocal cfg self prog = interpFreer handler prog
+runNetworkLocal cfg self = interpFreer handler
   where
     handler :: MonadIO m => NetworkSig m a -> m a
     handler (Run m)    = m

@@ -1,7 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use const" #-}
 
 module Main where
 
@@ -86,7 +87,7 @@ mainChoreo = do
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef
-      client `locally` \unwrap -> do putStrLn ("> " ++ (show (unwrap response)))
+      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
       loop stateRef
 
 main :: IO ()
