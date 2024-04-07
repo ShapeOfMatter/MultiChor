@@ -2,7 +2,13 @@
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
 
-module Main where
+{-
+# Ring leader election
+
+Experinmental implementaion of ring leader election.
+-}
+
+module RingLeader where
 
 import Choreography
 import Data.Proxy

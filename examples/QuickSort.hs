@@ -2,7 +2,26 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Main where
+{-
+# Example: Quicksort
+
+## Overview
+
+This example implements the three-way concurrent implementation of quicksort.
+
+## Execution
+
+This choreography will sort the list `[1, 6, 5, 3, 4, 2, 7, 8]`. It uses the local backend and distribute the computation over threads.
+
+```bash
+cabal run quicksort
+[1,2,3,4,5,6,7,8]
+```
+
+`Reference.hs` contains a single-threaded reference implementation of the algorithm.
+-}
+
+module QuickSort where
 
 import Choreography (runChoreography)
 import Choreography.Choreo
@@ -13,6 +32,15 @@ import Data.Proxy
 import Data.Time
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
+
+reference :: [Int] -> [Int]
+reference [] = []
+reference (x : xs) = smaller ++ [x] ++ bigger
+  where
+    smaller = reference [a | a <- xs, a <= x]
+    bigger = reference [a | a <- xs, a > x]
+
+
 
 primary :: Proxy "primary"
 primary = Proxy

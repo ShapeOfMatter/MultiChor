@@ -3,7 +3,28 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Main where
+{-
+# Example: Primary-backup key-value store
+
+This is the second version of the 4-stage key-value store tutorial. This builds on the first version and adds a backup location to improve durability.
+
+```bash
+# start primary
+cabal run kvs2 primary
+# on a different terminal, start backup
+cabal run kvs2 backup
+# another terminal for client
+cabal run kvs2 client
+GET hello
+> Nothing
+PUT hello world
+> Just "world"
+GET hello
+> Just "world"
+```
+-}
+
+module KVS2PrimaryBackup where
 
 import Choreography (runChoreography)
 import Choreography.Choreo
@@ -62,71 +83,41 @@ handleRequest request stateRef = case request of
     state <- readIORef stateRef
     return (Map.lookup key state)
 
--- | ReplicationStrategy specifies how a request should be handled on possibly replicated servers
--- `a` is a type that represent states across locations
-type ReplicationStrategy a =
-  Request @ "primary" -> a -> Choreo IO (Response @ "primary")
+-- | `kvs` is a choreography that processes a single request located at the client and returns the response.
+-- If the request is a `PUT`, it will forward the request to the backup node.
+kvs ::
+  Request @ "client" ->
+  (IORef State @ "primary", IORef State @ "backup") ->
+  Choreo IO (Response @ "client")
+kvs request (primaryStateRef, backupStateRef) = do
+  -- send request to the primary node
+  request' <- (client, request) ~> primary
 
--- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
-nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
-nullReplicationStrategy request stateRef = do
-  primary `locally` \unwrap ->
-    handleRequest (unwrap request) (unwrap stateRef)
-
--- | `primaryBackupReplicationStrategy` is a replication strategy that replicates the state to a backup server.
-primaryBackupReplicationStrategy ::
-  ReplicationStrategy (IORef State @ "primary", IORef State @ "backup")
-primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
-  -- relay request to backup if it is mutating (= PUT)
-  cond (primary, request) \case
-    Put _ _ -> do
-      request' <- (primary, request) ~> backup
-      ( backup,
-        \unwrap ->
-          handleRequest (unwrap request') (unwrap backupStateRef)
-        )
-        ~~> primary
+  -- branch on the request
+  cond (primary, request') \case
+    -- if the request is a `PUT`, forward the request to the backup node
+    Put key value -> do
+      request'' <- (primary, request') ~> backup
+      ack <-
+        backup `locally` \unwrap -> do
+          handleRequest (unwrap request'') (unwrap backupStateRef)
+      (backup, ack) ~> primary
       return ()
     _ -> do
       return ()
 
-  -- process request on primary
-  primary `locally` \unwrap ->
-    handleRequest (unwrap request) (unwrap primaryStateRef)
-
--- | `kvs` is a choreography that processes a single request at the client and returns the response.
--- It uses the provided replication strategy to handle the request.
-kvs ::
-  forall a.
-  Request @ "client" ->
-  a ->
-  ReplicationStrategy a ->
-  Choreo IO (Response @ "client")
-kvs request stateRefs replicationStrategy = do
-  request' <- (client, request) ~> primary
-
-  -- call the provided replication strategy
-  response <- replicationStrategy request' stateRefs
+  -- process request on the primary node
+  response <-
+    primary `locally` \unwrap ->
+      handleRequest (unwrap request') (unwrap primaryStateRef)
 
   -- send response to client
   (primary, response) ~> client
 
--- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
-nullReplicationChoreo :: Choreo IO ()
-nullReplicationChoreo = do
-  stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  loop stateRef
-  where
-    loop :: IORef State @ "primary" -> Choreo IO ()
-    loop stateRef = do
-      request <- client `locally` \_ -> readRequest
-      response <- kvs request stateRef nullReplicationStrategy
-      client `locally` \unwrap -> do putStrLn (show (unwrap response))
-      loop stateRef
-
--- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
-primaryBackupChoreo :: Choreo IO ()
-primaryBackupChoreo = do
+-- | `mainChoreo` is a choreography that serves as the entry point of the program.
+-- It initializes the state and loops forever.
+mainChoreo :: Choreo IO ()
+mainChoreo = do
   primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
   backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
@@ -134,7 +125,7 @@ primaryBackupChoreo = do
     loop :: (IORef State @ "primary", IORef State @ "backup") -> Choreo IO ()
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
-      response <- kvs request stateRefs primaryBackupReplicationStrategy
+      response <- kvs request stateRefs
       client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
       loop stateRefs
 
@@ -147,7 +138,6 @@ main = do
     "backup" -> runChoreography config mainChoreo "backup"
   return ()
   where
-    mainChoreo = primaryBackupChoreo -- or `nullReplicationChoreo`
     config =
       mkHttpConfig
         [ ("client", ("localhost", 3000)),
