@@ -18,49 +18,43 @@ import Choreography.Network.Http
 import Data.Time
 import System.Environment
 
-buyer :: Network IO ()
-buyer = do
-  run $ putStrLn "Enter the title of the book to buy:"
-  title <- run getLine
+import Data (Database, defaultBudget, deliveryDateOf, priceOf, textbooks)
+
+buyer :: Int -> String -> Network IO (Maybe Day)
+buyer budget title = do
   send title "seller"
   price <- recv "seller"
   if price < budget
   then do
     send True "seller"
     (deliveryDate :: Day) <- recv "seller"
-    run $ putStrLn ("The book will be delivered on " ++ (show deliveryDate))
+    return $ Just deliveryDate
   else do
     send False "seller"
-    run $ putStrLn "The book's price is out of the budget"
+    return Nothing
 
-seller :: Network IO ()
-seller = do
+seller :: Database -> Network IO ()
+seller books = do
   title <- recv "buyer"
-  send (priceOf title) "buyer"
+  send (priceOf books title) "buyer"
   decision <- recv "buyer"
   if decision
   then do
-    send (deliveryDateOf title) "buyer"
+    send (deliveryDateOf books title) "buyer"
   else do
     return ()
-
-budget :: Int
-budget = 100
-
-priceOf :: String -> Int
-priceOf "Types and Programming Languages" = 80
-priceOf "Homotopy Type Theory"            = 120
-
-deliveryDateOf :: String -> Day
-deliveryDateOf "Types and Programming Languages" = fromGregorian 2023 12 19
-deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 09 18
 
 main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of
-    "buyer" -> runNetwork cfg "buyer" buyer
-    "seller" -> runNetwork cfg "seller" seller
+    "buyer" -> do putStrLn "Enter the title of the book to buy:"
+                  title <- getLine
+                  result <- runNetwork cfg "buyer" $ buyer defaultBudget title
+                  case result of
+                    Nothing -> putStrLn "The book's price is out of the budget"
+                    Just day -> putStrLn ("The book will be delivered on " ++ (show day))
+    "seller" -> runNetwork cfg "seller" $ seller textbooks
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
