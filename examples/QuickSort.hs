@@ -51,7 +51,11 @@ worker1 = Proxy
 worker2 :: Proxy "worker2"
 worker2 = Proxy
 
-quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) => Proxy a -> Proxy b -> Proxy c -> [Int] @ a -> Choreo IO ([Int] @ a)
+type Participants = ["primary", "worker1", "worker2"]
+
+quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c,
+              Member a Participants, Member b Participants, Member c Participants
+              ) => Proxy a -> Proxy b -> Proxy c -> [Int] @ a -> Choreo Participants IO ([Int] @ a)
 quicksort a b c lst = do
   isEmpty <- a `locally` \unwrap -> pure (null (unwrap lst))
   cond (a, isEmpty) \case
@@ -66,7 +70,7 @@ quicksort a b c lst = do
       bigger'' <- (c, bigger') ~> a
       a `locally` \unwrap -> pure $ unwrap smaller'' ++ [head (unwrap lst)] ++ unwrap bigger''
 
-mainChoreo :: Choreo IO ()
+mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   lst <- primary `locally` \unwrap -> do return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- quicksort primary worker1 worker2 lst

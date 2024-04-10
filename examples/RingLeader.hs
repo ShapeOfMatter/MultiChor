@@ -11,6 +11,7 @@ Experinmental implementaion of ring leader election.
 module RingLeader where
 
 import Choreography
+import Choreography.Location (Member)
 import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import Control.Monad
@@ -21,17 +22,17 @@ import System.Environment
 -- an edge of the ring is represented as a tuple of two locaitons l and l' where
 -- l is on the left of l'
 data Edge = forall l l'.
-  (KnownSymbol l, KnownSymbol l') => Edge (Proxy l) (Proxy l')
+  (KnownSymbol l, KnownSymbol l', Member l Participants, Member l' Participants) => Edge (Proxy l) (Proxy l')
 
 -- a ring is a sequence of edges
 type Ring = [Edge]
 
 type Label = Int
 
-ringLeader :: Ring -> Choreo (StateT Label IO) ()
+ringLeader :: Ring -> Choreo Participants (StateT Label IO) ()
 ringLeader ring = loop ring
   where
-    loop :: Ring -> Choreo (StateT Label IO) ()
+    loop :: Ring -> Choreo Participants (StateT Label IO) ()
     loop []     = loop ring
     loop (x:xs) = do
       finished <- talkToRight x
@@ -39,7 +40,7 @@ ringLeader ring = loop ring
       then return ()
       else loop xs
 
-    talkToRight :: Edge -> Choreo (StateT Label IO) Bool
+    talkToRight :: Edge -> Choreo Participants (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       labelLeft  <- (left, \_ -> get) ~~> right
       labelRight <- right `locally` \_ -> get
@@ -66,6 +67,8 @@ nodeC = Proxy
 
 nodeD :: Proxy "D"
 nodeD = Proxy
+
+type Participants = ["A", "B", "C", "D"]
 
 ring = [ Edge nodeA nodeB
        , Edge nodeB nodeC

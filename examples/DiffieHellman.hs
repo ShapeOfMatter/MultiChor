@@ -63,7 +63,9 @@ alice = Proxy
 bob :: Proxy "bob"
 bob = Proxy
 
-diffieHellman :: Choreo IO (Integer @ "alice", Integer @ "bob")
+type Participants = ["alice", "bob"]
+
+diffieHellman :: Choreo Participants IO (Integer @ "alice", Integer @ "bob")
 diffieHellman = do
   -- wait for alice to initiate the process
   alice `locally` \unwrap -> do

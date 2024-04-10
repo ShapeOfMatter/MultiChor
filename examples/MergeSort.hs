@@ -48,15 +48,20 @@ worker1 = Proxy
 worker2 :: Proxy "worker2"
 worker2 = Proxy
 
-sort ::
-  KnownSymbol a =>
+type Participants = ["primary", "worker1", "worker2"]
+
+sort :: (KnownSymbol a
+        ,KnownSymbol c
+        ,KnownSymbol b
+        ,Member a Participants
+        ,Member b Participants
+        ,Member c Participants
+        ) =>
   Proxy a ->
-  KnownSymbol b =>
   Proxy b ->
-  KnownSymbol c =>
   Proxy c ->
   ([Int] @ a) ->
-  Choreo IO ([Int] @ a)
+  Choreo Participants IO ([Int] @ a)
 sort a b c lst = do
   condition <- a `locally` \unwrap -> do return $ length (unwrap lst) > 1
   cond (a, condition) \case
@@ -73,16 +78,19 @@ sort a b c lst = do
     False -> do
       return lst
 
-merge ::
-  KnownSymbol a =>
+merge :: (KnownSymbol a
+         ,KnownSymbol c
+         ,KnownSymbol b
+         ,Member a Participants
+         ,Member b Participants
+         ,Member c Participants
+         ) =>
   Proxy a ->
-  KnownSymbol b =>
   Proxy b ->
-  KnownSymbol c =>
   Proxy c ->
   [Int] @ b ->
   [Int] @ c ->
-  Choreo IO ([Int] @ a)
+  Choreo Participants IO ([Int] @ a)
 merge a b c lhs rhs = do
   lhsHasElements <- b `locally` \unwrap -> do return $ not (null (unwrap lhs))
   cond (b, lhsHasElements) \case
@@ -113,7 +121,7 @@ merge a b c lhs rhs = do
     False -> do
       (c, rhs) ~> a
 
-mainChoreo :: Choreo IO ()
+mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   lst <- primary `locally` \unwrap -> do return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- sort primary worker1 worker2 lst

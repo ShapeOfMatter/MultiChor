@@ -66,9 +66,11 @@ seller = Proxy
 buyer2 :: Proxy "buyer2"
 buyer2 = Proxy
 
+type Participants = ["buyer", "seller", "buyer2"]
+
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: (Int @ "buyer" -> Choreo IO (Bool @ "buyer")) -> Choreo IO (Maybe Day @ "buyer")
+bookseller :: (Int @ "buyer" -> Choreo Participants IO (Bool @ "buyer")) -> Choreo Participants IO (Maybe Day @ "buyer")
 bookseller mkDecision = do
   -- the buyer reads the title of the book and sends it to the seller
   title <- (buyer, \_ -> do
@@ -98,13 +100,13 @@ bookseller mkDecision = do
         return Nothing
 
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
-mkDecision1 :: Int @ "buyer" -> Choreo IO (Bool @ "buyer")
+mkDecision1 :: Int @ "buyer" -> Choreo Participants IO (Bool @ "buyer")
 mkDecision1 price = do
   buyer `locally` \un -> return $ un price < budget
 
 -- | `mkDecision2` asks buyer2 how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus buyer2's contribution
-mkDecision2 :: Int @ "buyer" -> Choreo IO (Bool @ "buyer")
+mkDecision2 :: Int @ "buyer" -> Choreo Participants IO (Bool @ "buyer")
 mkDecision2 price = do
   contrib <- (buyer2, \_ -> do
                  putStrLn "How much you're willing to contribute?"

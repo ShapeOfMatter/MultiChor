@@ -44,3 +44,14 @@ mkLoc loc = do
   let locName = mkName loc
   let p = mkName "Data.Proxy.Proxy"
   pure [SigD locName (AppT (ConT p) (LitT (StrTyLit loc))),ValD (VarP locName) (NormalB (ConE p)) []]
+
+
+class Member x (xs :: [k]) where {}
+
+instance {-# OVERLAPPABLE #-} (Member x xs) =>  Member x (y ': xs) where {}
+instance {-# OVERLAPS #-} Member x (x ': xs) where {}
+
+class SubSet xs ys where {}
+
+instance {-# OVERLAPPABLE #-} (SubSet xs ys, Member x ys) => SubSet (x ': xs) ys where {}
+instance {-# OVERLAPS #-} SubSet '[] ys where {}

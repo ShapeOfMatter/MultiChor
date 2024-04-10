@@ -66,6 +66,8 @@ alice = Proxy
 bob :: Proxy "bob"
 bob = Proxy
 
+type Participants = ["client", "coordinator", "alice", "bob"]
+
 type State = (Int @ "alice", Int @ "bob")
 
 type Action = (String, Int)
@@ -97,7 +99,7 @@ parse s = tx
 -- then it will decide whether to commit the transaction or not.
 -- If the transaction is committed, it will update the state.
 -- Otherwise, it will keep the state unchanged.
-handleTransaction :: State -> Transaction @ "coordinator" -> Choreo IO (Bool @ "coordinator", State)
+handleTransaction :: State -> Transaction @ "coordinator" -> Choreo Participants IO (Bool @ "coordinator", State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
   txa <- (coordinator, tx) ~> alice
@@ -118,7 +120,7 @@ handleTransaction (aliceBalance, bobBalance) tx = do
       return (canCommit, (aliceBalance, bobBalance))
 
 -- | `bank` loops forever and handles transactions.
-bank :: State -> Choreo IO ()
+bank :: State -> Choreo Participants IO ()
 bank state = do
   client `locally` \_ -> do
     putStrLn "Command? (alice|bob {amount};)+"
@@ -133,7 +135,7 @@ bank state = do
   return ()
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
-startBank :: Choreo IO ()
+startBank :: Choreo Participants IO ()
 startBank = do
   aliceBalance <- alice `locally` \_ -> do return 0
   bobBalance <- bob `locally` \_ -> do return 0

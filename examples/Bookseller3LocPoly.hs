@@ -18,6 +18,7 @@ Same as [`bookseller-1-simple`](../bookseller-1-simple) but with `cabal run book
 module Bookseller3LocPoly where
 
 import Choreography
+import Choreography.Location (Member)
 import Data.Proxy
 import Data.Time
 import GHC.TypeLits
@@ -29,9 +30,11 @@ buyer = Proxy
 seller :: Proxy "seller"
 seller = Proxy
 
+type Participants = ["buyer", "seller"]
+
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes the name of the buyer as a parameter (`someBuyer`).
-bookseller :: KnownSymbol a => Proxy a -> Choreo IO (Maybe Day @ a)
+bookseller :: (KnownSymbol a, Member a Participants) => Proxy a -> Choreo Participants IO (Maybe Day @ a)
 bookseller someBuyer = do
   -- the buyer reads the title of the book and sends it to the seller
   title <- (buyer, \_ -> do

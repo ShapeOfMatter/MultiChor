@@ -12,17 +12,6 @@ import Data.List
 import Data.Proxy
 import GHC.TypeLits
 
-
-class Member x (xs :: [k]) where {}
-
-instance {-# OVERLAPPABLE #-} (Member x xs) =>  Member x (y ': xs) where {}
-instance {-# OVERLAPS #-} Member x (x ': xs) where {}
-
-class SubSet xs ys where {}
-
-instance {-# OVERLAPPABLE #-} (SubSet xs ys, Member x ys) => SubSet (x ': xs) ys where {}
-instance {-# OVERLAPS #-} SubSet '[] ys where {}
-
 -- * The Choreo monad
 -- | A constrained version of `unwrap` that only unwraps values located at a
 -- specific location.
@@ -47,10 +36,10 @@ data ChoreoSig (ps :: [LocTy]) m a where
        -> Proxy l'
        -> ChoreoSig ps m (a @ l')
 
-  Cond :: (Show a, Read a, KnownSymbol l, Member l ps', SubSet ps' ps)
+  Cond :: (Show a, Read a, KnownSymbol l, Member l ps)
        => Proxy l
        -> a @ l
-       -> (a -> Choreo ps' m b)
+       -> (a -> Choreo ps m b)
        -> ChoreoSig ps m b
 
 -- | Monad for writing choreographies.
@@ -102,10 +91,10 @@ locally l m = toFreer (Local l m)
 (~>) (l, a) l' = toFreer (Comm l a l')
 
 -- | Conditionally execute choreographies based on a located value.
-cond :: (Show a, Read a, KnownSymbol l, Member l ps', SubSet ps' ps)
+cond :: (Show a, Read a, KnownSymbol l, Member l ps)
      => (Proxy l, a @ l)  -- ^ A pair of a location and a scrutinee located on
                           -- it.
-     -> (a -> Choreo ps' m b) -- ^ A function that describes the follow-up
+     -> (a -> Choreo ps m b) -- ^ A function that describes the follow-up
                           -- choreographies based on the value of scrutinee.
      -> Choreo ps m b
 cond (l, a) c = toFreer (Cond l a c)
@@ -122,10 +111,10 @@ cond (l, a) c = toFreer (Cond l a c)
 
 -- | A variant of `cond` that conditonally executes choregraphies based on the
 -- result of a local computation.
-cond' :: (Show a, Read a, KnownSymbol l, Member l ps', Member l ps, SubSet ps' ps)
+cond' :: (Show a, Read a, KnownSymbol l, Member l ps)
       => (Proxy l, Unwrap l -> m a) -- ^ A pair of a location and a local
                                     -- computation.
-      -> (a -> Choreo ps' m b)          -- ^ A function that describes the follow-up
+      -> (a -> Choreo ps m b)          -- ^ A function that describes the follow-up
                                     -- choreographies based on the result of the
                                     -- local computation.
       -> Choreo ps m b
@@ -133,8 +122,8 @@ cond' (l, m) c = do
   x <- l `locally` m
   cond (l, x) c
 
-reveal :: (Show a, Read a, KnownSymbol l)
+reveal :: (Show a, Read a, KnownSymbol l, Member l ps)
       => Proxy l
       -> a @ l
-      -> Choreo m a
+      -> Choreo ps m a
 reveal l al = cond (l, al) (\a -> return a)

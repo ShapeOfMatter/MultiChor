@@ -79,8 +79,10 @@ buyer = Proxy
 seller :: Proxy "seller"
 seller = Proxy
 
+type Participants = ["buyer", "seller"]
+
 -- | `bookseller` is a choreography that implements the bookseller protocol.
-bookseller :: String -> Choreo IO (Maybe Day)
+bookseller :: String -> Choreo Participants IO (Maybe Day)
 bookseller userTitle = do
   -- the buyer node prompts the user to enter the title of the book to buy
   title <- buyer `locally` \_ -> return userTitle
@@ -112,7 +114,7 @@ bookseller userTitle = do
   reveal buyer delivery
 
 -- `bookseller'` is a simplified version of `bookseller` that utilizes `~~>`
-bookseller' :: Choreo IO (Maybe Day @ "buyer")
+bookseller' :: Choreo Participants IO (Maybe Day @ "buyer")
 bookseller' = do
   title <- (buyer, \_ -> do
                putStrLn "Enter the title of the book to buy"

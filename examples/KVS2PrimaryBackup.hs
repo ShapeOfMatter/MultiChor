@@ -50,6 +50,8 @@ primary = Proxy
 backup :: Proxy "backup"
 backup = Proxy
 
+type Participants = ["client", "primary", "backup"]
+
 type State = Map String String
 
 data Request = Put String String | Get String deriving (Show, Read)
@@ -88,7 +90,7 @@ handleRequest request stateRef = case request of
 kvs ::
   Request @ "client" ->
   (IORef State @ "primary", IORef State @ "backup") ->
-  Choreo IO (Response @ "client")
+  Choreo Participants IO (Response @ "client")
 kvs request (primaryStateRef, backupStateRef) = do
   -- send request to the primary node
   request' <- (client, request) ~> primary
@@ -116,13 +118,13 @@ kvs request (primaryStateRef, backupStateRef) = do
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.
-mainChoreo :: Choreo IO ()
+mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
   backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
-    loop :: (IORef State @ "primary", IORef State @ "backup") -> Choreo IO ()
+    loop :: (IORef State @ "primary", IORef State @ "backup") -> Choreo Participants IO ()
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRefs

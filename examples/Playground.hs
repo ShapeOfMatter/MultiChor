@@ -19,8 +19,10 @@ import System.Environment
 alice :: Proxy "alice"
 alice = Proxy
 
+type Participants = '["alice"]
+
 -- Step 2: Writing a choreography
-choreography :: Choreo IO (() @ "alice")
+choreography :: Choreo Participants IO (() @ "alice")
 choreography = do
   alice `locally` \_ -> putStrLn "Hello, world!"
 

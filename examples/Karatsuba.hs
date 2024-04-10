@@ -64,6 +64,8 @@ worker1 = Proxy
 worker2 :: Proxy "worker2"
 worker2 = Proxy
 
+type Participants = ["primary", "worker1", "worker2"]
+
 data KaratsubaNums = KaratsubaNums
   { splitter :: Integer,
     h1 :: Integer,
@@ -73,13 +75,14 @@ data KaratsubaNums = KaratsubaNums
   }
 
 karatsuba ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c,
+   Member a Participants, Member b Participants, Member c Participants) =>
   Proxy a ->
   Proxy b ->
   Proxy c ->
   (Integer @ a) ->
   (Integer @ a) ->
-  Choreo IO (Integer @ a)
+  Choreo Participants IO (Integer @ a)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \unwrap -> return $ unwrap n1 < 10 || unwrap n2 < 10
   cond
@@ -115,7 +118,7 @@ karatsuba a b c n1 n2 = do
               h2 = n2 `div` splitter
               l2 = n2 `mod` splitter
 
-mainChoreo :: Integer -> Integer -> Choreo IO ()
+mainChoreo :: Integer -> Integer -> Choreo Participants IO ()
 mainChoreo n1 n2 = do
   n1 <- primary `locally` \_ -> return n1
   n2 <- primary `locally` \_ -> return n2

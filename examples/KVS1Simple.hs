@@ -48,6 +48,8 @@ client = Proxy
 server :: Proxy "server"
 server = Proxy
 
+type Participants = ["client", "server"]
+
 type State = Map String String
 
 data Request = Put String String | Get String deriving (Show, Read)
@@ -85,7 +87,7 @@ handleRequest request stateRef = case request of
 kvs ::
   Request @ "client" ->
   IORef State @ "server" ->
-  Choreo '["client", "server"] IO (Response @ "client")
+  Choreo Participants IO (Response @ "client")
 kvs request stateRef = do
   -- send the request to the server
   request' <- (client, request) ~> server
@@ -99,12 +101,12 @@ kvs request stateRef = do
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.
 -- HIII :> (*>_*)
-mainChoreo :: Choreo '["client", "server"] IO ()
+mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   stateRef <- server `locally` \_ -> newIORef (Map.empty :: State)
   loop stateRef
   where
-    loop :: IORef State @ "server" -> Choreo '["client", "server"] IO ()
+    loop :: IORef State @ "server" -> Choreo Participants IO ()
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef
