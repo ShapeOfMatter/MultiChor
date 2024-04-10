@@ -132,3 +132,9 @@ cond' :: (Show a, Read a, KnownSymbol l, Member l ps', Member l ps, SubSet ps' p
 cond' (l, m) c = do
   x <- l `locally` m
   cond (l, x) c
+
+reveal :: (Show a, Read a, KnownSymbol l)
+      => Proxy l
+      -> a @ l
+      -> Choreo m a
+reveal l al = cond (l, al) (\a -> return a)

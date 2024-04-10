@@ -1,13 +1,7 @@
 cabal-version:      2.4
-name:               HasChor
+name:               HasChorPlus
 version:            0.1.0.1
-synopsis:           Functional choreographic programming in Haskell
-license:            BSD-3-Clause
 license-file:       LICENSE
-author:             Gan Shen
-maintainer:         Gan Shen <gan_shen@icloud.com>
-copyright:          (c) Gan Shen 2022
-category:           Concurrency
 description:
     HasChor is a library for functional choreographic programming in Haskell.
     See the README.md for more information.
@@ -20,26 +14,8 @@ tested-with:
 extra-doc-files:
     README.md
 
-source-repository head
-    type:     git
-    location: https://github.com/gshen42/HasChor
-
-source-repository this
-    type:     git
-    location: https://github.com/gshen42/HasChor
-    tag:      v0.1.0.1
-
-library
-    hs-source-dirs:   src
+common basic-config
     default-language: GHC2021
-    exposed-modules:
-        Choreography
-        Choreography.Choreo
-        Choreography.Location
-        Choreography.Network
-        Choreography.Network.Http
-        Choreography.Network.Local
-        Control.Monad.Freer
     build-depends:
         , base                 >= 4.16 && < 4.20
         , bytestring           >= 0.11 && < 0.13
@@ -50,147 +26,182 @@ library
         , template-haskell     >= 2.18 && < 2.22
         , unordered-containers >= 0.2  && < 0.3
         , warp                 >= 3.3  && < 3.4
+    ghc-options:
+      -- -Wall
+      -- -Wno-incomplete-uni-patterns
+      -fprint-potential-instances
+    default-extensions: BlockArguments
+                       ,DataKinds
+                       ,LambdaCase
 
-executable bank-2pc
-    hs-source-dirs:   examples/bank-2pc
-    main-is:          Main.hs
-    default-language: GHC2021
+library choreography
+    import: basic-config
+    hs-source-dirs:   src
+    exposed-modules:
+        Choreography
+        Choreography.Choreo
+        Choreography.Location
+        Choreography.Network
+        Choreography.Network.Http
+        Choreography.Network.Local
+        Control.Monad.Freer
+
+common lib-dependent
+    import: basic-config
+    build-depends: choreography
+
+library examples
+    import: lib-dependent
+    hs-source-dirs:   examples
     build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
+        , async      >= 2.2  && < 2.3
+        , containers >= 0.6  && < 0.7
         , split   >= 0.2  && < 0.3
-        , time    >= 1.11 && < 1.13
-
-executable bookseller-0-network
-    hs-source-dirs:   examples/bookseller-0-network
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
-        , time    >= 1.11 && < 1.13
-
-executable bookseller-1-simple
-    hs-source-dirs:   examples/bookseller-1-simple
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
-        , time    >= 1.11 && < 1.13
-
-executable bookseller-2-higher-order
-    hs-source-dirs:   examples/bookseller-2-higher-order
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
-        , time    >= 1.11 && < 1.13
-
-executable bookseller-3-loc-poly
-    hs-source-dirs:   examples/bookseller-3-loc-poly
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
-        , time    >= 1.11 && < 1.13
-
-executable diffiehellman
-    hs-source-dirs:   examples/diffiehellman
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base    >= 4.16 && < 4.20
         , random  >= 1.2  && < 1.3
         , time    >= 1.11 && < 1.13
+        , transformers >= 0.5  && < 0.7
+        , QuickCheck >= 2.14 && < 3
+    exposed-modules:
+          Bank2PC
+        , Bookseller0Network
+        , Bookseller1Simple
+        , Bookseller2HigherOrder
+        , Bookseller3LocPoly
+        , DiffieHellman
+        , Karatsuba
+        , KVS1Simple
+        , KVS2PrimaryBackup
+        , KVS3HigherOrder
+        , KVS4LocPoly
+        , MergeSort
+        , Playground
+        , QuickSort
+        , RingLeader
+        , Data
+
+common example
+    import: lib-dependent
+    hs-source-dirs:   examples
+    build-depends:
+        , async      >= 2.2  && < 2.3
+        , containers >= 0.6  && < 0.7
+        , split   >= 0.2  && < 0.3
+        , random  >= 1.2  && < 1.3
+        , time    >= 1.11 && < 1.13
+        , transformers >= 0.5  && < 0.7
+        , QuickCheck >= 2.14 && < 3
+    other-modules: Data
+
+Test-Suite testExamples
+    import: example
+    type:             detailed-0.9
+    test-module:      Tests
+    build-depends:
+        , Cabal >= 3.6
+        , cabal-detailed-quickcheck >= 0.2.0
+    other-modules: Data
+                 , Bank2PC
+                 , Bookseller0Network
+                 , Bookseller1Simple
+                 , Bookseller2HigherOrder
+                 , Bookseller3LocPoly
+                 , DiffieHellman
+                 , Karatsuba
+                 , KVS1Simple
+                 , KVS2PrimaryBackup
+                 , KVS3HigherOrder
+                 , KVS4LocPoly
+                 , MergeSort
+                 , Playground
+                 , QuickSort
+                 , RingLeader
+
+executable bank-2pc
+    import: example
+    main-is:          Bank2PC.hs
+    ghc-options:
+      -main-is Bank2PC
+
+executable bookseller-0-network
+    import: example
+    main-is:          Bookseller0Network.hs
+    ghc-options:
+      -main-is Bookseller0Network
+
+executable bookseller-1-simple
+    import: example
+    main-is:          Bookseller1Simple.hs
+    ghc-options:
+      -main-is Bookseller1Simple
+
+executable bookseller-2-higher-order
+    import: example
+    main-is:          Bookseller2HigherOrder.hs
+    ghc-options:
+      -main-is Bookseller2HigherOrder
+
+executable bookseller-3-loc-poly
+    import: example
+    main-is:          Bookseller3LocPoly.hs
+    ghc-options:
+      -main-is Bookseller3LocPoly
+
+executable diffiehellman
+    import: example
+    main-is:          DiffieHellman.hs
+    ghc-options:
+      -main-is DiffieHellman
 
 executable karatsuba
-    hs-source-dirs:   examples/karatsuba
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , async      >= 2.2  && < 2.3
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
+    import: example
+    main-is:          Karatsuba.hs
+    ghc-options:
+      -main-is Karatsuba
 
 executable kvs1
-    hs-source-dirs:   examples/kvs-1-simple
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
+    import: example
+    main-is:          KVS1Simple.hs
+    ghc-options:
+      -main-is KVS1Simple
 
 executable kvs2
-    hs-source-dirs:   examples/kvs-2-primary-backup
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
+    import: example
+    main-is:          KVS2PrimaryBackup.hs
+    ghc-options:
+      -main-is KVS2PrimaryBackup
 
 executable kvs3
-    hs-source-dirs:   examples/kvs-3-higher-order
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
+    import: example
+    main-is:          KVS3HigherOrder.hs
+    ghc-options:
+      -main-is KVS3HigherOrder
 
 executable kvs4
-    hs-source-dirs:   examples/kvs-4-loc-poly
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
+    import: example
+    main-is:          KVS4LocPoly.hs
+    ghc-options:
+      -main-is KVS4LocPoly
 
 executable mergesort
-    hs-source-dirs:   examples/mergesort
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
-
-executable quicksort
-    hs-source-dirs:   examples/quicksort
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , async      >= 2.2  && < 2.3
-        , base       >= 4.16 && < 4.20
-        , containers >= 0.6  && < 0.7
-        , time       >= 1.11 && < 1.13
-
-executable ring-leader
-    hs-source-dirs:   examples/ring-leader
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base         >= 4.16 && < 4.20
-        , transformers >= 0.5  && < 0.7
+    import: example
+    main-is:          MergeSort.hs
+    ghc-options:
+      -main-is MergeSort
 
 executable playground
-    hs-source-dirs:   examples/playground
-    main-is:          Main.hs
-    default-language: GHC2021
-    build-depends:
-        , HasChor
-        , base         >= 4.16 && < 4.20
+    import: example
+    main-is:          Playground.hs
+    ghc-options:
+      -main-is Playground
+
+executable quicksort
+    import: example
+    main-is:          QuickSort.hs
+    ghc-options:
+      -main-is QuickSort
+
+executable ring-leader
+    import: example
+    main-is:          RingLeader.hs
+    ghc-options:
+      -main-is RingLeader

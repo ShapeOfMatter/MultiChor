@@ -2,7 +2,13 @@
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
 
-module Main where
+{-
+# Playground
+
+A template for writing your own choreography.
+-}
+
+module Playground where
 
 import Choreography
 import Control.Monad
