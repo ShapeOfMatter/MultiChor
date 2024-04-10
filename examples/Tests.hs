@@ -2,6 +2,7 @@ module Tests  where
 
 import Control.Concurrent.Async (mapConcurrently)
 import Data.Either (isRight)
+import Data.List (nub)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck ( (===)
@@ -16,6 +17,8 @@ import Test.QuickCheck ( (===)
                        , vectorOf)
 
 import qualified Bookseller0Network
+import qualified Bookseller1Simple
+import Choreography (runChoreography)
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (defaultBudget, deliverable, price, textbooks)
@@ -53,6 +56,22 @@ tests' = [
                       case delivery of
                         Nothing -> return $ defaultBudget < (price book)
                         Just d -> return $ defaultBudget >= (price book) && d == (deliverable book)
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-1-simple",
+    tags =[],
+    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
+                  let locs = ["seller", "buyer"]
+                  return $ ioProperty $ do
+                      config <- mkLocalConfig locs
+                      [delivery] <- nub <$> (
+                        mapConcurrently
+                        (runChoreography config (Bookseller1Simple.bookseller $ Data.name book))
+                        locs)
+                      case delivery of
+                        Nothing -> return $ Bookseller1Simple.budget < (price book)
+                        Just d -> return $ Bookseller1Simple.budget >= (price book) && d == (deliverable book)
   }
   ]
 

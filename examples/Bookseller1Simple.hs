@@ -66,9 +66,12 @@ Homotopy Type Theory
 module Bookseller1Simple where
 
 import Choreography
+import Choreography.Choreo (reveal)
 import Data.Proxy
 import Data.Time
 import System.Environment
+
+import Data (defaultBudget, deliverable, deliveryDateOf, price, priceOf, textbooks)
 
 buyer :: Proxy "buyer"
 buyer = Proxy
@@ -77,18 +80,15 @@ seller :: Proxy "seller"
 seller = Proxy
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
-bookseller :: Choreo IO (Maybe Day @ "buyer")
-bookseller = do
+bookseller :: String -> Choreo IO (Maybe Day)
+bookseller userTitle = do
   -- the buyer node prompts the user to enter the title of the book to buy
-  title <-
-    buyer `locally` \_ -> do
-      putStrLn "Enter the title of the book to buy"
-      getLine
+  title <- buyer `locally` \_ -> return userTitle
   -- the buyer sends the title to the seller
   title' <- (buyer, title) ~> seller
 
   -- the seller checks the price of the book
-  price <- seller `locally` \un -> return $ priceOf (un title')
+  price <- seller `locally` \un -> return $ priceOf textbooks (un title')
   -- the seller sends back the price of the book to the buyer
   price' <- (seller, price) ~> buyer
 
@@ -96,9 +96,9 @@ bookseller = do
   decision <- buyer `locally` \un -> return $ (un price') < budget
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  cond (buyer, decision) \case
+  delivery <- cond (buyer, decision) \case
     True  -> do
-      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un title')
+      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf textbooks (un title')
       deliveryDate' <- (seller, deliveryDate) ~> buyer
 
       buyer `locally` \un -> do
@@ -109,6 +109,7 @@ bookseller = do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
+  reveal buyer delivery
 
 -- `bookseller'` is a simplified version of `bookseller` that utilizes `~~>`
 bookseller' :: Choreo IO (Maybe Day @ "buyer")
@@ -119,11 +120,11 @@ bookseller' = do
            )
            ~~> seller
 
-  price <- (seller, \un -> return $ priceOf (un title)) ~~> buyer
+  price <- (seller, \un -> return $ priceOf textbooks (un title)) ~~> buyer
 
   cond' (buyer, \un -> return $ (un price) < budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un title)) ~~> buyer
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un title)) ~~> buyer
 
       buyer `locally` \un -> do
         putStrLn $ "The book will be delivered on " ++ show (un deliveryDate)
@@ -135,15 +136,7 @@ bookseller' = do
         return Nothing
 
 budget :: Int
-budget = 100
-
-priceOf :: String -> Int
-priceOf "Types and Programming Languages" = 80
-priceOf "Homotopy Type Theory"            = 120
-
-deliveryDateOf :: String -> Day
-deliveryDateOf "Types and Programming Languages" = fromGregorian 2022 12 19
-deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 01 01
+budget = defaultBudget
 
 main :: IO ()
 main = do
