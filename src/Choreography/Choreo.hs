@@ -126,4 +126,4 @@ reveal :: (Show a, Read a, KnownSymbol l, Member l ps)
       => Proxy l
       -> a @ l
       -> Choreo ps m a
-reveal l al = cond (l, al) (\a -> return a)
+reveal l al = cond (l, al) return

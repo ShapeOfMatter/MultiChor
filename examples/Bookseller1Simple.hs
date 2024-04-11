@@ -114,17 +114,16 @@ bookseller userTitle = do
   reveal buyer delivery
 
 -- `bookseller'` is a simplified version of `bookseller` that utilizes `~~>`
-bookseller' :: Choreo Participants IO (Maybe Day @ "buyer")
-bookseller' = do
+bookseller' :: String -> Choreo Participants IO (Maybe Day)
+bookseller' userTitle = do
   title <- (buyer, \_ -> do
-               putStrLn "Enter the title of the book to buy"
-               getLine
+               return userTitle
            )
            ~~> seller
 
   price <- (seller, \un -> return $ priceOf textbooks (un title)) ~~> buyer
 
-  cond' (buyer, \un -> return $ (un price) < budget) \case
+  delivery <- cond' (buyer, \un -> return $ un price < budget) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un title)) ~~> buyer
 
@@ -136,6 +135,7 @@ bookseller' = do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
+  reveal buyer delivery
 
 budget :: Int
 budget = defaultBudget
@@ -143,10 +143,12 @@ budget = defaultBudget
 main :: IO ()
 main = do
   [loc] <- getArgs
-  case loc of
-    "buyer"  -> runChoreography cfg bookseller' "buyer"
-    "seller" -> runChoreography cfg bookseller' "seller"
-  return ()
+  putStrLn "Enter the title of the book to buy"
+  title <- getLine
+  delivery <- case loc of
+    "buyer"  -> runChoreography cfg (bookseller' title) "buyer"
+    "seller" -> runChoreography cfg (bookseller' title) "seller"
+  print delivery
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
                        , ("seller", ("localhost", 4343))

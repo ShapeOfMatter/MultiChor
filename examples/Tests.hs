@@ -6,6 +6,7 @@ import Data.List (nub)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck ( (===)
+                       , (.&.)
                        , Arbitrary (arbitrary)
                        , arbitraryBoundedIntegral
                        , counterexample
@@ -18,14 +19,17 @@ import Test.QuickCheck ( (===)
 
 import qualified Bookseller0Network
 import qualified Bookseller1Simple
+import qualified Bookseller2HigherOrder
 import Choreography (runChoreography)
+import Choreography.Choreo (epp)
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (defaultBudget, deliverable, price, textbooks)
 import qualified Data
+import TTY (runTTYStateful, TTYEnv (..))
 
 tests :: IO [Test]
-tests = return $ tests'
+tests = return tests'
 
 normalSettings :: TestArgs
 normalSettings = stdTestArgs { verbosity = Verbose }
@@ -65,13 +69,50 @@ tests' = [
                   let locs = ["seller", "buyer"]
                   return $ ioProperty $ do
                       config <- mkLocalConfig locs
-                      [delivery] <- nub <$> (
+                      [delivery] <- nub <$> 
                         mapConcurrently
                         (runChoreography config (Bookseller1Simple.bookseller $ Data.name book))
-                        locs)
+                        locs
                       case delivery of
-                        Nothing -> return $ Bookseller1Simple.budget < (price book)
-                        Just d -> return $ Bookseller1Simple.budget >= (price book) && d == (deliverable book)
+                        Nothing -> return $ Bookseller1Simple.budget < price book
+                        Just d -> return $ Bookseller1Simple.budget >= price book && d == deliverable book
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-1-prime",
+    tags =[],
+    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
+                  let locs = ["seller", "buyer"]
+                  return $ ioProperty $ do
+                      config <- mkLocalConfig locs
+                      [delivery] <- nub <$> 
+                        mapConcurrently
+                        (runChoreography config (Bookseller1Simple.bookseller' $ Data.name book))
+                        locs
+                      case delivery of
+                        Nothing -> return $ Bookseller1Simple.budget < price book
+                        Just d -> return $ Bookseller1Simple.budget >= price book && d == deliverable book
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-2-higher-order",
+    tags =[],
+    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
+                  contrib2 <- arbitrary
+                  let situation = [ ("seller", [], [])
+                                  , ("buyer", [Data.name book], [show $ deliverable book | price book - contrib2 <= Bookseller2HigherOrder.budget])
+                                  , ("buyer2", [show @Int contrib2], [])]
+                  return $ ioProperty $ do
+                      config <- mkLocalConfig [l | (l, _, _) <- situation]
+                      results <- mapConcurrently
+                                             (\(name, inputs, outputs) -> do (os', _) <- runTTYStateful
+                                                                                    inputs
+                                                                                    $ runNetwork config name $ epp (
+                                                                                        Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision2
+                                                                                      ) name
+                                                                             return (os' === outputs))
+                                             situation
+                      return $ foldl1 (.&.) results
   }
   ]
 
