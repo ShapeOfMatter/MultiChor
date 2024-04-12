@@ -1,7 +1,6 @@
 module Data where
 
 import Data.Time
-import System.Environment
 
 
 defaultBudget :: Int

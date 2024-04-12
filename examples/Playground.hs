@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE LambdaCase     #-}
 
 {-
 # Playground

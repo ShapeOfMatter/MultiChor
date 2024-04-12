@@ -34,15 +34,10 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
-import Control.Concurrent (threadDelay)
-import Control.Monad
 import Data.IORef
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy
-import GHC.IORef (IORef (IORef))
-import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
 client :: Proxy "client"
@@ -97,8 +92,8 @@ type ReplicationStrategy a =
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
 nullReplicationStrategy request stateRef = do
-  primary `locally` \unwrap ->
-    handleRequest (unwrap request) (unwrap stateRef)
+  primary `locally` \un ->
+    handleRequest (un request) (un stateRef)
 
 -- | `primaryBackupReplicationStrategy` is a replication strategy that replicates the state to a backup server.
 primaryBackupReplicationStrategy ::
@@ -108,9 +103,9 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   cond (primary, request) \case
     Put _ _ -> do
       request' <- (primary, request) ~> backup
-      ( backup,
-        \unwrap ->
-          handleRequest (unwrap request') (unwrap backupStateRef)
+      _ <- ( backup,
+        \un ->
+          handleRequest (un request') (un backupStateRef)
         )
         ~~> primary
       return ()
@@ -118,8 +113,8 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
       return ()
 
   -- process request on primary
-  primary `locally` \unwrap ->
-    handleRequest (unwrap request) (unwrap primaryStateRef)
+  primary `locally` \un ->
+    handleRequest (un request) (un primaryStateRef)
 
 -- | `kvs` is a choreography that processes a single request at the client and returns the response.
 -- It uses the provided replication strategy to handle the request.
@@ -148,7 +143,7 @@ nullReplicationChoreo = do
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef nullReplicationStrategy
-      client `locally` \unwrap -> do putStrLn (show (unwrap response))
+      client `locally_` \un -> do print (un response)
       loop stateRef
 
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
@@ -162,7 +157,7 @@ primaryBackupChoreo = do
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRefs primaryBackupReplicationStrategy
-      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRefs
 
 main :: IO ()
@@ -172,6 +167,7 @@ main = do
     "client" -> runChoreography config mainChoreo "client"
     "primary" -> runChoreography config mainChoreo "primary"
     "backup" -> runChoreography config mainChoreo "backup"
+    _ -> error "unknown party"
   return ()
   where
     mainChoreo = primaryBackupChoreo -- or `nullReplicationChoreo`

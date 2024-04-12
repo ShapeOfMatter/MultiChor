@@ -6,8 +6,7 @@
 module Choreography.Network.Http where
 
 import Choreography.Location
-import Choreography.Network hiding (run)
-import Data.ByteString (fromStrict)
+import Choreography.Network hiding (run, send)
 import Data.Proxy (Proxy(..))
 import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
@@ -16,7 +15,6 @@ import Servant.API
 import Servant.Client (ClientM, client, runClientM, BaseUrl(..), mkClientEnv, Scheme(..))
 import Servant.Server (Handler, Server, serve)
 import Control.Concurrent
-import Control.Concurrent.Chan
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
@@ -106,7 +104,7 @@ runNetworkHttp cfg self prog = do
           return NoContent
 
     recvThread :: HttpConfig -> RecvChans -> IO ()
-    recvThread cfg chans = run (baseUrlPort $ locToUrl cfg ! self ) (serve api $ server chans)
+    recvThread cfg' chans = run (baseUrlPort $ locToUrl cfg' ! self ) (serve api $ server chans)
 
 instance Backend HttpConfig where
   runNetwork = runNetworkHttp

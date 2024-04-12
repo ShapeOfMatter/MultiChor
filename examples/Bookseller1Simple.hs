@@ -71,7 +71,7 @@ import Data.Proxy
 import Data.Time
 import System.Environment
 
-import Data (defaultBudget, deliverable, deliveryDateOf, price, priceOf, textbooks)
+import Data (defaultBudget, deliveryDateOf, priceOf, textbooks)
 
 buyer :: Proxy "buyer"
 buyer = Proxy
@@ -95,7 +95,7 @@ bookseller userTitle = do
   price' <- (seller, price) ~> buyer
 
   -- the buyer decides whether to buy the book or not
-  decision <- buyer `locally` \un -> return $ (un price') < budget
+  decision <- buyer `locally` \un -> return $ un price' < budget
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
   delivery <- cond (buyer, decision) \case
@@ -148,6 +148,7 @@ main = do
   delivery <- case loc of
     "buyer"  -> runChoreography cfg (bookseller' title) "buyer"
     "seller" -> runChoreography cfg (bookseller' title) "seller"
+    _ -> error "unknown party"
   print delivery
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))

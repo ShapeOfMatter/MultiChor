@@ -44,14 +44,11 @@ Bob's balance: 5
 
 module Bank2PC where
 
-import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
-import Choreography.Network.Http
 import Data.List.Split (splitOn)
-import Data.Maybe (catMaybes, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Proxy
-import System.Environment
 import Text.Read (readMaybe)
 
 client :: Proxy "client"
@@ -103,18 +100,18 @@ handleTransaction :: State -> Transaction @ "coordinator" -> Choreo Participants
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
   txa <- (coordinator, tx) ~> alice
-  voteAlice <- (alice, \unwrap -> do { return $ fst $ validate "alice" (unwrap aliceBalance) (unwrap txa) }) ~~> coordinator
+  voteAlice <- (alice, \un -> do { return $ fst $ validate "alice" (un aliceBalance) (un txa) }) ~~> coordinator
   txb <- (coordinator, tx) ~> bob
-  voteBob <- (bob, \unwrap -> do { return $ fst $ validate "bob" (unwrap bobBalance) (unwrap txb) }) ~~> coordinator
+  voteBob <- (bob, \un -> do { return $ fst $ validate "bob" (un bobBalance) (un txb) }) ~~> coordinator
 
   -- Check if the transaction can be committed
-  canCommit <- coordinator `locally` \unwrap -> do return $ unwrap voteAlice && unwrap voteBob
+  canCommit <- coordinator `locally` \un -> do return $ un voteAlice && un voteBob
 
   -- Commit Phase
   cond (coordinator, canCommit) \case
     True -> do
-      aliceBalance' <- alice `locally` \unwrap -> do return $ snd $ validate "alice" (unwrap aliceBalance) (unwrap txa)
-      bobBalance' <- bob `locally` \unwrap -> do return $ snd $ validate "bob" (unwrap bobBalance) (unwrap txb)
+      aliceBalance' <- alice `locally` \un -> do return $ snd $ validate "alice" (un aliceBalance) (un txa)
+      bobBalance' <- bob `locally` \un -> do return $ snd $ validate "bob" (un bobBalance) (un txb)
       return (canCommit, (aliceBalance', bobBalance'))
     False -> do
       return (canCommit, (aliceBalance, bobBalance))
@@ -122,15 +119,15 @@ handleTransaction (aliceBalance, bobBalance) tx = do
 -- | `bank` loops forever and handles transactions.
 bank :: State -> Choreo Participants IO ()
 bank state = do
-  client `locally` \_ -> do
+  client `locally_` \_ -> do
     putStrLn "Command? (alice|bob {amount};)+"
   tx <- (client, \_ -> do { parse <$> getLine }) ~~> coordinator
   (committed, state') <- handleTransaction state tx
   committed' <- (coordinator, committed) ~> client
-  client `locally` \unwrap -> do
-    putStrLn if unwrap committed' then "Committed" else "Not committed"
-  alice `locally` \unwrap -> do putStrLn ("Alice's balance: " ++ show (unwrap (fst state')))
-  bob `locally` \unwrap -> do putStrLn ("Bob's balance: " ++ show (unwrap (snd state')))
+  client `locally_` \un -> do
+    putStrLn if un committed' then "Committed" else "Not committed"
+  alice `locally_` \un -> do putStrLn ("Alice's balance: " ++ show (un (fst state')))
+  bob `locally_` \un -> do putStrLn ("Bob's balance: " ++ show (un (snd state')))
   bank state' -- repeat
   return ()
 

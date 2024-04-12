@@ -1,21 +1,15 @@
 module Tests  where
 
 import Control.Concurrent.Async (mapConcurrently)
-import Data.Either (isRight)
 import Data.List (nub)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck ( (===)
                        , (.&.)
                        , Arbitrary (arbitrary)
-                       , arbitraryBoundedIntegral
-                       , counterexample
                        , elements
-                       , Gen
                        , ioProperty
-                       , Property
-                       , Testable
-                       , vectorOf)
+                       , Testable)
 
 import qualified Bookseller0Network
 import qualified Bookseller1Simple
@@ -26,7 +20,7 @@ import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (defaultBudget, deliverable, price, textbooks)
 import qualified Data
-import TTY (runTTYStateful, TTYEnv (..))
+import TTY (runTTYStateful)
 
 tests :: IO [Test]
 tests = return tests'
@@ -55,11 +49,11 @@ tests' = [
                   return $ ioProperty $ do
                       config <- mkLocalConfig (fst <$> processes)  -- The IO Monad
                       [Nothing, delivery] <- mapConcurrently
-                                             (\(name, process) -> runNetwork config name process)
+                                             (uncurry $ runNetwork config)
                                              processes
                       case delivery of
-                        Nothing -> return $ defaultBudget < (price book)
-                        Just d -> return $ defaultBudget >= (price book) && d == (deliverable book)
+                        Nothing -> return $ defaultBudget < price book
+                        Just d -> return $ defaultBudget >= price book && d == deliverable book
   },
 
   getNormalPT PropertyTest {

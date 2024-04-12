@@ -8,7 +8,6 @@ module Choreography.Choreo where
 import Choreography.Location
 import Choreography.Network
 import Control.Monad.Freer
-import Data.List
 import Data.Proxy
 import GHC.TypeLits
 
@@ -67,9 +66,9 @@ epp c l' = interpFreer handler c
       | toLocTm s == l'        = send (unwrap a) (toLocTm r) >> return Empty
       | toLocTm r == l'        = wrap <$> recv (toLocTm s)
       | otherwise              = return Empty
-    handler (Cond l a c)
-      | toLocTm l == l' = broadcast (unwrap a) >> epp (c (unwrap a)) l'
-      | otherwise       = recv (toLocTm l) >>= \x -> epp (c x) l'
+    handler (Cond l a ch)
+      | toLocTm l == l' = broadcast (unwrap a) >> epp (ch (unwrap a)) l'
+      | otherwise       = recv (toLocTm l) >>= \x -> epp (ch x) l'
 
 -- * Choreo operations
 
@@ -127,3 +126,12 @@ reveal :: (Show a, Read a, KnownSymbol l, Member l ps)
       -> a @ l
       -> Choreo ps m a
 reveal l al = cond (l, al) return
+
+
+locally_ :: (KnownSymbol l
+            ,Member l ps)
+        => Proxy l           -- ^ Location performing the local computation.
+        -> (Unwrap l -> m ()) -- ^ The local computation given a constrained
+                             -- unwrap funciton.
+        -> Choreo ps m ()
+locally_ l m = locally l m >>= const (return ())

@@ -23,15 +23,14 @@ cabal run quicksort
 
 module QuickSort where
 
+import Control.Concurrent.Async (mapConcurrently_)
+
 import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
-import Control.Concurrent.Async (async, mapConcurrently_, wait)
 import Data.Proxy
-import Data.Time
 import GHC.TypeLits (KnownSymbol)
-import System.Environment
 
 reference :: [Int] -> [Int]
 reference [] = []
@@ -57,32 +56,32 @@ quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c,
               Member a Participants, Member b Participants, Member c Participants
               ) => Proxy a -> Proxy b -> Proxy c -> [Int] @ a -> Choreo Participants IO ([Int] @ a)
 quicksort a b c lst = do
-  isEmpty <- a `locally` \unwrap -> pure (null (unwrap lst))
+  isEmpty <- a `locally` \un -> pure (null (un lst))
   cond (a, isEmpty) \case
     True -> do
       a `locally` \_ -> pure []
     False -> do
-      smaller <- (a, \unwrap -> let x : xs = unwrap lst in pure [i | i <- xs, i <= x]) ~~> b
+      smaller <- (a, \un -> let x : xs = un lst in pure [i | i <- xs, i <= x]) ~~> b
       smaller' <- quicksort b c a smaller
       smaller'' <- (b, smaller') ~> a
-      bigger <- (a, \unwrap -> let x : xs = unwrap lst in pure [i | i <- xs, i > x]) ~~> c
+      bigger <- (a, \un -> let x : xs = un lst in pure [i | i <- xs, i > x]) ~~> c
       bigger' <- quicksort c a b bigger
       bigger'' <- (c, bigger') ~> a
-      a `locally` \unwrap -> pure $ unwrap smaller'' ++ [head (unwrap lst)] ++ unwrap bigger''
+      a `locally` \un -> pure $ un smaller'' ++ [head (un lst)] ++ un bigger''
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  lst <- primary `locally` \unwrap -> do return [1, 6, 5, 3, 4, 2, 7, 8]
+  lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- quicksort primary worker1 worker2 lst
-  primary `locally` \unwrap -> do
-    print (unwrap sorted)
+  primary `locally_` \un -> do
+    print (un sorted)
     return ()
   return ()
 
 main :: IO ()
 main = do
-  config <- mkLocalConfig locs
-  mapConcurrently_ (runChoreography config mainChoreo) locs
+  config <- mkLocalConfig locations
+  mapConcurrently_ (runChoreography config mainChoreo) locations
   return ()
   where
-    locs = ["primary", "worker1", "worker2"]
+    locations = ["primary", "worker1", "worker2"]

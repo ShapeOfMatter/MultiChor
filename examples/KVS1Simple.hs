@@ -31,15 +31,10 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
-import Control.Concurrent (threadDelay)
-import Control.Monad
 import Data.IORef
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy
-import GHC.IORef (IORef (IORef))
-import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
 client :: Proxy "client"
@@ -93,8 +88,8 @@ kvs request stateRef = do
   request' <- (client, request) ~> server
   -- the server handles the response and creates a response
   response <-
-    server `locally` \unwrap ->
-      handleRequest (unwrap request') (unwrap stateRef)
+    server `locally` \un ->
+      handleRequest (un request') (un stateRef)
   -- send the response back to the client
   (server, response) ~> client
 
@@ -110,7 +105,7 @@ mainChoreo = do
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef
-      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRef
 
 main :: IO ()
@@ -119,6 +114,7 @@ main = do
   case loc of
     "client" -> runChoreography config mainChoreo "client"
     "server" -> runChoreography config mainChoreo "server"
+    _ -> error "unknown party"
   return ()
   where
     config =

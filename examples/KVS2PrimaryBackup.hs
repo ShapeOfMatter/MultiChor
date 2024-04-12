@@ -30,15 +30,10 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
-import Control.Concurrent (threadDelay)
-import Control.Monad
 import Data.IORef
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy
-import GHC.IORef (IORef (IORef))
-import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
 client :: Proxy "client"
@@ -98,20 +93,20 @@ kvs request (primaryStateRef, backupStateRef) = do
   -- branch on the request
   cond (primary, request') \case
     -- if the request is a `PUT`, forward the request to the backup node
-    Put key value -> do
+    Put _ _ -> do
       request'' <- (primary, request') ~> backup
       ack <-
-        backup `locally` \unwrap -> do
-          handleRequest (unwrap request'') (unwrap backupStateRef)
-      (backup, ack) ~> primary
+        backup `locally` \un -> do
+          handleRequest (un request'') (un backupStateRef)
+      _ <- (backup, ack) ~> primary
       return ()
     _ -> do
       return ()
 
   -- process request on the primary node
   response <-
-    primary `locally` \unwrap ->
-      handleRequest (unwrap request') (unwrap primaryStateRef)
+    primary `locally` \un ->
+      handleRequest (un request') (un primaryStateRef)
 
   -- send response to client
   (primary, response) ~> client
@@ -128,7 +123,7 @@ mainChoreo = do
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRefs
-      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRefs
 
 main :: IO ()
@@ -138,6 +133,7 @@ main = do
     "client" -> runChoreography config mainChoreo "client"
     "primary" -> runChoreography config mainChoreo "primary"
     "backup" -> runChoreography config mainChoreo "backup"
+    _ -> error "unknown party"
   return ()
   where
     config =

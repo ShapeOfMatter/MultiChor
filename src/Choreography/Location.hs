@@ -4,7 +4,6 @@
 module Choreography.Location where
 
 import Data.Proxy
-import Data.String
 import GHC.TypeLits
 import Language.Haskell.TH
 

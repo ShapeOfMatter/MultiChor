@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 
 {-
 # Example: diffie-hellman key exchange
@@ -40,7 +39,6 @@ import Choreography (mkHttpConfig, runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Data.Proxy
-import Data.Time
 import System.Environment
 import System.Random
 
@@ -68,28 +66,28 @@ type Participants = ["alice", "bob"]
 diffieHellman :: Choreo Participants IO (Integer @ "alice", Integer @ "bob")
 diffieHellman = do
   -- wait for alice to initiate the process
-  alice `locally` \unwrap -> do
+  _ <- alice `locally` \_ -> do
     putStrLn "enter to start key exchange..."
     getLine
-  bob `locally` \unwrap -> do
+  bob `locally_` \_ -> do
     putStrLn "waiting for alice to initiate key exchange"
 
   -- alice picks p and g and sends them to bob
   pa <-
-    alice `locally` \unwrap -> do
+    alice `locally` \_ -> do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
   pb <- (alice, pa) ~> bob
-  ga <- alice `locally` \unwrap -> do randomRIO (10, unwrap pa)
+  ga <- alice `locally` \un -> do randomRIO (10, un pa)
   gb <- (alice, ga) ~> bob
 
   -- alice and bob select secrets
-  a <- alice `locally` \unwrap -> do randomRIO (200, 1000 :: Integer)
-  b <- bob `locally` \unwrap -> do randomRIO (200, 1000 :: Integer)
+  a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
+  b <- bob `locally` \_ -> do randomRIO (200, 1000 :: Integer)
 
   -- alice and bob computes numbers that they exchange
-  a' <- alice `locally` \unwrap -> do return $ unwrap ga ^ unwrap a `mod` unwrap pa
-  b' <- bob `locally` \unwrap -> do return $ unwrap gb ^ unwrap b `mod` unwrap pb
+  a' <- alice `locally` \un -> do return $ un ga ^ un a `mod` un pa
+  b' <- bob `locally` \un -> do return $ un gb ^ un b `mod` un pb
 
   -- exchange numbers
   a'' <- (alice, a') ~> bob
@@ -97,14 +95,14 @@ diffieHellman = do
 
   -- compute shared key
   s1 <-
-    alice `locally` \unwrap ->
-      let s = unwrap b'' ^ unwrap a `mod` unwrap pa
+    alice `locally` \un ->
+      let s = un b'' ^ un a `mod` un pa
        in do
             putStrLn ("alice's shared key: " ++ show s)
             return s
   s2 <-
-    bob `locally` \unwrap ->
-      let s = unwrap a'' ^ unwrap b `mod` unwrap pb
+    bob `locally` \un ->
+      let s = un a'' ^ un b `mod` un pb
        in do
             putStrLn ("bob's shared key: " ++ show s)
             return s
@@ -113,9 +111,10 @@ diffieHellman = do
 main :: IO ()
 main = do
   [loc] <- getArgs
-  x <- case loc of
+  _ <- case loc of
     "alice" -> runChoreography config diffieHellman "alice"
     "bob" -> runChoreography config diffieHellman "bob"
+    _ -> error "unknown party"
   return ()
   where
     config =

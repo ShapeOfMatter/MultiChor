@@ -53,8 +53,9 @@ main = do
                   result <- runNetwork cfg "buyer" $ buyer defaultBudget title
                   case result of
                     Nothing -> putStrLn "The book's price is out of the budget"
-                    Just day -> putStrLn ("The book will be delivered on " ++ (show day))
+                    Just day -> putStrLn ("The book will be delivered on " ++ show day)
     "seller" -> runNetwork cfg "seller" $ seller textbooks
+    _ -> error "unknown party"
   return ()
   where
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))

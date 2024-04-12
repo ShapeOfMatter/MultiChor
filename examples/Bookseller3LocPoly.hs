@@ -65,21 +65,24 @@ budget = 100
 priceOf :: String -> Int
 priceOf "Types and Programming Languages" = 80
 priceOf "Homotopy Type Theory"            = 120
+priceOf _ = error "unknown book"
 
 deliveryDateOf :: String -> Day
 deliveryDateOf "Types and Programming Languages" = fromGregorian 2022 12 19
 deliveryDateOf "Homotopy Type Theory"            = fromGregorian 2023 01 01
+deliveryDateOf _ = error "unknown book"
 
 main :: IO ()
 main = do
   [loc] <- getArgs
-  case loc of
+  _ <- case loc of
     "buyer"  -> runChoreography cfg choreo "buyer"
     "seller" -> runChoreography cfg choreo "seller"
+    _ -> error "unknown party"
   return ()
   where
     choreo = bookseller buyer
-    
+
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
                        , ("seller", ("localhost", 4343))
                        ]

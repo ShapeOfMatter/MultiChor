@@ -126,10 +126,11 @@ budget = defaultBudget
 main :: IO ()
 main = do
   [loc] <- getArgs
-  case loc of
+  _ <- case loc of
     "buyer"  -> runTTYIO $ runChoreography cfg choreo "buyer"
     "seller" -> runTTYIO $ runChoreography cfg choreo "seller"
     "buyer2" -> runTTYIO $ runChoreography cfg choreo "buyer2"
+    _ -> error "unknown party"
   return ()
   where
     choreo = bookseller mkDecision2

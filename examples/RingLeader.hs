@@ -14,7 +14,6 @@ import Choreography
 import Choreography.Location (Member)
 import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
-import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import System.Environment
@@ -30,10 +29,10 @@ type Ring = [Edge]
 type Label = Int
 
 ringLeader :: Ring -> Choreo Participants (StateT Label IO) ()
-ringLeader ring = loop ring
+ringLeader r = loop r
   where
     loop :: Ring -> Choreo Participants (StateT Label IO) ()
-    loop []     = loop ring
+    loop []     = loop r
     loop (x:xs) = do
       finished <- talkToRight x
       if finished
@@ -50,10 +49,10 @@ ringLeader ring = loop ring
 
       cond (right, finished) \case
         True  -> do
-          right `locally` \_ -> lift $ putStrLn "I'm the leader"
+          right `locally_` \_ -> lift $ putStrLn "I'm the leader"
           return True
         False -> do
-          right `locally` \un -> put (max (un labelLeft) (un labelRight))
+          right `locally_` \un -> put (max (un labelLeft) (un labelRight))
           return False
 
 nodeA :: Proxy "A"
@@ -70,6 +69,7 @@ nodeD = Proxy
 
 type Participants = ["A", "B", "C", "D"]
 
+ring :: Ring
 ring = [ Edge nodeA nodeB
        , Edge nodeB nodeC
        , Edge nodeC nodeD
@@ -81,7 +81,7 @@ main = do
   [loc] <- getArgs
   putStrLn "Please input a label:"
   label <- read <$> getLine
-  runStateT (runChoreography config (ringLeader ring) loc) label
+  _ <- runStateT (runChoreography config (ringLeader ring) loc) label
   return ()
   where
     config = mkHttpConfig [ ("A", ("localhost", 4242))

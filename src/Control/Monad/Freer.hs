@@ -38,6 +38,6 @@ toFreer :: f a -> Freer f a
 toFreer eff = Do eff Return
 
 -- | Interpret the effects in a freer monad in terms of another monad.
-interpFreer :: Monad m => (forall a. f a -> m a) -> Freer f a -> m a
-interpFreer handler (Return a) = return a
+interpFreer :: Monad m => (forall b. f b -> m b) -> Freer f a -> m a
+interpFreer _ (Return a) = return a
 interpFreer handler (Do eff k) = handler eff >>= interpFreer handler . k

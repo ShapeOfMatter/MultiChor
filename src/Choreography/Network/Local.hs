@@ -6,7 +6,6 @@ module Choreography.Network.Local where
 import Choreography.Location
 import Choreography.Network
 import Control.Concurrent
-import Control.Concurrent.Chan
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
@@ -29,10 +28,10 @@ newEmptyMsgBuf = foldM f HashMap.empty
       return (HashMap.insert loc chan hash)
 
 mkLocalConfig :: [LocTm] -> IO LocalConfig
-mkLocalConfig locs = LocalConfig <$> foldM f HashMap.empty locs
+mkLocalConfig ls = LocalConfig <$> foldM f HashMap.empty ls
   where
     f hash loc = do
-      buf <- newEmptyMsgBuf locs
+      buf <- newEmptyMsgBuf ls
       return (HashMap.insert loc buf hash)
 
 locs :: LocalConfig -> [LocTm]

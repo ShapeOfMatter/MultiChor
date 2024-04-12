@@ -34,14 +34,10 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
-import Control.Concurrent (threadDelay)
-import Control.Monad
 import Data.IORef
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe, isJust)
 import Data.Proxy
-import GHC.IORef (IORef (IORef))
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
@@ -99,12 +95,12 @@ type ReplicationStrategy a = Request @ "primary" -> a -> Choreo Participants IO 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
 nullReplicationStrategy request stateRef = do
-  primary `locally` \unwrap -> case unwrap request of
+  primary `locally` \un -> case un request of
     Put key value -> do
-      modifyIORef (unwrap stateRef) (Map.insert key value)
+      modifyIORef (un stateRef) (Map.insert key value)
       return (Just value)
     Get key -> do
-      state <- readIORef (unwrap stateRef)
+      state <- readIORef (un stateRef)
       return (Map.lookup key state)
 
 -- | `doBackup` relays a mutating request to a backup location.
@@ -123,7 +119,7 @@ doBackup locA locB request stateRef = do
   cond (locA, request) \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB
-      (locB, \unwrap -> handleRequest (unwrap request') (unwrap stateRef))
+      _ <- (locB, \un -> handleRequest (un request') (un stateRef))
         ~~> locA
       return ()
     _ -> do
@@ -136,7 +132,7 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   doBackup primary backup1 request backupStateRef
 
   -- process request on primary
-  primary `locally` \unwrap -> handleRequest (unwrap request) (unwrap primaryStateRef)
+  primary `locally` \un -> handleRequest (un request) (un primaryStateRef)
 
 -- | `doubleBackupReplicationStrategy` is a replication strategy that replicates the state to two backup servers.
 doubleBackupReplicationStrategy ::
@@ -150,8 +146,8 @@ doubleBackupReplicationStrategy
     doBackup primary backup2 request backup2StateRef
 
     -- process request on primary
-    primary `locally` \unwrap ->
-      handleRequest (unwrap request) (unwrap primaryStateRef)
+    primary `locally` \un ->
+      handleRequest (un request) (un primaryStateRef)
 
 -- | `kvs` is a choreography that processes a single request at the client and returns the response.
 -- It uses the provided replication strategy to handle the request.
@@ -175,7 +171,7 @@ nullReplicationChoreo = do
     loop stateRef = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRef nullReplicationStrategy
-      client `locally` \unwrap -> do putStrLn (show (unwrap response))
+      client `locally_` \un -> do print (un response)
       loop stateRef
 
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
@@ -189,7 +185,7 @@ primaryBackupChoreo = do
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRefs primaryBackupReplicationStrategy
-      client `locally` \unwrap -> do putStrLn (show (unwrap response))
+      client `locally_` \un -> do print (un response)
       loop stateRefs
 
 -- | `doubleBackupChoreo` is a choreography that uses `doubleBackupReplicationStrategy`.
@@ -204,7 +200,7 @@ doubleBackupChoreo = do
     loop stateRefs = do
       request <- client `locally` \_ -> readRequest
       response <- kvs request stateRefs doubleBackupReplicationStrategy
-      client `locally` \unwrap -> do putStrLn ("> " ++ show (unwrap response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRefs
 
 main :: IO ()
@@ -215,6 +211,7 @@ main = do
     "primary" -> runChoreography config primaryBackupChoreo "primary"
     "backup1" -> runChoreography config primaryBackupChoreo "backup1"
     "backup2" -> runChoreography config primaryBackupChoreo "backup2"
+    _ -> error "unknown party"
   return ()
   where
     config =

@@ -13,6 +13,7 @@ module Choreography (
   Choreo,
   -- ** Choreo operations
   locally,
+  locally_,
   (~>),
   (~~>),
   cond,
@@ -34,9 +35,7 @@ import Choreography.Location
 import Choreography.Choreo
 import Choreography.Network
 import Choreography.Network.Http
-import Choreography.Network.Local
 import Control.Monad.IO.Class
-import Data.Proxy
 
 -- | Run a choreography with a message transport backend.
 runChoreography :: (Backend config, MonadIO m) => config -> Choreo ps m a -> LocTm -> m a

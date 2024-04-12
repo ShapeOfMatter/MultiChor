@@ -30,7 +30,6 @@ import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
 import Data.Proxy
-import Data.Time
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
@@ -63,13 +62,13 @@ sort :: (KnownSymbol a
   ([Int] @ a) ->
   Choreo Participants IO ([Int] @ a)
 sort a b c lst = do
-  condition <- a `locally` \unwrap -> do return $ length (unwrap lst) > 1
+  condition <- a `locally` \un -> do return $ length (un lst) > 1
   cond (a, condition) \case
     True -> do
-      pivot <- a `locally` \unwrap -> do return $ length (unwrap lst) `div` 2
-      divided <- a `locally` \unwrap -> do return $ divide (unwrap lst)
-      l <- a `locally` \unwrap -> do return $ fst (unwrap divided)
-      r <- a `locally` \unwrap -> do return $ snd (unwrap divided)
+      _ <- a `locally` \un -> do return $ length (un lst) `div` 2
+      divided <- a `locally` \un -> do return $ divide (un lst)
+      l <- a `locally` \un -> do return $ fst (un divided)
+      r <- a `locally` \un -> do return $ snd (un divided)
       l' <- (a, l) ~> b
       r' <- (a, r) ~> c
       ls' <- sort b c a l'
@@ -92,30 +91,30 @@ merge :: (KnownSymbol a
   [Int] @ c ->
   Choreo Participants IO ([Int] @ a)
 merge a b c lhs rhs = do
-  lhsHasElements <- b `locally` \unwrap -> do return $ not (null (unwrap lhs))
+  lhsHasElements <- b `locally` \un -> do return $ not (null (un lhs))
   cond (b, lhsHasElements) \case
     True -> do
-      rhsHasElements <- c `locally` \unwrap -> do return $ not (null (unwrap rhs))
+      rhsHasElements <- c `locally` \un -> do return $ not (null (un rhs))
       cond (c, rhsHasElements) \case
         True -> do
-          rhsHeadAtC <- c `locally` \unwrap -> do return $ head (unwrap rhs)
+          rhsHeadAtC <- c `locally` \un -> do return $ head (un rhs)
           rhsHeadAtB <- (c, rhsHeadAtC) ~> b
-          takeLhs <- b `locally` \unwrap -> do return $ head (unwrap lhs) <= unwrap rhsHeadAtB
+          takeLhs <- b `locally` \un -> do return $ head (un lhs) <= un rhsHeadAtB
           cond (b, takeLhs) \case
             True -> do
               -- take (head lhs) and merge the rest
-              lhs' <- b `locally` \unwrap -> do return $ tail (unwrap lhs)
+              lhs' <- b `locally` \un -> do return $ tail (un lhs)
               merged <- merge a b c lhs' rhs
-              lhsHeadAtB <- b `locally` \unwrap -> do return $ head (unwrap lhs)
+              lhsHeadAtB <- b `locally` \un -> do return $ head (un lhs)
               lhsHeadAtA <- (b, lhsHeadAtB) ~> a
-              a `locally` \unwrap -> do return $ unwrap lhsHeadAtA : unwrap merged
+              a `locally` \un -> do return $ un lhsHeadAtA : un merged
             False -> do
               -- take (head rhs) and merge the rest
-              rhs' <- c `locally` \unwrap -> do return $ tail (unwrap rhs)
+              rhs' <- c `locally` \un -> do return $ tail (un rhs)
               merged <- merge a b c lhs rhs'
-              rhsHeadAtC <- c `locally` \unwrap -> do return $ head (unwrap rhs)
-              rhsHeadAtA <- (c, rhsHeadAtC) ~> a
-              a `locally` \unwrap -> do return $ unwrap rhsHeadAtA : unwrap merged
+              rhsHeadAtC' <- c `locally` \un -> do return $ head (un rhs)
+              rhsHeadAtA <- (c, rhsHeadAtC') ~> a
+              a `locally` \un -> do return $ un rhsHeadAtA : un merged
         False -> do
           (b, lhs) ~> a
     False -> do
@@ -123,10 +122,10 @@ merge a b c lhs rhs = do
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  lst <- primary `locally` \unwrap -> do return [1, 6, 5, 3, 4, 2, 7, 8]
+  lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- sort primary worker1 worker2 lst
-  primary `locally` \unwrap -> do
-    print (unwrap sorted)
+  _ <- primary `locally` \un -> do
+    print (un sorted)
     return ()
   return ()
 
@@ -137,6 +136,7 @@ main = do
     "primary" -> runChoreography config mainChoreo "primary"
     "worker1" -> runChoreography config mainChoreo "worker1"
     "worker2" -> runChoreography config mainChoreo "worker2"
+    _ -> error "unknown worker"
   return ()
   where
     config =
