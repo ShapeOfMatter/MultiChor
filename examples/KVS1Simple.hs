@@ -99,7 +99,7 @@ mainChoreo = do
   where
     loop :: IORef State @ "server" -> Choreo Participants IO ()
     loop stateRef = do
-      request <- client `locally` \_ -> readRequest
+      request <- client `_locally` readRequest
       response <- kvs request stateRef
       client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRef

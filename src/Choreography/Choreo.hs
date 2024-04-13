@@ -124,10 +124,14 @@ reveal :: (Show a, Read a, KnownSymbol l)
       -> Choreo ps m a
 reveal l al = cond (l, al) return
 
-
 locally_ :: (KnownSymbol l)
-        => Member l ps           -- ^ Location performing the local computation.
-        -> (Unwrap l -> m ()) -- ^ The local computation given a constrained
-                             -- unwrap funciton.
+        => Member l ps
+        -> (Unwrap l -> m ())
         -> Choreo ps m ()
 locally_ l m = locally l m >>= const (return ())
+
+_locally :: (KnownSymbol l)
+        => Member l ps
+        -> m a
+        -> Choreo ps m (a @ l)
+_locally l m = locally l $ const m

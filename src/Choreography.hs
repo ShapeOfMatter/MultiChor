@@ -22,6 +22,7 @@ module Choreography (
   -- ** Choreo operations
   locally,
   locally_,
+  _locally,
   (~>),
   (~~>),
   cond,

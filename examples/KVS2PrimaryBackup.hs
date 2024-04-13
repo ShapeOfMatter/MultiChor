@@ -115,7 +115,7 @@ mainChoreo = do
   where
     loop :: (IORef State @ "primary", IORef State @ "backup") -> Choreo Participants IO ()
     loop stateRefs = do
-      request <- client `locally` \_ -> readRequest
+      request <- client `_locally` readRequest
       response <- kvs request stateRefs
       client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRefs

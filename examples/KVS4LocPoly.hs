@@ -158,7 +158,7 @@ nullReplicationChoreo = do
   where
     loop :: IORef State @ "primary" -> Choreo Participants IO ()
     loop stateRef = do
-      request <- client `locally` \_ -> readRequest
+      request <- client `_locally` readRequest
       response <- kvs request stateRef nullReplicationStrategy
       client `locally_` \un -> do print (un response)
       loop stateRef
@@ -172,7 +172,7 @@ primaryBackupChoreo = do
   where
     loop :: (IORef State @ "primary", IORef State @ "backup1") -> Choreo Participants IO ()
     loop stateRefs = do
-      request <- client `locally` \_ -> readRequest
+      request <- client `_locally` readRequest
       response <- kvs request stateRefs primaryBackupReplicationStrategy
       client `locally_` \un -> do print (un response)
       loop stateRefs
@@ -187,7 +187,7 @@ doubleBackupChoreo = do
   where
     loop :: (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2") -> Choreo Participants IO ()
     loop stateRefs = do
-      request <- client `locally` \_ -> readRequest
+      request <- client `_locally` readRequest
       response <- kvs request stateRefs doubleBackupReplicationStrategy
       client `locally_` \un -> do putStrLn ("> " ++ show (un response))
       loop stateRefs

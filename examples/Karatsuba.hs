@@ -42,7 +42,7 @@ reference n1 n2 =
   where
     log10 :: Integer -> Double
     log10 = logBase 10 . fromIntegral
-    m = (max (log10 n1) (log10 n2)) + 1
+    m = max (log10 n1) (log10 n2) + 1
     m2 :: Integer = floor (m / 2)
     splitter = 10 ^ m2
     h1 = n1 `div` splitter
@@ -51,7 +51,7 @@ reference n1 n2 =
     l2 = n2 `mod` splitter
     z0 = reference l1 l2
     z2 = reference h1 h2
-    z1 = (reference (l1 + h1) (l2 + h2)) - z2 - z0
+    z1 = reference (l1 + h1) (l2 + h2) - z2 - z0
     result = z2 * splitter * splitter + z1 * splitter + z0
 
 
