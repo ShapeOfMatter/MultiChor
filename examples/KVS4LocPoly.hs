@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: Key-value store with location polymorphism
@@ -37,22 +38,13 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-primary :: Proxy "primary"
-primary = Proxy
-
-backup1 :: Proxy "backup1"
-backup1 = Proxy
-
-backup2 :: Proxy "backup2"
-backup2 = Proxy
-
+$(mkLoc "client")
+$(mkLoc "primary")
+$(mkLoc "backup1")
+$(mkLoc "backup2")
 type Participants = ["client", "primary", "backup1", "backup2"]
 
 type State = Map String String
@@ -106,15 +98,12 @@ nullReplicationStrategy request stateRef = do
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
   (KnownSymbol a,
-   KnownSymbol b,
-   Member a Participants,
-   Member b Participants
-   )=>
-  Proxy a ->
-  Proxy b ->
+   KnownSymbol b)=>
+  Member a ps ->
+  Member b ps ->
   Request @ a ->
   IORef State @ b ->
-  Choreo Participants IO ()
+  Choreo ps IO ()
 doBackup locA locB request stateRef = do
   cond (locA, request) \case
     Put _ _ -> do

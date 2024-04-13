@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: diffie-hellman key exchange
@@ -38,7 +39,6 @@ module DiffieHellman where
 import Choreography (mkHttpConfig, runChoreography)
 import Choreography.Choreo
 import Choreography.Location
-import Data.Proxy
 import System.Environment
 import System.Random
 
@@ -54,12 +54,8 @@ isPrime x = divisors x == [1, x]
 primeNums :: [Integer]
 primeNums = [x | x <- [2 ..], isPrime x]
 
--- set up proxies
-alice :: Proxy "alice"
-alice = Proxy
-
-bob :: Proxy "bob"
-bob = Proxy
+$(mkLoc "alice")
+$(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 

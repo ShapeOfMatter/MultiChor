@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: Karatsuba Fast Multiplication
@@ -30,7 +31,6 @@ import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
 import Control.Concurrent.Async (mapConcurrently_)
-import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
@@ -55,14 +55,9 @@ reference n1 n2 =
     result = z2 * splitter * splitter + z1 * splitter + z0
 
 
-primary :: Proxy "primary"
-primary = Proxy
-
-worker1 :: Proxy "worker1"
-worker1 = Proxy
-
-worker2 :: Proxy "worker2"
-worker2 = Proxy
+$(mkLoc "primary")
+$(mkLoc "worker1")
+$(mkLoc "worker2")
 
 type Participants = ["primary", "worker1", "worker2"]
 
@@ -75,11 +70,10 @@ data KaratsubaNums = KaratsubaNums
   }
 
 karatsuba ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c,
-   Member a Participants, Member b Participants, Member c Participants) =>
-  Proxy a ->
-  Proxy b ->
-  Proxy c ->
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+  Member a Participants ->
+  Member b Participants ->
+  Member c Participants ->
   (Integer @ a) ->
   (Integer @ a) ->
   Choreo Participants IO (Integer @ a)

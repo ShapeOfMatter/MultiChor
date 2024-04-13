@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: bank-2pc
@@ -44,25 +45,15 @@ Bob's balance: 5
 
 module Bank2PC where
 
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
-import Data.Proxy
 import Text.Read (readMaybe)
 
-client :: Proxy "client"
-client = Proxy
-
-coordinator :: Proxy "coordinator"
-coordinator = Proxy
-
-alice :: Proxy "alice"
-alice = Proxy
-
-bob :: Proxy "bob"
-bob = Proxy
-
+$(mkLoc "client")
+$(mkLoc "coordinator")
+$(mkLoc "alice")
+$(mkLoc "bob")
 type Participants = ["client", "coordinator", "alice", "bob"]
 
 type State = (Int @ "alice", Int @ "bob")

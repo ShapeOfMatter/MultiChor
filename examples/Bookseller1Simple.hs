@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Simple bookseller
@@ -66,19 +67,13 @@ Homotopy Type Theory
 module Bookseller1Simple where
 
 import Choreography
-import Choreography.Choreo (reveal)
-import Data.Proxy
 import Data.Time
 import System.Environment
 
 import Data (defaultBudget, deliveryDateOf, priceOf, textbooks)
 
-buyer :: Proxy "buyer"
-buyer = Proxy
-
-seller :: Proxy "seller"
-seller = Proxy
-
+$(mkLoc "buyer")
+$(mkLoc "seller")
 type Participants = ["buyer", "seller"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.

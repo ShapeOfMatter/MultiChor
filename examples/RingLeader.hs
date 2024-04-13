@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Ring leader election
@@ -11,8 +12,6 @@ Experinmental implementaion of ring leader election.
 module RingLeader where
 
 import Choreography
-import Choreography.Location (Member)
-import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
@@ -20,26 +19,26 @@ import System.Environment
 
 -- an edge of the ring is represented as a tuple of two locaitons l and l' where
 -- l is on the left of l'
-data Edge = forall l l'.
-  (KnownSymbol l, KnownSymbol l', Member l Participants, Member l' Participants) => Edge (Proxy l) (Proxy l')
+data Edge g = forall l l'.
+  (KnownSymbol l, KnownSymbol l') => Edge (Member l g) (Member l' g)
 
 -- a ring is a sequence of edges
-type Ring = [Edge]
+type Ring g = [Edge g]
 
 type Label = Int
 
-ringLeader :: Ring -> Choreo Participants (StateT Label IO) ()
+ringLeader :: forall g. Ring g -> Choreo g (StateT Label IO) ()  -- g for graph
 ringLeader r = loop r
   where
-    loop :: Ring -> Choreo Participants (StateT Label IO) ()
-    loop []     = loop r
+    loop :: Ring g -> Choreo g (StateT Label IO) ()
+    loop []     = loop r  -- not very safe!
     loop (x:xs) = do
       finished <- talkToRight x
       if finished
       then return ()
       else loop xs
 
-    talkToRight :: Edge -> Choreo Participants (StateT Label IO) Bool
+    talkToRight :: Edge g -> Choreo g (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       labelLeft  <- (left, \_ -> get) ~~> right
       labelRight <- right `locally` \_ -> get
@@ -55,21 +54,14 @@ ringLeader r = loop r
           right `locally_` \un -> put (max (un labelLeft) (un labelRight))
           return False
 
-nodeA :: Proxy "A"
-nodeA = Proxy
 
-nodeB :: Proxy "B"
-nodeB = Proxy
+$(mkLoc "nodeA")
+$(mkLoc "nodeB")
+$(mkLoc "nodeC")
+$(mkLoc "nodeD")
+type Participants = ["nodeA", "nodeB", "nodeC", "nodeD"]
 
-nodeC :: Proxy "C"
-nodeC = Proxy
-
-nodeD :: Proxy "D"
-nodeD = Proxy
-
-type Participants = ["A", "B", "C", "D"]
-
-ring :: Ring
+ring :: Ring Participants
 ring = [ Edge nodeA nodeB
        , Edge nodeB nodeC
        , Edge nodeC nodeD
@@ -84,8 +76,8 @@ main = do
   _ <- runStateT (runChoreography config (ringLeader ring) loc) label
   return ()
   where
-    config = mkHttpConfig [ ("A", ("localhost", 4242))
-                          , ("B", ("localhost", 4343))
-                          , ("C", ("localhost", 4444))
-                          , ("D", ("localhost", 4545))
+    config = mkHttpConfig [ ("nodeA", ("localhost", 4242))
+                          , ("nodeB", ("localhost", 4343))
+                          , ("nodeC", ("localhost", 4444))
+                          , ("nodeD", ("localhost", 4545))
                           ]

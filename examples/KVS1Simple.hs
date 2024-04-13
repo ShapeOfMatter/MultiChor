@@ -2,7 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use const" #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: Simple client-server key-value store
@@ -34,14 +34,10 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Proxy
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-server :: Proxy "server"
-server = Proxy
+$(mkLoc "client")
+$(mkLoc "server")
 
 type Participants = ["client", "server"]
 

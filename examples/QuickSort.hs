@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: Quicksort
@@ -29,7 +30,6 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
-import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 
 reference :: [Int] -> [Int]
@@ -41,20 +41,14 @@ reference (x : xs) = smaller ++ [x] ++ bigger
 
 
 
-primary :: Proxy "primary"
-primary = Proxy
-
-worker1 :: Proxy "worker1"
-worker1 = Proxy
-
-worker2 :: Proxy "worker2"
-worker2 = Proxy
-
+$(mkLoc "primary")
+$(mkLoc "worker1")
+$(mkLoc "worker2")
 type Participants = ["primary", "worker1", "worker2"]
 
-quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c,
-              Member a Participants, Member b Participants, Member c Participants
-              ) => Proxy a -> Proxy b -> Proxy c -> [Int] @ a -> Choreo Participants IO ([Int] @ a)
+quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+             Member a ps -> Member b ps -> Member c ps
+             -> [Int] @ a -> Choreo ps IO ([Int] @ a)
 quicksort a b c lst = do
   isEmpty <- a `locally` \un -> pure (null (un lst))
   cond (a, isEmpty) \case

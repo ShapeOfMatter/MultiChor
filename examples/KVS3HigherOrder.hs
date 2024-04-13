@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: Key-value store with higher-order choreography
@@ -37,18 +38,11 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Proxy
 import System.Environment
 
-client :: Proxy "client"
-client = Proxy
-
-primary :: Proxy "primary"
-primary = Proxy
-
-backup :: Proxy "backup"
-backup = Proxy
-
+$(mkLoc "client")
+$(mkLoc "primary")
+$(mkLoc "backup")
 type Participants = ["client", "primary", "backup"]
 
 type State = Map String String

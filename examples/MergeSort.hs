@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Example: merge sort
@@ -29,7 +30,6 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Http
-import Data.Proxy
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
@@ -38,29 +38,20 @@ divide xs = splitAt lhx xs
   where
     lhx = length xs `div` 2
 
-primary :: Proxy "primary"
-primary = Proxy
-
-worker1 :: Proxy "worker1"
-worker1 = Proxy
-
-worker2 :: Proxy "worker2"
-worker2 = Proxy
-
+$(mkLoc "primary")
+$(mkLoc "worker1")
+$(mkLoc "worker2")
 type Participants = ["primary", "worker1", "worker2"]
 
 sort :: (KnownSymbol a
         ,KnownSymbol c
         ,KnownSymbol b
-        ,Member a Participants
-        ,Member b Participants
-        ,Member c Participants
         ) =>
-  Proxy a ->
-  Proxy b ->
-  Proxy c ->
+  Member a ps ->
+  Member b ps ->
+  Member c ps ->
   ([Int] @ a) ->
-  Choreo Participants IO ([Int] @ a)
+  Choreo ps IO ([Int] @ a)
 sort a b c lst = do
   condition <- a `locally` \un -> do return $ length (un lst) > 1
   cond (a, condition) \case
@@ -80,16 +71,13 @@ sort a b c lst = do
 merge :: (KnownSymbol a
          ,KnownSymbol c
          ,KnownSymbol b
-         ,Member a Participants
-         ,Member b Participants
-         ,Member c Participants
          ) =>
-  Proxy a ->
-  Proxy b ->
-  Proxy c ->
+  Member a ps ->
+  Member b ps ->
+  Member c ps ->
   [Int] @ b ->
   [Int] @ c ->
-  Choreo Participants IO ([Int] @ a)
+  Choreo ps IO ([Int] @ a)
 merge a b c lhs rhs = do
   lhsHasElements <- b `locally` \un -> do return $ not (null (un lhs))
   cond (b, lhsHasElements) \case

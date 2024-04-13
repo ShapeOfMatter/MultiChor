@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Playground
@@ -11,13 +12,10 @@ module Playground where
 
 import Choreography
 import Control.Monad
-import Data.Proxy
 import System.Environment
 
 -- Step 1: Defining locations
-alice :: Proxy "alice"
-alice = Proxy
-
+$(mkLoc "alice")
 type Participants = '["alice"]
 
 -- Step 2: Writing a choreography

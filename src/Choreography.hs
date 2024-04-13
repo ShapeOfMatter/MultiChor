@@ -8,6 +8,14 @@ module Choreography (
   LocTy,
   type (@),
   mkLoc,
+  Member,
+  ExplicitMember,
+  explicitMember,
+  explicitSubset,
+  inSuper,
+  consSet,
+  consSuper,
+  singleton,
 
   -- * The Choreo monad
   Choreo,
@@ -18,6 +26,7 @@ module Choreography (
   (~~>),
   cond,
   cond',
+  reveal,
 
   -- * Message transport backends
   -- ** The HTTP backend

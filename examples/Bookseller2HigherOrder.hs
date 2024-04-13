@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Higher-order bookseller
@@ -54,21 +55,15 @@ module Bookseller2HigherOrder where
 
 import Control.Monad.Cont (MonadIO(liftIO))
 import Choreography
-import Data.Proxy
 import Data.Time
 import System.Environment
 
 import TTY
 import Data
 
-buyer :: Proxy "buyer"
-buyer = Proxy
-
-seller :: Proxy "seller"
-seller = Proxy
-
-buyer2 :: Proxy "buyer2"
-buyer2 = Proxy
+$(mkLoc "buyer")
+$(mkLoc "seller")
+$(mkLoc "buyer2")
 
 type Participants = ["buyer", "seller", "buyer2"]
 

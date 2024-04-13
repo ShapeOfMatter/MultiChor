@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {-
 # Location-polymorphic bookseller
@@ -18,44 +19,39 @@ Same as [`bookseller-1-simple`](../bookseller-1-simple) but with `cabal run book
 module Bookseller3LocPoly where
 
 import Choreography
-import Choreography.Location (Member)
-import Data.Proxy
 import Data.Time
 import GHC.TypeLits
 import System.Environment
 
-buyer :: Proxy "buyer"
-buyer = Proxy
-
-seller :: Proxy "seller"
-seller = Proxy
-
-type Participants = ["buyer", "seller"]
+$(mkLoc "buyer")
+$(mkLoc "seller")
+--type Participants = ["buyer", "seller"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes the name of the buyer as a parameter (`someBuyer`).
-bookseller :: (KnownSymbol a, Member a Participants) => Proxy a -> Choreo Participants IO (Maybe Day @ a)
+bookseller :: (KnownSymbol a) => Member a ps -> Choreo ("seller" ': ps) IO (Maybe Day @ a)
 bookseller someBuyer = do
+  let theBuyer = inSuper consSet someBuyer
   -- the buyer reads the title of the book and sends it to the seller
-  title <- (buyer, \_ -> do
+  title <- (theBuyer, \_ -> do
                putStrLn "Enter the title of the book to buy"
                getLine
            )
            ~~> seller
 
   -- the seller checks the price of the book and sends it to the buyer
-  price <- (seller, \un -> return $ priceOf (un title)) ~~> someBuyer
+  price <- (seller, \un -> return $ priceOf (un title)) ~~> theBuyer
 
-  cond' (someBuyer, \un -> return $ (un price) < budget) \case
+  cond' (theBuyer, \un -> return $ un price < budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un title)) ~~> someBuyer
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un title)) ~~> theBuyer
 
-      someBuyer `locally` \un -> do
+      theBuyer `locally` \un -> do
         putStrLn $ "The book will be delivered on " ++ show (un deliveryDate)
         return $ Just (un deliveryDate)
 
     False -> do
-      someBuyer `locally` \_ -> do
+      theBuyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
 
@@ -81,7 +77,7 @@ main = do
     _ -> error "unknown party"
   return ()
   where
-    choreo = bookseller buyer
+    choreo = bookseller $ singleton buyer
 
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
                        , ("seller", ("localhost", 4343))
