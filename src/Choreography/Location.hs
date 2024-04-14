@@ -69,7 +69,7 @@ instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
   explicitSubset = axiom
 
 
--- | Define a location at both type and proof levels.
+-- |Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.
 mkLoc :: String -> Q [Dec]
 mkLoc loc = do
   let locName = mkName loc

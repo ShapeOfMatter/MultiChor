@@ -32,6 +32,8 @@ common basic-config
       -Wall
       -Wno-incomplete-uni-patterns
       -fprint-potential-instances
+      -haddock
+      -Winvalid-haddock
     default-extensions: BlockArguments
                        ,DataKinds
                        ,LambdaCase

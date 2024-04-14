@@ -39,7 +39,7 @@ data ChoreoSig (ps :: [LocTy]) m a where
        -> (a -> Choreo ps m b)
        -> ChoreoSig ps m b
 
--- | Monad for writing choreographies.
+-- |Monad for writing choreographies.
 type Choreo ps m = Freer (ChoreoSig ps m)
 
 -- | Run a `Choreo` monad directly.
