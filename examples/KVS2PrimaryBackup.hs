@@ -77,9 +77,9 @@ handleRequest request stateRef = case request of
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 -- If the request is a `PUT`, it will forward the request to the backup node.
 kvs ::
-  Request @ "client" ->
-  (IORef State @ "primary", IORef State @ "backup") ->
-  Choreo Participants IO (Response @ "client")
+  Located "client" Request ->
+  (Located "primary" (IORef State), Located "backup" (IORef State)) ->
+  Choreo Participants IO (Located "client" Response)
 kvs request (primaryStateRef, backupStateRef) = do
   -- send request to the primary node
   request' <- (client, request) ~> primary
@@ -113,7 +113,7 @@ mainChoreo = do
   backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
-    loop :: (IORef State @ "primary", IORef State @ "backup") -> Choreo Participants IO ()
+    loop :: (Located "primary" (IORef State), Located "backup" (IORef State)) -> Choreo Participants IO ()
     loop stateRefs = do
       request <- client `_locally` readRequest
       response <- kvs request stateRefs

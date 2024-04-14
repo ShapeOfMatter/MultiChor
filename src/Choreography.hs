@@ -6,7 +6,7 @@ module Choreography (
   -- * Locations and Located Values
   LocTm,
   LocTy,
-  type (@),
+  type Located,
   mkLoc,
   Member,
   ExplicitMember,

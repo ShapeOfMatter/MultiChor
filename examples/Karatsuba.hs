@@ -74,9 +74,9 @@ karatsuba ::
   Member a Participants ->
   Member b Participants ->
   Member c Participants ->
-  (Integer @ a) ->
-  (Integer @ a) ->
-  Choreo Participants IO (Integer @ a)
+  Located a Integer ->
+  Located a Integer ->
+  Choreo Participants IO (Located a Integer)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \un -> return $ un n1 < 10 || un n2 < 10
   cond

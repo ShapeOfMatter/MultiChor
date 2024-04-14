@@ -17,21 +17,20 @@ type LocTy = Symbol
 
 -- | Located values.
 --
--- @a \@ l@ represents a value of type @a@ at location @l@.
--- TODO type level sets of locations?
-data a @ (l :: LocTy)
+-- @Located l a@ represents a value of type @a@ at location @l@.
+data Located (l :: LocTy) a
   = Wrap a -- ^ A located value @a \@ l@ from location @l@'s perspective.
   | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s
            -- perspective.
 
 -- | Wrap a value as a located value.
-wrap :: a -> a @ l
+wrap :: a -> Located l a
 wrap = Wrap
 
 -- | Unwrap a located value.
 --
 -- /Note:/ Unwrapping a empty located value will throw an exception.
-unwrap :: a @ l-> a
+unwrap :: Located l a -> a
 unwrap (Wrap a) = a
 unwrap Empty    = error "this should never happen for a well-typed choreography"
 

@@ -48,7 +48,7 @@ type Participants = ["primary", "worker1", "worker2"]
 
 quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
              Member a ps -> Member b ps -> Member c ps
-             -> [Int] @ a -> Choreo ps IO ([Int] @ a)
+             -> Located a [Int] -> Choreo ps IO (Located a [Int])
 quicksort a b c lst = do
   isEmpty <- a `locally` \un -> pure (null (un lst))
   cond (a, isEmpty) \case

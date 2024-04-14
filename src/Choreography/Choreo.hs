@@ -13,7 +13,7 @@ import GHC.TypeLits
 -- * The Choreo monad
 -- | A constrained version of `unwrap` that only unwraps values located at a
 -- specific location.
-type Unwrap l = forall a. a @ l -> a
+type Unwrap l = forall a. Located l a -> a
 
 -- | Effect signature for the `Choreo` monad. @m@ is a monad that represents
 -- local computations.
@@ -25,17 +25,17 @@ data ChoreoSig (ps :: [LocTy]) m a where
   Local :: (KnownSymbol l)
         => Member l ps
         -> (Unwrap l -> m a)
-        -> ChoreoSig ps m (a @ l)
+        -> ChoreoSig ps m (Located l a)
 
   Comm :: (Show a, Read a, KnownSymbol l, KnownSymbol l')
        => Member l ps
-       -> a @ l
+       -> Located l a
        -> Member l' ps
-       -> ChoreoSig ps m (a @ l')
+       -> ChoreoSig ps m (Located l' a)
 
   Cond :: (Show a, Read a, KnownSymbol l)
        => Member l ps
-       -> a @ l
+       -> Located l a
        -> (a -> Choreo ps m b)
        -> ChoreoSig ps m b
 
@@ -75,20 +75,20 @@ locally :: (KnownSymbol l)
         => Member l ps           -- ^ Location performing the local computation.
         -> (Unwrap l -> m a) -- ^ The local computation given a constrained
                              -- unwrap funciton.
-        -> Choreo ps m (a @ l)
+        -> Choreo ps m (Located l a)
 locally l m = toFreer (Local l m)
 
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbol l')
-     => (Member l ps, a @ l)  -- ^ A pair of a sender's location and a value located
+     => (Member l ps, Located l a)  -- ^ A pair of a sender's location and a value located
                           -- at the sender
      -> Member l' ps          -- ^ A receiver's location.
-     -> Choreo ps m (a @ l')
+     -> Choreo ps m (Located l' a)
 (~>) (l, a) l' = toFreer (Comm l a l')
 
 -- | Conditionally execute choreographies based on a located value.
 cond :: (Show a, Read a, KnownSymbol l)
-     => (Member l ps, a @ l)  -- ^ A pair of a location and a scrutinee located on
+     => (Member l ps, Located l a)  -- ^ A pair of a location and a scrutinee located on
                           -- it.
      -> (a -> Choreo ps m b) -- ^ A function that describes the follow-up
                           -- choreographies based on the value of scrutinee.
@@ -100,7 +100,7 @@ cond (l, a) c = toFreer (Cond l a c)
       => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local
                                     -- computation.
       -> Member l' ps                   -- ^ A receiver's location.
-      -> Choreo ps m (a @ l')
+      -> Choreo ps m (Located l' a)
 (~~>) (l, m) l' = do
   x <- l `locally` m
   (l, x) ~> l'
@@ -120,7 +120,7 @@ cond' (l, m) c = do
 
 reveal :: (Show a, Read a, KnownSymbol l)
       => Member l ps
-      -> a @ l
+      -> Located l a
       -> Choreo ps m a
 reveal l al = cond (l, al) return
 
@@ -133,5 +133,5 @@ locally_ l m = locally l m >>= const (return ())
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
-        -> Choreo ps m (a @ l)
+        -> Choreo ps m (Located l a)
 _locally l m = locally l $ const m

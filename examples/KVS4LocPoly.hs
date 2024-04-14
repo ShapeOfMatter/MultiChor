@@ -82,10 +82,10 @@ handleRequest request stateRef = case request of
 
 -- | ReplicationStrategy specifies how a request should be handled on possibly replicated servers
 -- `a` is a type that represent states across locations
-type ReplicationStrategy a = Request @ "primary" -> a -> Choreo Participants IO (Response @ "primary")
+type ReplicationStrategy a = Located "primary" Request -> a -> Choreo Participants IO (Located "primary" Response)
 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
-nullReplicationStrategy :: ReplicationStrategy (IORef State @ "primary")
+nullReplicationStrategy :: ReplicationStrategy (Located "primary" (IORef State))
 nullReplicationStrategy request stateRef = do
   primary `locally` \un -> case un request of
     Put key value -> do
@@ -101,8 +101,8 @@ doBackup ::
    KnownSymbol b)=>
   Member a ps ->
   Member b ps ->
-  Request @ a ->
-  IORef State @ b ->
+  Located a Request ->
+  Located b (IORef State) ->
   Choreo ps IO ()
 doBackup locA locB request stateRef = do
   cond (locA, request) \case
@@ -115,7 +115,7 @@ doBackup locA locB request stateRef = do
       return ()
 
 -- | `primaryBackupReplicationStrategy` is a replication strategy that replicates the state to a backup server.
-primaryBackupReplicationStrategy :: ReplicationStrategy (IORef State @ "primary", IORef State @ "backup1")
+primaryBackupReplicationStrategy :: ReplicationStrategy (Located "primary" (IORef State), Located "backup1" (IORef State))
 primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
   doBackup primary backup1 request backupStateRef
@@ -126,7 +126,7 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
 -- | `doubleBackupReplicationStrategy` is a replication strategy that replicates the state to two backup servers.
 doubleBackupReplicationStrategy ::
   ReplicationStrategy
-    (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2")
+    (Located "primary" (IORef State), Located "backup1" (IORef State), Located "backup2" (IORef State))
 doubleBackupReplicationStrategy
   request
   (primaryStateRef, backup1StateRef, backup2StateRef) = do
@@ -140,7 +140,7 @@ doubleBackupReplicationStrategy
 
 -- | `kvs` is a choreography that processes a single request at the client and returns the response.
 -- It uses the provided replication strategy to handle the request.
-kvs :: Request @ "client" -> a -> ReplicationStrategy a -> Choreo Participants IO (Response @ "client")
+kvs :: Located "client" Request -> a -> ReplicationStrategy a -> Choreo Participants IO (Located "client" Response)
 kvs request stateRefs replicationStrategy = do
   request' <- (client, request) ~> primary
 
@@ -156,7 +156,7 @@ nullReplicationChoreo = do
   stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
   loop stateRef
   where
-    loop :: IORef State @ "primary" -> Choreo Participants IO ()
+    loop :: Located "primary" (IORef State) -> Choreo Participants IO ()
     loop stateRef = do
       request <- client `_locally` readRequest
       response <- kvs request stateRef nullReplicationStrategy
@@ -170,7 +170,7 @@ primaryBackupChoreo = do
   backupStateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
-    loop :: (IORef State @ "primary", IORef State @ "backup1") -> Choreo Participants IO ()
+    loop :: (Located "primary" (IORef State), Located "backup1" (IORef State)) -> Choreo Participants IO ()
     loop stateRefs = do
       request <- client `_locally` readRequest
       response <- kvs request stateRefs primaryBackupReplicationStrategy
@@ -185,7 +185,7 @@ doubleBackupChoreo = do
   backup2StateRef <- backup2 `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backup1StateRef, backup2StateRef)
   where
-    loop :: (IORef State @ "primary", IORef State @ "backup1", IORef State @ "backup2") -> Choreo Participants IO ()
+    loop :: (Located "primary" (IORef State), Located "backup1" (IORef State), Located "backup2" (IORef State)) -> Choreo Participants IO ()
     loop stateRefs = do
       request <- client `_locally` readRequest
       response <- kvs request stateRefs doubleBackupReplicationStrategy

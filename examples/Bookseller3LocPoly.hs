@@ -29,7 +29,7 @@ $(mkLoc "seller")
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes the name of the buyer as a parameter (`someBuyer`).
-bookseller :: (KnownSymbol a) => Member a ps -> Choreo ("seller" ': ps) IO (Maybe Day @ a)
+bookseller :: (KnownSymbol a) => Member a ps -> Choreo ("seller" ': ps) IO (Located a (Maybe Day))
 bookseller someBuyer = do
   let theBuyer = inSuper consSet someBuyer
   -- the buyer reads the title of the book and sends it to the seller

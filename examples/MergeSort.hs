@@ -50,8 +50,8 @@ sort :: (KnownSymbol a
   Member a ps ->
   Member b ps ->
   Member c ps ->
-  ([Int] @ a) ->
-  Choreo ps IO ([Int] @ a)
+  Located a [Int] ->
+  Choreo ps IO (Located a [Int])
 sort a b c lst = do
   condition <- a `locally` \un -> do return $ length (un lst) > 1
   cond (a, condition) \case
@@ -75,9 +75,9 @@ merge :: (KnownSymbol a
   Member a ps ->
   Member b ps ->
   Member c ps ->
-  [Int] @ b ->
-  [Int] @ c ->
-  Choreo ps IO ([Int] @ a)
+  Located b [Int] ->
+  Located c [Int] ->
+  Choreo ps IO (Located a [Int])
 merge a b c lhs rhs = do
   lhsHasElements <- b `locally` \un -> do return $ not (null (un lhs))
   cond (b, lhsHasElements) \case

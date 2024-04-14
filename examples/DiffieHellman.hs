@@ -59,7 +59,7 @@ $(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 
-diffieHellman :: Choreo Participants IO (Integer @ "alice", Integer @ "bob")
+diffieHellman :: Choreo Participants IO (Located "alice" Integer, Located "bob" Integer)
 diffieHellman = do
   -- wait for alice to initiate the process
   _ <- alice `locally` \_ -> do

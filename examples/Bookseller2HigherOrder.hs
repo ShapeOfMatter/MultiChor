@@ -69,7 +69,8 @@ type Participants = ["buyer", "seller", "buyer2"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: (Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")) -> Choreo Participants (TTY IO) (Maybe Day @ "buyer")
+bookseller :: (Located "buyer" Int -> Choreo Participants (TTY IO) (Located "buyer" Bool))
+              -> Choreo Participants (TTY IO) (Located "buyer" (Maybe Day))
 bookseller mkDecision = do
   -- the buyer reads the title of the book and sends it to the seller
   title <- (buyer, \_ -> do
@@ -100,13 +101,13 @@ bookseller mkDecision = do
         return Nothing
 
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
-mkDecision1 :: Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")
+mkDecision1 :: Located "buyer" Int -> Choreo Participants (TTY IO) (Located "buyer" Bool)
 mkDecision1 price = do
   buyer `locally` \un -> return $ un price < budget
 
 -- | `mkDecision2` asks buyer2 how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus buyer2's contribution
-mkDecision2 :: Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")
+mkDecision2 :: Located "buyer" Int -> Choreo Participants (TTY IO) (Located "buyer" Bool)
 mkDecision2 price = do
   contrib <- (buyer2, \_ -> do
                  liftIO $ putStrLn "How much you're willing to contribute?"

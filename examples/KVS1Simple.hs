@@ -76,9 +76,9 @@ handleRequest request stateRef = case request of
 
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 kvs ::
-  Request @ "client" ->
-  IORef State @ "server" ->
-  Choreo Participants IO (Response @ "client")
+  Located "client" Request ->
+  Located "server" (IORef State) ->
+  Choreo Participants IO (Located "client" Response)
 kvs request stateRef = do
   -- send the request to the server
   request' <- (client, request) ~> server
@@ -97,7 +97,7 @@ mainChoreo = do
   stateRef <- server `locally` \_ -> newIORef (Map.empty :: State)
   loop stateRef
   where
-    loop :: IORef State @ "server" -> Choreo Participants IO ()
+    loop :: Located "server" (IORef State) -> Choreo Participants IO ()
     loop stateRef = do
       request <- client `_locally` readRequest
       response <- kvs request stateRef
