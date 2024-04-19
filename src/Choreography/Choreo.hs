@@ -6,6 +6,9 @@
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo where
 
+import Data.List (delete)
+import Control.Monad (when)
+
 import Choreography.Location
 import Choreography.Network
 import Control.Monad.Freer
@@ -62,13 +65,16 @@ epp c l' = interpFreer handler c
     handler (Local l m)
       | toLocTm l == l' = wrap <$> run (m unwrap)
       | otherwise       = return Empty
-    handler (Comm s a rs)
-      | toLocTm (elimAndR s) `elem` toLocs rs = return $ wrap (unwrap (elimAndL s) a)
-      | toLocTm (elimAndR s) == l'            = send (unwrap (elimAndL s) a) (toLocs rs) >> return Empty
-      | l' `elem` toLocs rs                   = wrap <$> recv (toLocTm (elimAndL s))
-      | otherwise                             = return Empty
+    handler (Comm s a rs) = do
+      let sender = toLocTm $ elimAndR s
+      let otherRecipients = sender `delete` toLocs rs
+      when (sender == l') $ send (unwrap (elimAndL s) a) otherRecipients
+      case () of  -- Is there a better way to write this?
+        _ | l' `elem` otherRecipients -> wrap <$> recv sender
+          | l' == sender              -> return . wrap . unwrap (elimAndL s) $ a
+          | otherwise                 -> return Empty
     handler (Cond l a ch)
-      | toLocTm ( elimAndR l) == l' = broadcast (unwrap (elimAndL l) a) >> epp (ch (unwrap (elimAndL l) a)) l'
+      | toLocTm (elimAndR l) == l' = broadcast (unwrap (elimAndL l) a) >> epp (ch (unwrap (elimAndL l) a)) l'
       | otherwise       = recv (toLocTm (elimAndR l)) >>= \x -> epp (ch x) l'
 
 -- * Choreo operations

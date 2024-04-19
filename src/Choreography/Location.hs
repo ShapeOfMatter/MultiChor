@@ -5,8 +5,6 @@
 module Choreography.Location where
 
 import Data.Proxy (Proxy(..))
--- import Data.Type.Bool
--- import Data.Type.Equality (type (==))
 import GHC.TypeLits
 import Language.Haskell.TH
 import Logic.Proof (Proof, axiom)
@@ -104,15 +102,3 @@ instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
 toLocs _ = symbolVals (Proxy @ls)
 
---type family Add x y where
-    --Add 'Zero n = n
-    --Add ('Succ n) m = Add n ('Succ m)
-
-{- type family MemberF (elem :: k) (ls :: [k]) where
-  MemberF elem '[] = False
-  MemberF elem (h : ls) = h == elem || (MemberF elem ls)
-
-type family Intersection (ls :: [k]) (ls' :: [k]) where
-  Intersection '[] s2 = s2
-  Intersection (h1 ': t1) l2 = If (MemberF h1 l2) (h1 ': Intersection t1 l2) (Intersection t1 l2)
- -}
