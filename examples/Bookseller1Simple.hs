@@ -66,6 +66,8 @@ Homotopy Type Theory
 
 module Bookseller1Simple where
 
+import Logic.Propositional (introAnd)
+
 import Choreography
 import Data.Time
 import System.Environment
@@ -82,31 +84,31 @@ bookseller userTitle = do
   -- the buyer node prompts the user to enter the title of the book to buy
   title <- buyer `locally` \_ -> return userTitle
   -- the buyer sends the title to the seller
-  title' <- (buyer, title) ~> seller
+  title' <- (buyer `introAnd` buyer, title) ~> (seller @@ nobody)
 
   -- the seller checks the price of the book
-  price <- seller `locally` \un -> return $ priceOf textbooks (un title')
+  price <- seller `locally` \un -> return $ priceOf textbooks (un seller title')
   -- the seller sends back the price of the book to the buyer
-  price' <- (seller, price) ~> buyer
+  price' <- (seller `introAnd` seller, price) ~> (buyer @@ nobody)
 
   -- the buyer decides whether to buy the book or not
-  decision <- buyer `locally` \un -> return $ un price' < budget
+  decision <- buyer `locally` \un -> return $ un buyer price' < budget
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  delivery <- cond (buyer, decision) \case
+  delivery <- cond (buyer `introAnd` buyer, decision) \case
     True  -> do
-      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf textbooks (un title')
-      deliveryDate' <- (seller, deliveryDate) ~> buyer
+      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf textbooks (un seller title')
+      deliveryDate' <- (seller `introAnd` seller, deliveryDate) ~> (buyer @@ nobody)
 
       buyer `locally` \un -> do
-        putStrLn $ "The book will be delivered on " ++ show (un deliveryDate')
-        return $ Just (un deliveryDate')
+        putStrLn $ "The book will be delivered on " ++ show (un buyer deliveryDate')
+        return $ Just (un buyer deliveryDate')
 
     False -> do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
-  reveal buyer delivery
+  reveal (buyer `introAnd` buyer) delivery
 
 -- `bookseller'` is a simplified version of `bookseller` that utilizes `~~>`
 bookseller' :: String -> Choreo Participants IO (Maybe Day)
@@ -114,23 +116,23 @@ bookseller' userTitle = do
   title <- (buyer, \_ -> do
                return userTitle
            )
-           ~~> seller
+           ~~> (seller @@ nobody)
 
-  price <- (seller, \un -> return $ priceOf textbooks (un title)) ~~> buyer
+  price <- (seller, \un -> return $ priceOf textbooks (un seller title)) ~~> (buyer @@ nobody)
 
-  delivery <- cond' (buyer, \un -> return $ un price < budget) \case
+  delivery <- cond' (buyer, \un -> return $ un buyer price < budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un title)) ~~> buyer
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un seller title)) ~~> (buyer @@ nobody)
 
       buyer `locally` \un -> do
-        putStrLn $ "The book will be delivered on " ++ show (un deliveryDate)
-        return $ Just (un deliveryDate)
+        putStrLn $ "The book will be delivered on " ++ show (un buyer deliveryDate)
+        return $ Just (un buyer deliveryDate)
 
     False -> do
       buyer `locally` \_ -> do
         putStrLn "The book's price is out of the budget"
         return Nothing
-  reveal buyer delivery
+  reveal (buyer `introAnd` buyer) delivery
 
 budget :: Int
 budget = defaultBudget

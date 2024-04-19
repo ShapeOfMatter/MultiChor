@@ -14,8 +14,11 @@ module Choreography (
   explicitSubset,
   inSuper,
   consSet,
+  consSub,
   consSuper,
   singleton,
+  nobody,
+  (@@),
 
   -- * The Choreo monad
   Choreo,

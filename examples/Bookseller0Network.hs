@@ -22,25 +22,25 @@ import Data (Database, defaultBudget, deliveryDateOf, priceOf, textbooks)
 
 buyer :: Int -> String -> Network IO (Maybe Day)
 buyer budget title = do
-  send title "seller"
+  send title ["seller"]
   price <- recv "seller"
   if price < budget
   then do
-    send True "seller"
+    send True ["seller"]
     (deliveryDate :: Day) <- recv "seller"
     return $ Just deliveryDate
   else do
-    send False "seller"
+    send False ["seller"]
     return Nothing
 
 seller :: Database -> Network IO ()
 seller books = do
   title <- recv "buyer"
-  send (priceOf books title) "buyer"
+  send (priceOf books title) ["buyer"]
   decision <- recv "buyer"
   if decision
   then do
-    send (deliveryDateOf books title) "buyer"
+    send (deliveryDateOf books title) ["buyer"]
   else do
     return ()
 

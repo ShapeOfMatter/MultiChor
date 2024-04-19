@@ -68,6 +68,11 @@ instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => Exp
 instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
   explicitSubset = axiom
 
+nobody :: Subset '[] ys
+nobody = explicitSubset
+
+(@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
+(@@) = flip consSub
 
 -- | Define a location at both type and proof levels.
 mkLoc :: String -> Q [Dec]
