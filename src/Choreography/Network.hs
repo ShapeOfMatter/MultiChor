@@ -18,7 +18,7 @@ data NetworkSig m a where
   -- | Sending.
   Send :: Show a
        => a
-       -> LocTm
+       -> [LocTm]
        -> NetworkSig m ()
   -- | Receiving.
   Recv :: Read a
@@ -39,8 +39,8 @@ run :: m a -> Network m a
 run m = toFreer $ Run m
 
 -- | Send a message to a receiver.
-send :: Show a => a -> LocTm -> Network m ()
-send a l = toFreer $ Send a l
+send :: Show a => a -> [LocTm] -> Network m ()
+send a ls = toFreer $ Send a ls
 
 -- | Receive a message from a sender.
 recv :: Read a => LocTm -> Network m a

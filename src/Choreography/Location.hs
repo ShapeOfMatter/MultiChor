@@ -1,9 +1,12 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | This module defines locations and located values.
 module Choreography.Location where
 
 import Data.Proxy (Proxy(..))
+-- import Data.Type.Bool
+-- import Data.Type.Equality (type (==))
 import GHC.TypeLits
 import Language.Haskell.TH
 import Logic.Proof (Proof, axiom)
@@ -18,7 +21,7 @@ type LocTy = Symbol
 -- | Located values.
 --
 -- @Located l a@ represents a value of type @a@ at location @l@.
-data Located (l :: LocTy) a
+data Located (l :: [LocTy]) a
   = Wrap a -- ^ A located value @a \@ l@ from location @l@'s perspective.
   | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s
            -- perspective.
@@ -30,9 +33,9 @@ wrap = Wrap
 -- | Unwrap a located value.
 --
 -- /Note:/ Unwrapping a empty located value will throw an exception.
-unwrap :: Located l a -> a
-unwrap (Wrap a) = a
-unwrap Empty    = error "this should never happen for a well-typed choreography"
+unwrap :: Member l ls -> Located ls a -> a
+unwrap _ (Wrap a) = a
+unwrap _ Empty    = error "this should never happen for a well-typed choreography"
 
 
 -- GDP has its own list logic, but IDK how to use it...
@@ -88,3 +91,28 @@ singleton proof = proof  -- IKD why I can't just use id.
 -- | Convert a type-level location to a term-level location.
 toLocTm :: forall (l :: LocTy) (ps :: [LocTy]). KnownSymbol l => Member l ps -> LocTm
 toLocTm _ = symbolVal (Proxy @l)
+
+class KnownSymbols ls where
+  symbolVals :: Proxy ls -> [LocTm]
+
+instance KnownSymbols '[] where
+  symbolVals _ = []
+
+instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
+  symbolVals _ = symbolVal (Proxy @l) : symbolVals (Proxy @ls)
+
+toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
+toLocs _ = symbolVals (Proxy @ls)
+
+--type family Add x y where
+    --Add 'Zero n = n
+    --Add ('Succ n) m = Add n ('Succ m)
+
+{- type family MemberF (elem :: k) (ls :: [k]) where
+  MemberF elem '[] = False
+  MemberF elem (h : ls) = h == elem || (MemberF elem ls)
+
+type family Intersection (ls :: [k]) (ls' :: [k]) where
+  Intersection '[] s2 = s2
+  Intersection (h1 ': t1) l2 = If (MemberF h1 l2) (h1 ': Intersection t1 l2) (Intersection t1 l2)
+ -}

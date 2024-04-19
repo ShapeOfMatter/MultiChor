@@ -19,6 +19,7 @@ import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Network.Wai.Handler.Warp (run)
+import Data.Either (lefts)
 
 -- * Servant API
 
@@ -81,13 +82,13 @@ runNetworkHttp cfg self prog = do
       where
         handler :: MonadIO m => NetworkSig m a -> m a
         handler (Run m)    = m
-        handler(Send a l) = liftIO $ do
-          res <- runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))
-          case res of
-            Left err -> putStrLn $ "Error : " ++ show err
-            Right _  -> return ()
+        handler(Send a ls) = liftIO $ do
+          res <- mapM (\l -> runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))) ls
+          case lefts res of
+            [] -> return ()
+            errors -> putStrLn $ "Errors : " ++ show errors
         handler (Recv l)   = liftIO $ read <$> readChan (chans ! l)
-        handler (BCast a)  = mapM_ handler $ fmap (Send a) (locs cfg)
+        handler (BCast a)  = mapM_ handler $ fmap (Send a) [locs cfg]
 
     api :: Proxy API
     api = Proxy
