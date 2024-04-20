@@ -46,6 +46,7 @@ Bob's balance: 5
 module Bank2PC where
 
 import Choreography
+import CLI
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Text.Read (readMaybe)
@@ -87,7 +88,10 @@ parse s = tx
 -- then it will decide whether to commit the transaction or not.
 -- If the transaction is committed, it will update the state.
 -- Otherwise, it will keep the state unchanged.
-handleTransaction :: State -> Transaction @ "coordinator" -> Choreo Participants IO (Bool @ "coordinator", State)
+handleTransaction :: (Monad m) =>
+                     State ->
+                     Transaction @ "coordinator" ->
+                     Choreo Participants m (Bool @ "coordinator", State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
   txa <- (coordinator, tx) ~> alice
@@ -108,27 +112,24 @@ handleTransaction (aliceBalance, bobBalance) tx = do
       return (canCommit, (aliceBalance, bobBalance))
 
 -- | `bank` loops forever and handles transactions.
-bank :: State -> Choreo Participants IO ()
+bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
-  client `locally_` \_ -> do
-    putStrLn "Command? (alice|bob {amount};)+"
-  tx <- (client, \_ -> do { parse <$> getLine }) ~~> coordinator
+  tx <- (client, \_ -> parse <$> getstr "Command? (alice|bob {amount};)+"
+        ) ~~> coordinator
   (committed, state') <- handleTransaction state tx
   committed' <- (coordinator, committed) ~> client
-  client `locally_` \un -> do
-    putStrLn if un committed' then "Committed" else "Not committed"
-  alice `locally_` \un -> do putStrLn ("Alice's balance: " ++ show (un (fst state')))
-  bob `locally_` \un -> do putStrLn ("Bob's balance: " ++ show (un (snd state')))
+  client `locally_` \un -> putstr "Committed?" (show $ un committed')
+  alice `locally_` \un -> putstr "Alice's balance:" (show (un (fst state')))
+  bob `locally_` \un -> putstr "Bob's balance:" (show (un (snd state')))
   bank state' -- repeat
-  return ()
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
-startBank :: Choreo Participants IO ()
+startBank :: Choreo Participants (CLI m) ()
 startBank = do
-  aliceBalance <- alice `locally` \_ -> do return 0
-  bobBalance <- bob `locally` \_ -> do return 0
+  aliceBalance <- alice `locally` \_ -> return 0
+  bobBalance <- bob `locally` \_ -> return 0
   bank (aliceBalance, bobBalance)
 
 main :: IO ()
 main = do
-  runChoreo startBank
+  runCLIIO $ runChoreo startBank
