@@ -53,12 +53,10 @@ but with buyer2's contribution, now it can.
 
 module Bookseller2HigherOrder where
 
-import Control.Monad.Cont (MonadIO(liftIO))
 import Choreography
-import Data.Time
 import System.Environment
 
-import TTY
+import CLI
 import Data
 
 $(mkLoc "buyer")
@@ -69,14 +67,10 @@ type Participants = ["buyer", "seller", "buyer2"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: (Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")) -> Choreo Participants (TTY IO) (Maybe Day @ "buyer")
+bookseller :: (Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")) -> Choreo Participants (CLI m) ()
 bookseller mkDecision = do
   -- the buyer reads the title of the book and sends it to the seller
-  title <- (buyer, \_ -> do
-               liftIO $ putStrLn "Enter the title of the book to buy"
-               getln
-           )
-           ~~> seller
+  title <- (buyer, \_ -> getstr "Enter the title of the book to buy") ~~> seller
 
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf textbooks (un title)) ~~> buyer
@@ -88,31 +82,21 @@ bookseller mkDecision = do
   cond (buyer, decision) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un title)) ~~> buyer
-
-      buyer `locally` \un -> do
-        liftIO $ putStrLn "The book will be delivered on:"
-        putln $ show (un deliveryDate)
-        return $ Just (un deliveryDate)
+      buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un deliveryDate)
 
     False -> do
-      buyer `locally` \_ -> do
-        liftIO $ putStrLn "The book's price is out of the budget"
-        return Nothing
+      buyer `locally_` \_ -> putNote "The book's price is out of the budget"
 
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
-mkDecision1 :: Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")
+mkDecision1 :: Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")
 mkDecision1 price = do
   buyer `locally` \un -> return $ un price < budget
 
 -- | `mkDecision2` asks buyer2 how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus buyer2's contribution
-mkDecision2 :: Int @ "buyer" -> Choreo Participants (TTY IO) (Bool @ "buyer")
+mkDecision2 :: Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")
 mkDecision2 price = do
-  contrib <- (buyer2, \_ -> do
-                 liftIO $ putStrLn "How much you're willing to contribute?"
-                 read <$> getln
-             )
-             ~~> buyer
+  contrib <- (buyer2, \_ -> getInput "How much you're willing to contribute?") ~~> buyer
   buyer `locally` \un -> return $ un price - un contrib <= budget
 
 budget :: Int
@@ -122,9 +106,9 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   _ <- case loc of
-    "buyer"  -> runTTYIO $ runChoreography cfg choreo "buyer"
-    "seller" -> runTTYIO $ runChoreography cfg choreo "seller"
-    "buyer2" -> runTTYIO $ runChoreography cfg choreo "buyer2"
+    "buyer"  -> runCLIIO $ runChoreography cfg choreo "buyer"
+    "seller" -> runCLIIO $ runChoreography cfg choreo "seller"
+    "buyer2" -> runCLIIO $ runChoreography cfg choreo "buyer2"
     _ -> error "unknown party"
   return ()
   where

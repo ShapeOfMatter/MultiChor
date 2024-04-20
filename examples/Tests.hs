@@ -20,7 +20,7 @@ import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (defaultBudget, deliverable, price, textbooks)
 import qualified Data
-import TTY (runTTYStateful)
+import CLI (runCLIStateful)
 
 tests :: IO [Test]
 tests = return tests'
@@ -99,7 +99,7 @@ tests' = [
                   return $ ioProperty $ do
                       config <- mkLocalConfig [l | (l, _, _) <- situation]
                       results <- mapConcurrently
-                                             (\(name, inputs, outputs) -> do (os', _) <- runTTYStateful
+                                             (\(name, inputs, outputs) -> do (os', _) <- runCLIStateful
                                                                                     inputs
                                                                                     $ runNetwork config name $ epp (
                                                                                         Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision2
