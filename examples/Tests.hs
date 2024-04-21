@@ -13,7 +13,9 @@ import Test.QuickCheck ( (===)
 import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
+import qualified Bookseller3LocPoly
 import Choreography (runChoreography)
+import Choreography.Location (explicitMember, Member)
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (BooksellerArgs(..), reference)
@@ -94,14 +96,38 @@ tests' = [
                         runChoreography config (Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision2) name
                     ) situation
                   return $ (read <$> delivery) === maybeToList (reference args)
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-2-dummy",
+    tags =[],
+    property = \(args@BooksellerArgs{books, choice, budget}, contrib :: Positive Int) -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [choice, show budget])
+                                  , ("buyer2", [show $ getPositive contrib])]  -- buyer2 doesn't get used
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [ ([], ()), (delivery, ()), ([], ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $
+                        runChoreography config (Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision1) name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-3-locpoly",
+    tags =[],
+    property = \args@BooksellerArgs{books, choice, budget} -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [show budget, choice])]
+                  let buyer :: Member "buyer" '["buyer"] = explicitMember
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [ ([], ()), (delivery, ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $
+                        runChoreography config (Bookseller3LocPoly.bookseller buyer) name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
   }
   ]
 
-{-testEasyCompute :: Test
-testEasyCompute = testProperty "Easy Compute" $ case compute of
-    Compute (Location os' _, Variable "a") (_, Literal (_, Bit True)) | os' == os && os == top -> True
-    _ -> error (pretty compute)
-  where compute :: Statement Located
-        Right [(Location os _, compute)] = validate mempty program
-        Right program = runParser programParser () "hardcoded example" "a = 1"
--}
