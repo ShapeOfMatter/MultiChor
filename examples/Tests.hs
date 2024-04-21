@@ -1,25 +1,22 @@
 module Tests  where
 
 import Control.Concurrent.Async (mapConcurrently)
-import Data.List (nub)
+import Data.Maybe (maybeToList)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
 import Test.QuickCheck ( (===)
-                       , (.&.)
-                       , Arbitrary (arbitrary)
-                       , elements
                        , ioProperty
+                       , getPositive
+                       , Positive
                        , Testable)
 
 import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import Choreography (runChoreography)
-import Choreography.Choreo (epp)
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
-import Data (defaultBudget, deliverable, price, textbooks)
-import qualified Data
+import Data (BooksellerArgs(..), reference)
 import CLI (runCLIStateful)
 
 tests :: IO [Test]
@@ -43,70 +40,60 @@ tests' = [
   getNormalPT PropertyTest {
     name = "bookseller-0-network",
     tags =[],
-    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
-                  let processes = [("seller", Bookseller0Network.seller textbooks >> return Nothing)
-                                  ,("buyer", Bookseller0Network.buyer defaultBudget (Data.name book))]
-                  return $ ioProperty $ do
-                      config <- mkLocalConfig (fst <$> processes)  -- The IO Monad
-                      [Nothing, delivery] <- mapConcurrently
-                                             (uncurry $ runNetwork config)
-                                             processes
-                      case delivery of
-                        Nothing -> return $ defaultBudget < price book
-                        Just d -> return $ defaultBudget >= price book && d == deliverable book
+    property = \args@BooksellerArgs{books, choice, budget} -> ioProperty do
+                  let situation = [ ("seller", [show books], Bookseller0Network.seller)
+                                  , ("buyer", [show budget, choice], Bookseller0Network.buyer)]
+                  config <- mkLocalConfig [l | (l, _, _) <- situation]
+                  [([], ()), (delivery, ())] <-
+                    mapConcurrently (
+                      \(name, inputs, process) -> runCLIStateful inputs $ runNetwork config name process
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
   },
 
   getNormalPT PropertyTest {
     name = "bookseller-1-simple",
     tags =[],
-    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
-                  let locs = ["seller", "buyer"]
-                  return $ ioProperty $ do
-                      config <- mkLocalConfig locs
-                      [delivery] <- nub <$> 
-                        mapConcurrently
-                        (runChoreography config (Bookseller1Simple.bookseller $ Data.name book))
-                        locs
-                      case delivery of
-                        Nothing -> return $ Bookseller1Simple.budget < price book
-                        Just d -> return $ Bookseller1Simple.budget >= price book && d == deliverable book
+    property = \args@BooksellerArgs{books, choice, budget} -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [show budget, choice])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [([], ()), (delivery, ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $ runChoreography config Bookseller1Simple.bookseller name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
   },
 
   getNormalPT PropertyTest {
     name = "bookseller-1-prime",
     tags =[],
-    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
-                  let locs = ["seller", "buyer"]
-                  return $ ioProperty $ do
-                      config <- mkLocalConfig locs
-                      [delivery] <- nub <$> 
-                        mapConcurrently
-                        (runChoreography config (Bookseller1Simple.bookseller' $ Data.name book))
-                        locs
-                      case delivery of
-                        Nothing -> return $ Bookseller1Simple.budget < price book
-                        Just d -> return $ Bookseller1Simple.budget >= price book && d == deliverable book
+    property = \args@BooksellerArgs{books, choice, budget} -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [show budget, choice])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [([], ()), (delivery, ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $
+                        runChoreography config Bookseller1Simple.bookseller' name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
   },
 
   getNormalPT PropertyTest {
     name = "bookseller-2-higher-order",
     tags =[],
-    property = do book <- elements textbooks  -- The Gen Monad. Doing it this way kinda breaks failure-case-printing :(
-                  contrib2 <- arbitrary
-                  let situation = [ ("seller", [], [])
-                                  , ("buyer", [Data.name book], [show $ deliverable book | price book - contrib2 <= Bookseller2HigherOrder.budget])
-                                  , ("buyer2", [show @Int contrib2], [])]
-                  return $ ioProperty $ do
-                      config <- mkLocalConfig [l | (l, _, _) <- situation]
-                      results <- mapConcurrently
-                                             (\(name, inputs, outputs) -> do (os', _) <- runCLIStateful
-                                                                                    inputs
-                                                                                    $ runNetwork config name $ epp (
-                                                                                        Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision2
-                                                                                      ) name
-                                                                             return (os' === outputs))
-                                             situation
-                      return $ foldl1 (.&.) results
+    property = \args@(BooksellerArgs{books, choice, budget}, contrib :: Positive Int) -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [choice, show budget])
+                                  , ("buyer2", [show $ getPositive contrib])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [ ([], ()), (delivery, ()), ([], ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $
+                        runChoreography config (Bookseller2HigherOrder.bookseller Bookseller2HigherOrder.mkDecision2) name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
   }
   ]
 

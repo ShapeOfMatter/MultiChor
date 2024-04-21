@@ -23,6 +23,7 @@ module Choreography (
   locally,
   locally_,
   _locally,
+  _locally_,
   (~>),
   (~~>),
   cond,

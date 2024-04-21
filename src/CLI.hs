@@ -9,6 +9,8 @@ import Control.Monad (unless)
 import Control.Monad.Freer
 import Control.Monad.Cont (MonadIO(liftIO))
 import Control.Monad.State (StateT(runStateT), MonadState (get, put), lift)
+import Data.Typeable (Typeable, typeRep)
+import Text.Read (readMaybe)
 
 
 type Context = String
@@ -40,8 +42,11 @@ getstr context = toFreer $ GetStr context
 getln :: CLI m String
 getln = getstr ""
 
-getInput :: (Read a) => Context -> CLI m a
-getInput context = read <$> getstr context
+getInput :: forall a m. (Read a, Typeable a) => Context -> CLI m a
+getInput context = do str <- getstr context
+                      case readMaybe str of
+                        Just a -> return a
+                        a@Nothing -> error $ "Failed to read \"" ++ str ++ "\" as a " ++ show (typeRep a)
 
 putstr :: Context -> String -> CLI m ()
 putstr context l = toFreer $ PutStr context l

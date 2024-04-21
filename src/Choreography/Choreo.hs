@@ -7,6 +7,7 @@ module Choreography.Choreo where
 
 import Choreography.Location
 import Choreography.Network
+import Control.Monad (void)
 import Control.Monad.Freer
 import GHC.TypeLits
 
@@ -128,10 +129,13 @@ locally_ :: (KnownSymbol l)
         => Member l ps
         -> (Unwrap l -> m ())
         -> Choreo ps m ()
-locally_ l m = locally l m >>= const (return ())
+locally_ l m = void $ locally l m
 
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
         -> Choreo ps m (a @ l)
 _locally l m = locally l $ const m
+
+_locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
+_locally_ l m = void $ locally l (const m)
