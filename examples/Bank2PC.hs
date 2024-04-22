@@ -46,8 +46,15 @@ Bob's balance: 5
 module Bank2PC where
 
 import Choreography
+import CLI
+import Control.Monad (unless)
+import Data (TestArgs, reference)
+import Data.List (intercalate, transpose)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
+import Data.Proxy (Proxy(Proxy))
+import GHC.TypeLits (KnownSymbol, symbolVal)
+import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
 
 $(mkLoc "client")
@@ -56,11 +63,32 @@ $(mkLoc "alice")
 $(mkLoc "bob")
 type Participants = ["client", "coordinator", "alice", "bob"]
 
-type State = (Located "alice" Int, Located "bob" Int)
+type State = (Located '["alice"] Int, Located '["bob"] Int)
 
 type Action = (String, Int)
 
 type Transaction = [Action]
+
+newtype Args p q = Args [Transaction] deriving (Eq, Show, Read)
+instance (KnownSymbol p, KnownSymbol q) => TestArgs (Args p q) [[String]] where
+ reference (Args tx) = addCoordinator . transpose $ showAll <$> ref start tx
+   where start = (, 0) <$> [symbolVal (Proxy @p), symbolVal (Proxy @q)]
+         ref _ [] = []
+         ref state (t:ts) = let (s', r) = refAs state t
+                                s'' = if r then s' else state
+                            in (r, s'') : ref s'' ts
+         refAs state [] = (state, True)
+         refAs state (a:as) = let (s', r) = refA state a
+                              in if r then refAs s' as else (state, False)
+         refA state (name, amount) = let (otherL, (_, s):otherR) = ((== name) . fst) `break` state
+                                         s' = s + amount
+                                     in (otherL ++ ((name, s'):otherR), 0 <= s')
+         showAll :: (Bool, [(String, Int)]) -> [String]
+         showAll (clnt, servers) = show clnt : (show . snd <$> servers)
+         addCoordinator (clnt:servers) = clnt : [] : servers
+         addCoordinator _ = error "this can't happen, right? I could enforce it by types, but it's a core..."
+instance (KnownSymbol p, KnownSymbol q) => Arbitrary (Args p q) where
+  arbitrary = (Args . (++ [[]]) <$>) . listOf . listOf1 $ (,) <$> elements [symbolVal $ Proxy @p, symbolVal $ Proxy @q] <*> arbitrary
 
 -- | `validate` checks if a transaction can be executed while keeping balance >= 0
 -- returns if the transaction satisfies the property and the balance after the transaction
@@ -68,6 +96,9 @@ validate :: String -> Int -> Transaction -> (Bool, Int)
 validate name balance tx = foldl (\(valid, i) (_, amount) -> (let next = i + amount in (valid && next >= 0, next))) (True, balance) actions
   where
     actions = filter (\(n, _) -> n == name) tx
+
+render :: Transaction -> String
+render txns = intercalate ";" $ (\(a,b) -> a ++ " " ++ show b) <$> txns
 
 -- | `parse` converts the user input into a transaction
 parse :: String -> Transaction
@@ -87,7 +118,10 @@ parse s = tx
 -- then it will decide whether to commit the transaction or not.
 -- If the transaction is committed, it will update the state.
 -- Otherwise, it will keep the state unchanged.
-handleTransaction :: State -> Located "coordinator" Transaction -> Choreo Participants IO (Located "coordinator" Bool, State)
+handleTransaction :: (Monad m) =>
+                     State ->
+                     Located '["coordinator"] Transaction  ->
+                     Choreo Participants m (Located '["coordinator"] Bool, State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
   txa <- (coordinator, tx) ~> alice
@@ -108,27 +142,24 @@ handleTransaction (aliceBalance, bobBalance) tx = do
       return (canCommit, (aliceBalance, bobBalance))
 
 -- | `bank` loops forever and handles transactions.
-bank :: State -> Choreo Participants IO ()
+bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
-  client `locally_` \_ -> do
-    putStrLn "Command? (alice|bob {amount};)+"
-  tx <- (client, \_ -> do { parse <$> getLine }) ~~> coordinator
+  tx <- (client, \_ -> parse <$> getstr "Command? (alice|bob {amount};)+"
+        ) ~~> coordinator
   (committed, state') <- handleTransaction state tx
   committed' <- (coordinator, committed) ~> client
-  client `locally_` \un -> do
-    putStrLn if un committed' then "Committed" else "Not committed"
-  alice `locally_` \un -> do putStrLn ("Alice's balance: " ++ show (un (fst state')))
-  bob `locally_` \un -> do putStrLn ("Bob's balance: " ++ show (un (snd state')))
-  bank state' -- repeat
-  return ()
+  client `locally_` \un -> putOutput "Committed?" (un committed')
+  alice `locally_` \un -> putOutput "Alice's balance:" (un (fst state'))
+  bob `locally_` \un -> putOutput "Bob's balance:" (un (snd state'))
+  cond' (coordinator, \un -> return $ null $ un tx) (`unless` bank state') -- repeat
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
-startBank :: Choreo Participants IO ()
+startBank :: Choreo Participants (CLI m) ()
 startBank = do
-  aliceBalance <- alice `locally` \_ -> do return 0
-  bobBalance <- bob `locally` \_ -> do return 0
+  aliceBalance <- alice `_locally` return 0
+  bobBalance <- bob `_locally` return 0
   bank (aliceBalance, bobBalance)
 
 main :: IO ()
 main = do
-  runChoreo startBank
+  runCLIIO $ runChoreo startBank

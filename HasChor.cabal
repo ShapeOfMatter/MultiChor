@@ -32,6 +32,8 @@ common basic-config
       -Wall
       -Wno-incomplete-uni-patterns
       -fprint-potential-instances
+      -haddock
+      -Winvalid-haddock
     default-extensions: BlockArguments
                        ,DataKinds
                        ,LambdaCase
@@ -47,7 +49,7 @@ library choreography
         Choreography.Network.Http
         Choreography.Network.Local
         Control.Monad.Freer
-        TTY
+        CLI
 
 common lib-dependent
     import: basic-config

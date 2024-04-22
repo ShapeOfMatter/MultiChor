@@ -11,6 +11,7 @@ import Control.Monad (when)
 
 import Choreography.Location
 import Choreography.Network
+import Control.Monad (void)
 import Control.Monad.Freer
 import GHC.TypeLits
 import Logic.Proof (Proof)
@@ -45,7 +46,7 @@ data ChoreoSig (ps :: [LocTy]) m a where
        -> (a -> Choreo ps m b)
        -> ChoreoSig ps m b
 
--- | Monad for writing choreographies.
+-- |Monad for writing choreographies.
 type Choreo ps m = Freer (ChoreoSig ps m)
 
 -- | Run a `Choreo` monad directly.
@@ -137,10 +138,13 @@ locally_ :: (KnownSymbol l)
         => Member l ps
         -> (Unwrap l -> m ())
         -> Choreo ps m ()
-locally_ l m = locally l m >>= const (return ())
+locally_ l m = void $ locally l m
 
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
         -> Choreo ps m (Located '[l] a)
 _locally l m = locally l $ const m
+
+_locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
+_locally_ l m = void $ locally l (const m)
