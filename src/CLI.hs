@@ -64,7 +64,7 @@ data TTYEnv = TTYEnv {
 
 runCLIStateful :: forall m a. (MonadFail m, MonadIO m) => [String] -> CLI m a -> m ([String], a)
 runCLIStateful ins tma = do (a, e) <- runStateT stateful TTYEnv{inputs = ins, outputs = []}
-                            return (outputs e, a)
+                            return (reverse $ outputs e, a)
                          where stateful :: StateT TTYEnv m a
                                stateful = interpFreer handler tma
                                handler :: forall b. CLISig m b -> StateT TTYEnv m b
