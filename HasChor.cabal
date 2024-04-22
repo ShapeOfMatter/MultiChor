@@ -49,7 +49,7 @@ library choreography
         Choreography.Network.Http
         Choreography.Network.Local
         Control.Monad.Freer
-        TTY
+        CLI
 
 common lib-dependent
     import: basic-config

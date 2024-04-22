@@ -15,32 +15,36 @@ Same as [`bookseller-1-simple`](../bookseller-1-simple) but with `cabal run book
 
 import Choreography.Network
 import Choreography.Network.Http
+import CLI
 import Data.Time
 import System.Environment
 
-import Data (Database, defaultBudget, deliveryDateOf, priceOf, textbooks)
+import Data (deliveryDateOf, priceOf)
 
-buyer :: Int -> String -> Network IO (Maybe Day)
-buyer budget title = do
+buyer :: Network (CLI m) ()
+buyer = do
+  budget <- run $ getInput @Int "Enter your total budget:"
+  title <- run $ getstr "Enter the title of the book to buy:"
   send title "seller"
   price <- recv "seller"
-  if price < budget
+  if price <= budget
   then do
     send True "seller"
     (deliveryDate :: Day) <- recv "seller"
-    return $ Just deliveryDate
+    run $ putOutput "The book will be delivered on:" deliveryDate
   else do
     send False "seller"
-    return Nothing
+    run $ putNote "The book's price is out of the budget"
 
-seller :: Database -> Network IO ()
-seller books = do
+seller :: Network (CLI m) ()
+seller = do
+  database <- run $ getInput "Enter the book database (for `Read`):"
   title <- recv "buyer"
-  send (priceOf books title) "buyer"
+  send (database `priceOf` title) "buyer"
   decision <- recv "buyer"
   if decision
   then do
-    send (deliveryDateOf books title) "buyer"
+    send (database `deliveryDateOf` title) "buyer"
   else do
     return ()
 
@@ -48,13 +52,8 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of
-    "buyer" -> do putStrLn "Enter the title of the book to buy:"
-                  title <- getLine
-                  result <- runNetwork cfg "buyer" $ buyer defaultBudget title
-                  case result of
-                    Nothing -> putStrLn "The book's price is out of the budget"
-                    Just day -> putStrLn ("The book will be delivered on " ++ show day)
-    "seller" -> runNetwork cfg "seller" $ seller textbooks
+    "buyer" -> runCLIIO $ runNetwork cfg "buyer" buyer
+    "seller" -> runCLIIO $ runNetwork cfg "seller" seller
     _ -> error "unknown party"
   return ()
   where

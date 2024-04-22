@@ -67,82 +67,57 @@ Homotopy Type Theory
 module Bookseller1Simple where
 
 import Choreography
-import Data.Time
 import System.Environment
 
-import Data (defaultBudget, deliveryDateOf, priceOf, textbooks)
+import Data (deliveryDateOf, priceOf)
+import CLI
 
 $(mkLoc "buyer")
 $(mkLoc "seller")
 type Participants = ["buyer", "seller"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
-bookseller :: String -> Choreo Participants IO (Maybe Day)
-bookseller userTitle = do
-  -- the buyer node prompts the user to enter the title of the book to buy
-  title <- buyer `locally` \_ -> return userTitle
-  -- the buyer sends the title to the seller
+bookseller :: Choreo Participants (CLI m) ()
+bookseller = do
+  database <- seller `_locally` getInput "Enter the book database (for `Read`):"
+  buyer_budget <- buyer `_locally` getInput "Enter your total budget:"
+  title <- buyer `_locally` getstr "Enter the title of the book to buy:"
+
   title' <- (buyer, title) ~> seller
-
-  -- the seller checks the price of the book
-  price <- seller `locally` \un -> return $ priceOf textbooks (un title')
-  -- the seller sends back the price of the book to the buyer
+  price <- seller `locally` \un -> return $ priceOf (un database) (un title')
   price' <- (seller, price) ~> buyer
+  decision <- buyer `locally` \un -> return $ un price' <= un buyer_budget
 
-  -- the buyer decides whether to buy the book or not
-  decision <- buyer `locally` \un -> return $ un price' < budget
-
-  -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  delivery <- cond (buyer, decision) \case
+  cond (buyer, decision) \case
     True  -> do
-      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf textbooks (un title')
+      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un database) (un title')
       deliveryDate' <- (seller, deliveryDate) ~> buyer
-
-      buyer `locally` \un -> do
-        putStrLn $ "The book will be delivered on " ++ show (un deliveryDate')
-        return $ Just (un deliveryDate')
-
+      buyer `locally_` \un -> putOutput "The book will be delivered on " $ un deliveryDate'
     False -> do
-      buyer `locally` \_ -> do
-        putStrLn "The book's price is out of the budget"
-        return Nothing
-  reveal buyer delivery
+      buyer `_locally_` putNote "The book's price is out of the budget"
 
 -- `bookseller'` is a simplified version of `bookseller` that utilizes `~~>`
-bookseller' :: String -> Choreo Participants IO (Maybe Day)
-bookseller' userTitle = do
-  title <- (buyer, \_ -> do
-               return userTitle
-           )
-           ~~> seller
+bookseller' :: Choreo Participants (CLI m) ()
+bookseller' = do
+  database <- seller `_locally` getInput "Enter the book database (for `Read`):"
+  buyer_budget <- buyer `_locally` getInput "Enter your total budget:"
+  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> seller
+  price <- (seller, \un -> return $ priceOf (un database) (un title)) ~~> buyer
 
-  price <- (seller, \un -> return $ priceOf textbooks (un title)) ~~> buyer
-
-  delivery <- cond' (buyer, \un -> return $ un price < budget) \case
+  cond' (buyer, \un -> return $ un price <= un buyer_budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf textbooks (un title)) ~~> buyer
-
-      buyer `locally` \un -> do
-        putStrLn $ "The book will be delivered on " ++ show (un deliveryDate)
-        return $ Just (un deliveryDate)
-
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un database) (un title)) ~~> buyer
+      buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un deliveryDate
     False -> do
-      buyer `locally` \_ -> do
-        putStrLn "The book's price is out of the budget"
-        return Nothing
-  reveal buyer delivery
+      buyer `_locally_` putNote "The book's price is out of the budget"
 
-budget :: Int
-budget = defaultBudget
 
 main :: IO ()
 main = do
   [loc] <- getArgs
-  putStrLn "Enter the title of the book to buy"
-  title <- getLine
   delivery <- case loc of
-    "buyer"  -> runChoreography cfg (bookseller' title) "buyer"
-    "seller" -> runChoreography cfg (bookseller' title) "seller"
+    "buyer"  -> runCLIIO $ runChoreography cfg bookseller' "buyer"
+    "seller" -> runCLIIO $ runChoreography cfg bookseller' "seller"
     _ -> error "unknown party"
   print delivery
   where
