@@ -15,6 +15,7 @@ import Choreography
 import GHC.TypeLits (KnownSymbol)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
+import Logic.Propositional (introAnd)
 import System.Environment
 
 -- an edge of the ring is represented as a tuple of two locaitons l and l' where
@@ -41,18 +42,18 @@ ringLeader r = loop r
     talkToRight :: Edge g -> Choreo g (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       ll <- left `_locally` get
-      labelLeft  <- (left, ll) ~> right
+      labelLeft  <- (explicitMember `introAnd` left, ll) ~> (right @@ nobody)
       labelRight <- right `_locally` get
 
       finished <- right `locally` \un ->
-        return $ un labelLeft == un labelRight
+        return $ un explicitMember labelLeft == un explicitMember labelRight
 
-      cond (right, finished) \case
+      cond (explicitMember `introAnd` right, finished) \case
         True  -> do
           right `locally_` \_ -> lift $ putStrLn "I'm the leader"
           return True
         False -> do
-          right `locally_` \un -> put (max (un labelLeft) (un labelRight))
+          right `locally_` \un -> put (max (un explicitMember labelLeft) (un explicitMember labelRight))
           return False
 
 

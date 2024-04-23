@@ -34,6 +34,7 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Logic.Propositional (introAnd)
 import System.Environment
 
 $(mkLoc "client")
@@ -77,22 +78,22 @@ handleRequest request stateRef = case request of
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 -- If the request is a `PUT`, it will forward the request to the backup node.
 kvs ::
-  Located "client" Request ->
-  (Located "primary" (IORef State), Located "backup" (IORef State)) ->
-  Choreo Participants IO (Located "client" Response)
+  Located '["client"] Request ->
+  (Located '["primary"] (IORef State), Located '["backup"] (IORef State)) ->
+  Choreo Participants IO (Located '["client"] Response)
 kvs request (primaryStateRef, backupStateRef) = do
   -- send request to the primary node
-  request' <- (client, request) ~> primary
+  request' <- (client `introAnd` client, request) ~> (primary @@ nobody)
 
   -- branch on the request
-  cond (primary, request') \case
+  cond (primary `introAnd` primary, request') \case
     -- if the request is a `PUT`, forward the request to the backup node
     Put _ _ -> do
-      request'' <- (primary, request') ~> backup
+      request'' <- (primary `introAnd` primary, request') ~> (backup @@ nobody)
       ack <-
         backup `locally` \un -> do
-          handleRequest (un request'') (un backupStateRef)
-      _ <- (backup, ack) ~> primary
+          handleRequest (un backup request'') (un backup backupStateRef)
+      _ <- (backup `introAnd` backup, ack) ~> (primary @@ nobody)
       return ()
     _ -> do
       return ()
@@ -100,10 +101,10 @@ kvs request (primaryStateRef, backupStateRef) = do
   -- process request on the primary node
   response <-
     primary `locally` \un ->
-      handleRequest (un request') (un primaryStateRef)
+      handleRequest (un primary request') (un primary primaryStateRef)
 
   -- send response to client
-  (primary, response) ~> client
+  (primary `introAnd` primary, response) ~> (client @@ nobody)
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.
@@ -113,11 +114,11 @@ mainChoreo = do
   backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
-    loop :: (Located "primary" (IORef State), Located "backup" (IORef State)) -> Choreo Participants IO ()
+    loop :: (Located '["primary"] (IORef State), Located '["backup"] (IORef State)) -> Choreo Participants IO ()
     loop stateRefs = do
       request <- client `_locally` readRequest
       response <- kvs request stateRefs
-      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un client response))
       loop stateRefs
 
 main :: IO ()

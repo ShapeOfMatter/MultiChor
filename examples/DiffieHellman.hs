@@ -39,6 +39,7 @@ module DiffieHellman where
 import Choreography (mkHttpConfig, runChoreography)
 import Choreography.Choreo
 import Choreography.Location
+import Logic.Propositional (introAnd)
 import System.Environment
 import System.Random
 
@@ -59,7 +60,7 @@ $(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 
-diffieHellman :: Choreo Participants IO (Located "alice" Integer, Located "bob" Integer)
+diffieHellman :: Choreo Participants IO (Located '["alice"] Integer, Located '["bob"] Integer)
 diffieHellman = do
   -- wait for alice to initiate the process
   _ <- alice `locally` \_ -> do
@@ -73,32 +74,32 @@ diffieHellman = do
     alice `locally` \_ -> do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
-  pb <- (alice, pa) ~> bob
-  ga <- alice `locally` \un -> do randomRIO (10, un pa)
-  gb <- (alice, ga) ~> bob
+  pb <- (alice `introAnd` alice, pa) ~> (bob @@ nobody)
+  ga <- alice `locally` \un -> do randomRIO (10, un alice pa)
+  gb <- (alice `introAnd` alice, ga) ~> (bob @@ nobody)
 
   -- alice and bob select secrets
   a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
   b <- bob `locally` \_ -> do randomRIO (200, 1000 :: Integer)
 
   -- alice and bob computes numbers that they exchange
-  a' <- alice `locally` \un -> do return $ un ga ^ un a `mod` un pa
-  b' <- bob `locally` \un -> do return $ un gb ^ un b `mod` un pb
+  a' <- alice `locally` \un -> do return $ un alice ga ^ un alice a `mod` un alice pa
+  b' <- bob `locally` \un -> do return $ un bob gb ^ un bob b `mod` un bob pb
 
   -- exchange numbers
-  a'' <- (alice, a') ~> bob
-  b'' <- (bob, b') ~> alice
+  a'' <- (alice `introAnd` alice, a') ~> (bob @@ nobody)
+  b'' <- (bob `introAnd` bob, b') ~> (alice @@ nobody)
 
   -- compute shared key
   s1 <-
     alice `locally` \un ->
-      let s = un b'' ^ un a `mod` un pa
+      let s = un alice b'' ^ un alice a `mod` un alice pa
        in do
             putStrLn ("alice's shared key: " ++ show s)
             return s
   s2 <-
     bob `locally` \un ->
-      let s = un a'' ^ un b `mod` un pb
+      let s = un bob a'' ^ un bob b `mod` un bob pb
        in do
             putStrLn ("bob's shared key: " ++ show s)
             return s

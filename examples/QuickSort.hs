@@ -30,6 +30,7 @@ import Choreography (runChoreography)
 import Choreography.Choreo
 import Choreography.Location
 import Choreography.Network.Local
+import Logic.Propositional (introAnd)
 import GHC.TypeLits (KnownSymbol)
 
 reference :: [Int] -> [Int]
@@ -48,27 +49,27 @@ type Participants = ["primary", "worker1", "worker2"]
 
 quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
              Member a ps -> Member b ps -> Member c ps
-             -> Located a [Int] -> Choreo ps IO (Located a [Int])
+             -> Located '[a] [Int] -> Choreo ps IO (Located '[a] [Int])
 quicksort a b c lst = do
-  isEmpty <- a `locally` \un -> pure (null (un lst))
-  cond (a, isEmpty) \case
+  isEmpty <- a `locally` \un -> pure (null (un explicitMember lst))
+  cond (explicitMember `introAnd` a, isEmpty) \case
     True -> do
       a `locally` \_ -> pure []
     False -> do
-      smaller <- (a, \un -> let x : xs = un lst in pure [i | i <- xs, i <= x]) ~~> b
+      smaller <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i <= x]) ~~> (b @@ nobody)
       smaller' <- quicksort b c a smaller
-      smaller'' <- (b, smaller') ~> a
-      bigger <- (a, \un -> let x : xs = un lst in pure [i | i <- xs, i > x]) ~~> c
+      smaller'' <- (explicitMember `introAnd` b, smaller') ~> (a @@ nobody)
+      bigger <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i > x]) ~~> (c @@ nobody)
       bigger' <- quicksort c a b bigger
-      bigger'' <- (c, bigger') ~> a
-      a `locally` \un -> pure $ un smaller'' ++ [head (un lst)] ++ un bigger''
+      bigger'' <- (explicitMember `introAnd` c, bigger') ~> (a @@ nobody)
+      a `locally` \un -> pure $ un explicitMember smaller'' ++ [head (un explicitMember lst)] ++ un explicitMember bigger''
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- quicksort primary worker1 worker2 lst
   primary `locally_` \un -> do
-    print (un sorted)
+    print (un primary sorted)
     return ()
   return ()
 

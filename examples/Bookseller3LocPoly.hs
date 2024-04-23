@@ -36,15 +36,15 @@ bookseller someBuyer = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   buyer_budget <- theBuyer `_locally` getInput "Enter your total budget:"
   -- the buyer reads the title of the book and sends it to the seller
-  title <- (theBuyer, \_ -> getstr "Enter the title of the book to buy") ~~> seller
+  title <- (theBuyer, \_ -> getstr "Enter the title of the book to buy") ~~> (seller @@ nobody)
   -- the seller checks the price of the book and sends it to the buyer
-  price <- (seller, \un -> return $ priceOf (un database) (un title)) ~~> theBuyer
+  price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> (theBuyer @@ nobody)
 
-  cond' (theBuyer, \un -> return $ un price <= un buyer_budget) \case
+  cond' (theBuyer, \un -> return $ un explicitMember price <= un explicitMember buyer_budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un database) (un title)) ~~> theBuyer
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> (theBuyer @@ nobody)
 
-      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un deliveryDate
+      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un explicitMember deliveryDate
 
     False -> do
       theBuyer `_locally_` putNote "The book's price is out of the budget"

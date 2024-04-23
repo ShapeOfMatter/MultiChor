@@ -135,13 +135,12 @@ tests' = [
     name = "bank-2pc",
     tags =[],
     property = \(args@(Bank2PC.Args txns) :: Bank2PC.Args "alice" "bob") -> ioProperty do
---type Participants = ["client", "coordinator", "alice", "bob"]
                   let situation = [ ("client", Bank2PC.render <$> txns)
                                   , ("coordinator", [])
                                   , ("alice", [])
                                   , ("bob", [])]
                   config <- mkLocalConfig [l | (l, _) <- situation]
-                  results <- 
+                  results <-
                     mapConcurrently (
                       \(name, inputs) -> fst <$> runCLIStateful inputs
                         (runChoreography config Bank2PC.startBank name)

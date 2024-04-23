@@ -34,6 +34,7 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Logic.Propositional (introAnd)
 import System.Environment
 
 $(mkLoc "client")
@@ -76,18 +77,18 @@ handleRequest request stateRef = case request of
 
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 kvs ::
-  Located "client" Request ->
-  Located "server" (IORef State) ->
-  Choreo Participants IO (Located "client" Response)
+  Located '["client"] Request ->
+  Located '["server"] (IORef State) ->
+  Choreo Participants IO (Located '["client"] Response)
 kvs request stateRef = do
   -- send the request to the server
-  request' <- (client, request) ~> server
+  request' <- (client `introAnd` client, request) ~> (server @@ nobody)
   -- the server handles the response and creates a response
   response <-
     server `locally` \un ->
-      handleRequest (un request') (un stateRef)
+      handleRequest (un server request') (un server stateRef)
   -- send the response back to the client
-  (server, response) ~> client
+  (server `introAnd` server, response) ~> (client @@ nobody)
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.
@@ -97,11 +98,11 @@ mainChoreo = do
   stateRef <- server `locally` \_ -> newIORef (Map.empty :: State)
   loop stateRef
   where
-    loop :: Located "server" (IORef State) -> Choreo Participants IO ()
+    loop :: Located '["server"] (IORef State) -> Choreo Participants IO ()
     loop stateRef = do
       request <- client `_locally` readRequest
       response <- kvs request stateRef
-      client `locally_` \un -> do putStrLn ("> " ++ show (un response))
+      client `locally_` \un -> do putStrLn ("> " ++ show (un client response))
       loop stateRef
 
 main :: IO ()
