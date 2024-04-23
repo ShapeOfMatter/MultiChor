@@ -19,7 +19,7 @@ $(mkLoc "alice")
 type Participants = '["alice"]
 
 -- Step 2: Writing a choreography
-choreography :: Choreo Participants IO (() @ "alice")
+choreography :: Choreo Participants IO (Located '["alice"] ())
 choreography = do
   alice `locally` \_ -> putStrLn "Hello, world!"
 

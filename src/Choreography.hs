@@ -6,7 +6,7 @@ module Choreography (
   -- * Locations and Located Values
   LocTm,
   LocTy,
-  type (@),
+  type Located,
   mkLoc,
   Member,
   ExplicitMember,
@@ -14,8 +14,11 @@ module Choreography (
   explicitSubset,
   inSuper,
   consSet,
+  consSub,
   consSuper,
   singleton,
+  nobody,
+  (@@),
 
   -- * The Choreo monad
   Choreo,

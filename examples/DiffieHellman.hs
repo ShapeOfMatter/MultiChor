@@ -39,6 +39,9 @@ module DiffieHellman where
 import Choreography (mkHttpConfig, runChoreography)
 import Choreography.Choreo
 import Choreography.Location
+import CLI
+import Control.Monad.Cont (MonadIO)
+import Logic.Propositional (introAnd)
 import System.Environment
 import System.Random
 
@@ -59,57 +62,48 @@ $(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 
-diffieHellman :: Choreo Participants IO (Integer @ "alice", Integer @ "bob")
+diffieHellman :: (MonadIO m) =>
+                 Choreo Participants (CLI m) ()
 diffieHellman = do
   -- wait for alice to initiate the process
-  _ <- alice `locally` \_ -> do
-    putStrLn "enter to start key exchange..."
-    getLine
-  bob `locally_` \_ -> do
-    putStrLn "waiting for alice to initiate key exchange"
+  _ <- alice `locally` \_ -> getstr "enter to start key exchange..."
+  bob `locally_` \_ -> putNote "waiting for alice to initiate key exchange"
 
   -- alice picks p and g and sends them to bob
   pa <-
     alice `locally` \_ -> do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
-  pb <- (alice, pa) ~> bob
-  ga <- alice `locally` \un -> do randomRIO (10, un pa)
-  gb <- (alice, ga) ~> bob
+  pb <- (alice `introAnd` alice, pa) ~> (bob @@ nobody)
+  ga <- alice `locally` \un -> do randomRIO (10, un alice pa)
+  gb <- (alice `introAnd` alice, ga) ~> (bob @@ nobody)
 
   -- alice and bob select secrets
   a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
   b <- bob `locally` \_ -> do randomRIO (200, 1000 :: Integer)
 
   -- alice and bob computes numbers that they exchange
-  a' <- alice `locally` \un -> do return $ un ga ^ un a `mod` un pa
-  b' <- bob `locally` \un -> do return $ un gb ^ un b `mod` un pb
+  a' <- alice `locally` \un -> do return $ un alice ga ^ un alice a `mod` un alice pa
+  b' <- bob `locally` \un -> do return $ un bob gb ^ un bob b `mod` un bob pb
 
   -- exchange numbers
-  a'' <- (alice, a') ~> bob
-  b'' <- (bob, b') ~> alice
+  a'' <- (alice `introAnd` alice, a') ~> (bob @@ nobody)
+  b'' <- (bob `introAnd` bob, b') ~> (alice @@ nobody)
 
   -- compute shared key
-  s1 <-
-    alice `locally` \un ->
-      let s = un b'' ^ un a `mod` un pa
-       in do
-            putStrLn ("alice's shared key: " ++ show s)
-            return s
-  s2 <-
-    bob `locally` \un ->
-      let s = un a'' ^ un b `mod` un pb
-       in do
-            putStrLn ("bob's shared key: " ++ show s)
-            return s
-  return (s1, s2)
+  alice `locally_` \un ->
+      let s = un alice b'' ^ un alice a `mod` un alice pa
+       in putOutput "alice's shared key:" s
+  bob `locally_` \un ->
+      let s = un bob a'' ^ un bob b `mod` un bob pb
+      in putOutput "bob's shared key:" s
 
 main :: IO ()
 main = do
   [loc] <- getArgs
   _ <- case loc of
-    "alice" -> runChoreography config diffieHellman "alice"
-    "bob" -> runChoreography config diffieHellman "bob"
+    "alice" -> runCLIIO $ runChoreography config diffieHellman "alice"
+    "bob" -> runCLIIO $ runChoreography config diffieHellman "bob"
     _ -> error "unknown party"
   return ()
   where

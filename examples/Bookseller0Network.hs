@@ -25,26 +25,26 @@ buyer :: Network (CLI m) ()
 buyer = do
   budget <- run $ getInput @Int "Enter your total budget:"
   title <- run $ getstr "Enter the title of the book to buy:"
-  send title "seller"
+  send title ["seller"]
   price <- recv "seller"
   if price <= budget
   then do
-    send True "seller"
+    send True ["seller"]
     (deliveryDate :: Day) <- recv "seller"
     run $ putOutput "The book will be delivered on:" deliveryDate
   else do
-    send False "seller"
+    send False ["seller"]
     run $ putNote "The book's price is out of the budget"
 
 seller :: Network (CLI m) ()
 seller = do
   database <- run $ getInput "Enter the book database (for `Read`):"
   title <- recv "buyer"
-  send (database `priceOf` title) "buyer"
+  send (database `priceOf` title) ["buyer"]
   decision <- recv "buyer"
   if decision
   then do
-    send (database `deliveryDateOf` title) "buyer"
+    send (database `deliveryDateOf` title) ["buyer"]
   else do
     return ()
 

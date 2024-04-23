@@ -66,6 +66,8 @@ Homotopy Type Theory
 
 module Bookseller1Simple where
 
+import Logic.Propositional (introAnd)
+
 import Choreography
 import System.Environment
 
@@ -83,16 +85,16 @@ bookseller = do
   buyer_budget <- buyer `_locally` getInput "Enter your total budget:"
   title <- buyer `_locally` getstr "Enter the title of the book to buy:"
 
-  title' <- (buyer, title) ~> seller
-  price <- seller `locally` \un -> return $ priceOf (un database) (un title')
-  price' <- (seller, price) ~> buyer
-  decision <- buyer `locally` \un -> return $ un price' <= un buyer_budget
+  title' <- (buyer `introAnd` buyer, title) ~> (seller @@ nobody)
+  price <- seller `locally` \un -> return $ priceOf (un seller database) (un seller title')
+  price' <- (seller `introAnd` seller, price) ~> (buyer @@ nobody)
+  decision <- buyer `locally` \un -> return $ un buyer price' <= un buyer buyer_budget
 
-  cond (buyer, decision) \case
+  cond (buyer `introAnd` buyer, decision) \case
     True  -> do
-      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un database) (un title')
-      deliveryDate' <- (seller, deliveryDate) ~> buyer
-      buyer `locally_` \un -> putOutput "The book will be delivered on " $ un deliveryDate'
+      deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un seller database) (un seller title')
+      deliveryDate' <- (seller `introAnd` seller, deliveryDate) ~> (buyer @@ nobody)
+      buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un buyer deliveryDate'
     False -> do
       buyer `_locally_` putNote "The book's price is out of the budget"
 
@@ -101,15 +103,16 @@ bookseller' :: Choreo Participants (CLI m) ()
 bookseller' = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   buyer_budget <- buyer `_locally` getInput "Enter your total budget:"
-  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> seller
-  price <- (seller, \un -> return $ priceOf (un database) (un title)) ~~> buyer
+  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> (seller @@ nobody)
+  price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> (buyer @@ nobody)
 
-  cond' (buyer, \un -> return $ un price <= un buyer_budget) \case
+  cond' (buyer, \un -> return $ un buyer price <= un buyer buyer_budget) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un database) (un title)) ~~> buyer
-      buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un deliveryDate
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> (buyer @@ nobody)
+      buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un buyer deliveryDate
     False -> do
       buyer `_locally_` putNote "The book's price is out of the budget"
+
 
 
 main :: IO ()

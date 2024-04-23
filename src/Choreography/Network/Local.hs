@@ -42,9 +42,9 @@ runNetworkLocal cfg self = interpFreer handler
   where
     handler :: MonadIO m => NetworkSig m a -> m a
     handler (Run m)    = m
-    handler (Send a l) = liftIO $ writeChan ((locToBuf cfg ! l) ! self) (show a)
+    handler (Send a ls) = liftIO $ mapM_ (\l -> writeChan ((locToBuf cfg ! l) ! self) (show a)) ls
     handler (Recv l)   = liftIO $ read <$> readChan ((locToBuf cfg ! self) ! l)
-    handler(BCast a)   = mapM_ handler $ fmap (Send a) (locs cfg)
+    handler(BCast a)   = mapM_ handler $ fmap (Send a) [locs cfg]
 
 instance Backend LocalConfig where
   runNetwork = runNetworkLocal

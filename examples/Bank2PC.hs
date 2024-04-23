@@ -54,6 +54,7 @@ import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Data.Proxy (Proxy(Proxy))
 import GHC.TypeLits (KnownSymbol, symbolVal)
+import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
 
@@ -63,7 +64,7 @@ $(mkLoc "alice")
 $(mkLoc "bob")
 type Participants = ["client", "coordinator", "alice", "bob"]
 
-type State = (Int @ "alice", Int @ "bob")
+type State = (Located '["alice"] Int, Located '["bob"] Int)
 
 type Action = (String, Int)
 
@@ -120,23 +121,23 @@ parse s = tx
 -- Otherwise, it will keep the state unchanged.
 handleTransaction :: (Monad m) =>
                      State ->
-                     Transaction @ "coordinator" ->
-                     Choreo Participants m (Bool @ "coordinator", State)
+                     Located '["coordinator"] Transaction  ->
+                     Choreo Participants m (Located '["coordinator"] Bool, State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
-  txa <- (coordinator, tx) ~> alice
-  voteAlice <- (alice, \un -> do { return $ fst $ validate "alice" (un aliceBalance) (un txa) }) ~~> coordinator
-  txb <- (coordinator, tx) ~> bob
-  voteBob <- (bob, \un -> do { return $ fst $ validate "bob" (un bobBalance) (un txb) }) ~~> coordinator
+  txa <- (coordinator `introAnd` coordinator, tx) ~> (alice @@ nobody)
+  voteAlice <- (alice, \un -> do { return $ fst $ validate "alice" (un alice aliceBalance) (un alice txa) }) ~~> (coordinator @@ nobody)
+  txb <- (coordinator `introAnd` coordinator, tx) ~> (bob @@ nobody)
+  voteBob <- (bob, \un -> do { return $ fst $ validate "bob" (un bob bobBalance) (un bob txb) }) ~~> (coordinator @@ nobody)
 
   -- Check if the transaction can be committed
-  canCommit <- coordinator `locally` \un -> do return $ un voteAlice && un voteBob
+  canCommit <- coordinator `locally` \un -> do return $ un coordinator voteAlice && un coordinator voteBob
 
   -- Commit Phase
-  cond (coordinator, canCommit) \case
+  cond (coordinator `introAnd` coordinator, canCommit) \case
     True -> do
-      aliceBalance' <- alice `locally` \un -> do return $ snd $ validate "alice" (un aliceBalance) (un txa)
-      bobBalance' <- bob `locally` \un -> do return $ snd $ validate "bob" (un bobBalance) (un txb)
+      aliceBalance' <- alice `locally` \un -> do return $ snd $ validate "alice" (un alice aliceBalance) (un alice txa)
+      bobBalance' <- bob `locally` \un -> do return $ snd $ validate "bob" (un bob bobBalance) (un bob txb)
       return (canCommit, (aliceBalance', bobBalance'))
     False -> do
       return (canCommit, (aliceBalance, bobBalance))
@@ -145,13 +146,13 @@ handleTransaction (aliceBalance, bobBalance) tx = do
 bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
   tx <- (client, \_ -> parse <$> getstr "Command? (alice|bob {amount};)+"
-        ) ~~> coordinator
+        ) ~~> (coordinator @@ nobody)
   (committed, state') <- handleTransaction state tx
-  committed' <- (coordinator, committed) ~> client
-  client `locally_` \un -> putOutput "Committed?" (un committed')
-  alice `locally_` \un -> putOutput "Alice's balance:" (un (fst state'))
-  bob `locally_` \un -> putOutput "Bob's balance:" (un (snd state'))
-  cond' (coordinator, \un -> return $ null $ un tx) (`unless` bank state') -- repeat
+  committed' <- (coordinator `introAnd` coordinator, committed) ~> (client @@ nobody)
+  client `locally_` \un -> putOutput "Committed?" (un client committed')
+  alice `locally_` \un -> putOutput "Alice's balance:" (un alice (fst state'))
+  bob `locally_` \un -> putOutput "Bob's balance:" (un bob (snd state'))
+  cond' (coordinator, \un -> return $ null $ un coordinator tx) (`unless` bank state') -- repeat
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
 startBank :: Choreo Participants (CLI m) ()

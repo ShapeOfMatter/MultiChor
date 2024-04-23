@@ -55,6 +55,7 @@ module Bookseller2HigherOrder where
 
 import Choreography
 import System.Environment
+import Logic.Propositional (introAnd)
 
 import CLI
 import Data (deliveryDateOf, priceOf)
@@ -67,39 +68,40 @@ type Participants = ["buyer", "seller", "buyer2"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: (Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")) -> Choreo Participants (CLI m) ()
+bookseller :: (Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool))
+              -> Choreo Participants (CLI m) ()
 bookseller mkDecision = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
-  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> seller
+  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> (seller @@ nobody)
 
   -- the seller checks the price of the book and sends it to the buyer
-  price <- (seller, \un -> return $ priceOf (un database) (un title)) ~~> buyer
+  price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> (buyer @@ nobody)
 
   -- the buyer makes a decision using the `mkDecision` choreography
   decision <- mkDecision price
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  cond (buyer, decision) \case
+  cond (buyer `introAnd` buyer, decision) \case
     True  -> do
-      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un database) (un title)) ~~> buyer
-      buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un deliveryDate)
+      deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> (buyer @@ nobody)
+      buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
 
     False -> do
       buyer `locally_` \_ -> putNote "The book's price is out of the budget"
 
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
-mkDecision1 :: Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")
+mkDecision1 :: Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool)
 mkDecision1 price = do
   budget <- buyer `_locally` getInput "What are you willing to pay?"
-  buyer `locally` \un -> return $ un price <= un budget
+  buyer `locally` \un -> return $ un buyer price <= un buyer budget
 
 -- | `mkDecision2` asks buyer2 how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus buyer2's contribution
-mkDecision2 :: Int @ "buyer" -> Choreo Participants (CLI m) (Bool @ "buyer")
+mkDecision2 :: Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool)
 mkDecision2 price = do
   contrib1 <- buyer `_locally` getInput "What are you willing to pay?"
-  contrib2 <- (buyer2, \_ -> getInput "How much you're willing to contribute?") ~~> buyer
-  buyer `locally` \un -> return $ un price - un contrib2 <= un contrib1
+  contrib2 <- (buyer2, \_ -> getInput "How much you're willing to contribute?") ~~> (buyer @@ nobody)
+  buyer `locally` \un -> return $ un buyer price - un buyer contrib2 <= un buyer contrib1
 
 main :: IO ()
 main = do
