@@ -39,6 +39,8 @@ module DiffieHellman where
 import Choreography (mkHttpConfig, runChoreography)
 import Choreography.Choreo
 import Choreography.Location
+import CLI
+import Control.Monad.Cont (MonadIO)
 import Logic.Propositional (introAnd)
 import System.Environment
 import System.Random
@@ -60,14 +62,12 @@ $(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 
-diffieHellman :: Choreo Participants IO (Located '["alice"] Integer, Located '["bob"] Integer)
+diffieHellman :: (MonadIO m) =>
+                 Choreo Participants (CLI m) ()
 diffieHellman = do
   -- wait for alice to initiate the process
-  _ <- alice `locally` \_ -> do
-    putStrLn "enter to start key exchange..."
-    getLine
-  bob `locally_` \_ -> do
-    putStrLn "waiting for alice to initiate key exchange"
+  _ <- alice `locally` \_ -> getstr "enter to start key exchange..."
+  bob `locally_` \_ -> putNote "waiting for alice to initiate key exchange"
 
   -- alice picks p and g and sends them to bob
   pa <-
@@ -91,26 +91,19 @@ diffieHellman = do
   b'' <- (bob `introAnd` bob, b') ~> (alice @@ nobody)
 
   -- compute shared key
-  s1 <-
-    alice `locally` \un ->
+  alice `locally_` \un ->
       let s = un alice b'' ^ un alice a `mod` un alice pa
-       in do
-            putStrLn ("alice's shared key: " ++ show s)
-            return s
-  s2 <-
-    bob `locally` \un ->
+       in putOutput "alice's shared key:" s
+  bob `locally_` \un ->
       let s = un bob a'' ^ un bob b `mod` un bob pb
-       in do
-            putStrLn ("bob's shared key: " ++ show s)
-            return s
-  return (s1, s2)
+      in putOutput "bob's shared key:" s
 
 main :: IO ()
 main = do
   [loc] <- getArgs
   _ <- case loc of
-    "alice" -> runChoreography config diffieHellman "alice"
-    "bob" -> runChoreography config diffieHellman "bob"
+    "alice" -> runCLIIO $ runChoreography config diffieHellman "alice"
+    "bob" -> runCLIIO $ runChoreography config diffieHellman "bob"
     _ -> error "unknown party"
   return ()
   where

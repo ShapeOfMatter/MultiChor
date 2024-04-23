@@ -15,6 +15,7 @@ import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
+import qualified DiffieHellman
 import Choreography (runChoreography)
 import Choreography.Location (explicitMember, Member)
 import Choreography.Network (runNetwork)
@@ -146,6 +147,21 @@ tests' = [
                         (runChoreography config Bank2PC.startBank name)
                     ) situation
                   return $ results === reference args
+  },
+
+  getNormalPT PropertyTest {  -- This test is kinda dumb, but I don't know how better to express "correctness" of DHKE.
+    name = "diffie-hellman",
+    tags =[],
+    property = \() -> ioProperty do
+                  let situation = [ ("alice", [""])
+                                  , ("bob", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[a], [b]] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config DiffieHellman.diffieHellman name)
+                    ) situation
+                  return $ read @Integer a === read @Integer b
   }
   ]
 
