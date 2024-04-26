@@ -71,7 +71,7 @@ mainCho = do
                                     return $ fromMaybe carrollsDefault $ handlerName `lookup` carrollsFunctions
   query' <- (alice `introAnd` alice, query) ~> (carroll @@ nobody)
   response <- (carroll, \un -> return $ un carroll answerer (un carroll query')) ~~> (alice @@ (bob @@ nobody))
-  (_ :: Located '["alice", "bob"] ()) <- cond (undefined, choice) \case
+  (_ :: Located '["alice", "bob"] ()) <- cond (refl `introAnd` explicitSubset, choice) \case
     False -> bob `locally_` \un -> putstr "Recieved:" (un bob response)
     True -> alice `locally_` \un -> putstr "Recieved:" (un alice response)
   return ()
