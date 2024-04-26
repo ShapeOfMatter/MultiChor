@@ -34,6 +34,7 @@ module Choreography (
   broadcastCond,
   cond',
   naked,
+  flatten,
 
   -- * Message transport backends
   -- ** The HTTP backend

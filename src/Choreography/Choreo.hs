@@ -40,7 +40,7 @@ data ChoreoSig (ps :: [LocTy]) m a where
        -> Subset ls' ps    -- to
        -> ChoreoSig ps m (Located ls' a)
 
-  Cond :: (Show a, Read a, KnownSymbols ls)
+  Cond :: (KnownSymbols ls)
        => Proof (IsSubset ls qs && IsSubset ls ps)
        -> Located qs a
        -> (a -> Choreo ls m b)
@@ -104,7 +104,7 @@ locally l m = toFreer (Local l m)
 (~>) (l, a) l' = toFreer (Comm l a l')
 
 -- | Conditionally execute choreographies based on a located value.
-cond :: (Show a, Read a, KnownSymbols ls)
+cond :: (KnownSymbols ls)
      => (Proof (IsSubset ls qs && IsSubset ls ps), Located qs a)
      -> (a -> Choreo ls m b) -- ^ A function that describes the follow-up
                           -- choreographies based on the value of scrutinee.
@@ -161,4 +161,9 @@ _locally l m = locally l $ const m
 
 _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 _locally_ l m = void $ locally l (const m)
+
+flatten :: (KnownSymbols qs)
+        => Proof (IsSubset qs ls && IsSubset qs ps && IsSubset qs ms)
+        -> Located ls (Located ms a) -> Choreo ps m (Located qs a)
+flatten proof ll = cond (elimAndL proof, ll) (naked $ elimAndR proof)
 

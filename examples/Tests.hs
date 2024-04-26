@@ -15,6 +15,7 @@ import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
+import qualified DelegationFig20
 import qualified DiffieHellman
 import Choreography (runChoreography)
 import Choreography.Location (explicitMember, Member)
@@ -147,6 +148,29 @@ tests' = [
                         (runChoreography config Bank2PC.startBank name)
                     ) situation
                   return $ results === reference args
+  },
+
+  getNormalPT PropertyTest {
+    name = "delegation-fig20",
+    tags =[],
+    property = \args@DelegationFig20.Args{ DelegationFig20.choice=choice
+                                         , DelegationFig20.aliceQ=aliceQ
+                                         , DelegationFig20.bobQ=bobQ
+                                         , DelegationFig20.carrollF=carrollF
+                                         } -> ioProperty do
+                  let situation = [ ("alice", [show choice, aliceQ])
+                                  , ("bob", [bobQ])
+                                  , ("carroll", [carrollF])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [aliceR, bobR, carrollR] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config DelegationFig20.mainCho name)
+                    ) situation
+                  return $ DelegationFig20.Result{ DelegationFig20.aliceR=aliceR
+                                                 , DelegationFig20.bobR=bobR
+                                                 , DelegationFig20.carrollR=carrollR
+                                                 } === reference args
   },
 
   getNormalPT PropertyTest {  -- This test is kinda dumb, but I don't know how better to express "correctness" of DHKE.
