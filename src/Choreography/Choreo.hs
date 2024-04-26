@@ -93,6 +93,7 @@ locally :: (KnownSymbol (l :: LocTy))
         -> (Unwrap l -> m a) -- ^ The local computation given a constrained
                              -- unwrap funciton.
         -> Choreo ps m (Located '[l] a)
+infix 4 `locally`
 locally l m = toFreer (Local l m)
 
 -- | Communication between a sender and a receiver.
@@ -101,6 +102,7 @@ locally l m = toFreer (Local l m)
                           -- at the sender
      -> Subset ls' ps          -- ^ A receiver's location.
      -> Choreo ps m (Located ls' a)
+infix 4 ~>
 (~>) (l, a) l' = toFreer (Comm l a l')
 
 -- | Conditionally execute choreographies based on a located value.
@@ -122,6 +124,7 @@ naked proof a = toFreer $ Naked proof a
                                     -- computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
+infix 4 ~~>
 (~~>) (l, m) ls' = do
   x <- l `locally` m
   (explicitMember `introAnd` l, x) ~> ls'
@@ -151,15 +154,18 @@ locally_ :: (KnownSymbol l)
         => Member l ps
         -> (Unwrap l -> m ())
         -> Choreo ps m ()
+infix 4 `locally_`
 locally_ l m = void $ locally l m
 
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
         -> Choreo ps m (Located '[l] a)
+infix 4 `_locally`
 _locally l m = locally l $ const m
 
 _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
+infix 4 `_locally_`
 _locally_ l m = void $ locally l (const m)
 
 flatten :: (KnownSymbols qs)

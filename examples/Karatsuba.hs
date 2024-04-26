@@ -87,14 +87,14 @@ karatsuba a b c n1 n2 = do
         a `locally` \un -> return $ un explicitMember n1 * un explicitMember n2
       False -> do
         x <- a `locally` \un -> return $ f (un explicitMember n1) (un explicitMember n2)
-        l1' <- (a, \un -> return $ l1 (un explicitMember x)) ~~> (b @@ nobody)
-        l2' <- (a, \un -> return $ l2 (un explicitMember x)) ~~> (b @@ nobody)
-        h1' <- (a, \un -> return $ h1 (un explicitMember x)) ~~> (c @@ nobody)
-        h2' <- (a, \un -> return $ h2 (un explicitMember x)) ~~> (c @@ nobody)
+        l1' <- (a, \un -> return $ l1 (un explicitMember x)) ~~> b @@ nobody
+        l2' <- (a, \un -> return $ l2 (un explicitMember x)) ~~> b @@ nobody
+        h1' <- (a, \un -> return $ h1 (un explicitMember x)) ~~> c @@ nobody
+        h2' <- (a, \un -> return $ h2 (un explicitMember x)) ~~> c @@ nobody
         z0' <- karatsuba b c a l1' l2'
-        z0 <- (explicitMember `introAnd` b, z0') ~> (a @@ nobody)
+        z0 <- (explicitMember `introAnd` b, z0') ~> a @@ nobody
         z2' <- karatsuba c a b h1' h2'
-        z2 <- (explicitMember `introAnd` c, z2') ~> (a @@ nobody)
+        z2 <- (explicitMember `introAnd` c, z2') ~> a @@ nobody
         s1 <- a `locally` \un -> return $ l1 (un explicitMember x) + h1 (un explicitMember x)
         s2 <- a `locally` \un -> return $ l2 (un explicitMember x) + h2 (un explicitMember x)
         z1' <- karatsuba a b c s1 s2

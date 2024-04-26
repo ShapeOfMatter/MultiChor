@@ -72,6 +72,7 @@ nobody :: Subset '[] ys
 nobody = explicitSubset
 
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
+infixr 5 @@
 (@@) = flip consSub
 
 -- |Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.

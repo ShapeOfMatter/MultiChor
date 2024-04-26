@@ -125,10 +125,10 @@ handleTransaction :: (Monad m) =>
                      Choreo Participants m (Located '["coordinator"] Bool, State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
-  txa <- (coordinator `introAnd` coordinator, tx) ~> (alice @@ nobody)
-  voteAlice <- (alice, \un -> do { return $ fst $ validate "alice" (un alice aliceBalance) (un alice txa) }) ~~> (coordinator @@ nobody)
-  txb <- (coordinator `introAnd` coordinator, tx) ~> (bob @@ nobody)
-  voteBob <- (bob, \un -> do { return $ fst $ validate "bob" (un bob bobBalance) (un bob txb) }) ~~> (coordinator @@ nobody)
+  txa <- (coordinator `introAnd` coordinator, tx) ~> alice @@ nobody
+  voteAlice <- (alice, \un -> do { return $ fst $ validate "alice" (un alice aliceBalance) (un alice txa) }) ~~> coordinator @@ nobody
+  txb <- (coordinator `introAnd` coordinator, tx) ~> bob @@ nobody
+  voteBob <- (bob, \un -> do { return $ fst $ validate "bob" (un bob bobBalance) (un bob txb) }) ~~> coordinator @@ nobody
 
   -- Check if the transaction can be committed
   canCommit <- coordinator `locally` \un -> do return $ un coordinator voteAlice && un coordinator voteBob
@@ -146,9 +146,9 @@ handleTransaction (aliceBalance, bobBalance) tx = do
 bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
   tx <- (client, \_ -> parse <$> getstr "Command? (alice|bob {amount};)+"
-        ) ~~> (coordinator @@ nobody)
+        ) ~~> coordinator @@ nobody
   (committed, state') <- handleTransaction state tx
-  committed' <- (coordinator `introAnd` coordinator, committed) ~> (client @@ nobody)
+  committed' <- (coordinator `introAnd` coordinator, committed) ~> client @@ nobody
   client `locally_` \un -> putOutput "Committed?" (un client committed')
   alice `locally_` \un -> putOutput "Alice's balance:" (un alice (fst state'))
   bob `locally_` \un -> putOutput "Bob's balance:" (un bob (snd state'))

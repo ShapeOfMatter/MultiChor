@@ -62,8 +62,8 @@ sort a b c lst = do
       divided <- a `locally` \un -> do return $ divide (un explicitMember lst)
       l <- a `locally` \un -> do return $ fst (un explicitMember divided)
       r <- a `locally` \un -> do return $ snd (un explicitMember divided)
-      l' <- (explicitMember `introAnd` a, l) ~> (b @@ nobody)
-      r' <- (explicitMember `introAnd` a, r) ~> (c @@ nobody)
+      l' <- (explicitMember `introAnd` a, l) ~> b @@ nobody
+      r' <- (explicitMember `introAnd` a, r) ~> c @@ nobody
       ls' <- sort b c a l'
       rs' <- sort c a b r'
       merge a b c ls' rs'
@@ -89,7 +89,7 @@ merge a b c lhs rhs = do
       broadcastCond (explicitMember `introAnd` c, rhsHasElements) \case
         True -> do
           rhsHeadAtC <- c `locally` \un -> do return $ head (un explicitMember rhs)
-          rhsHeadAtB <- (explicitMember `introAnd` c, rhsHeadAtC) ~> (b @@ nobody)
+          rhsHeadAtB <- (explicitMember `introAnd` c, rhsHeadAtC) ~> b @@ nobody
           takeLhs <- b `locally` \un -> do return $ head (un explicitMember lhs) <= un explicitMember rhsHeadAtB
           broadcastCond (explicitMember `introAnd` b, takeLhs) \case
             True -> do
@@ -97,19 +97,19 @@ merge a b c lhs rhs = do
               lhs' <- b `locally` \un -> do return $ tail (un explicitMember lhs)
               merged <- merge a b c lhs' rhs
               lhsHeadAtB <- b `locally` \un -> do return $ head (un explicitMember lhs)
-              lhsHeadAtA <- (explicitMember `introAnd` b, lhsHeadAtB) ~> (a @@ nobody)
+              lhsHeadAtA <- (explicitMember `introAnd` b, lhsHeadAtB) ~> a @@ nobody
               a `locally` \un -> do return $ un explicitMember lhsHeadAtA : un explicitMember merged
             False -> do
               -- take (head rhs) and merge the rest
               rhs' <- c `locally` \un -> do return $ tail (un explicitMember rhs)
               merged <- merge a b c lhs rhs'
               rhsHeadAtC' <- c `locally` \un -> do return $ head (un explicitMember rhs)
-              rhsHeadAtA <- (explicitMember `introAnd` c, rhsHeadAtC') ~> (a @@ nobody)
+              rhsHeadAtA <- (explicitMember `introAnd` c, rhsHeadAtC') ~> a @@ nobody
               a `locally` \un -> do return $ un explicitMember rhsHeadAtA : un explicitMember merged
         False -> do
-          (explicitMember `introAnd` b, lhs) ~> (a @@ nobody)
+          (explicitMember `introAnd` b, lhs) ~> a @@ nobody
     False -> do
-      (explicitMember `introAnd` c, rhs) ~> (a @@ nobody)
+      (explicitMember `introAnd` c, rhs) ~> a @@ nobody
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
