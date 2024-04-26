@@ -95,7 +95,7 @@ primaryBackupReplicationStrategy ::
   ReplicationStrategy (Located '["primary"] (IORef State), Located '["backup"] (IORef State))
 primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
-  cond (primary `introAnd` primary, request) \case
+  broadcastCond (primary `introAnd` primary, request) \case
     Put _ _ -> do
       request' <- (primary `introAnd` primary, request) ~> (backup @@ nobody)
       _ <- (backup,

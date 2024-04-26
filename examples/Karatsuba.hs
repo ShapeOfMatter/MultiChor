@@ -80,7 +80,7 @@ karatsuba ::
   Choreo Participants IO (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \un -> return $ un explicitMember n1 < 10 || un explicitMember n2 < 10
-  cond
+  broadcastCond
     (explicitMember `introAnd` a, done)
     \case
       True -> do

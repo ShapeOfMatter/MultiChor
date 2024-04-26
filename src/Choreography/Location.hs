@@ -31,7 +31,7 @@ wrap = Wrap
 -- | Unwrap a located value.
 --
 -- /Note:/ Unwrapping a empty located value will throw an exception.
-unwrap :: Member l ls -> Located ls a -> a
+unwrap :: Subset qs ls -> Located ls a -> a
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "this should never happen for a well-typed choreography"
 

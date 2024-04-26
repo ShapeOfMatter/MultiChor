@@ -47,12 +47,12 @@ $(mkLoc "worker1")
 $(mkLoc "worker2")
 type Participants = ["primary", "worker1", "worker2"]
 
-quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps) =>
              Member a ps -> Member b ps -> Member c ps
              -> Located '[a] [Int] -> Choreo ps IO (Located '[a] [Int])
 quicksort a b c lst = do
   isEmpty <- a `locally` \un -> pure (null (un explicitMember lst))
-  cond (explicitMember `introAnd` a, isEmpty) \case
+  broadcastCond (explicitMember `introAnd` a, isEmpty) \case
     True -> do
       a `locally` \_ -> pure []
     False -> do

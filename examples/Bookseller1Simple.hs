@@ -90,7 +90,7 @@ bookseller = do
   price' <- (seller `introAnd` seller, price) ~> (buyer @@ nobody)
   decision <- buyer `locally` \un -> return $ un buyer price' <= un buyer buyer_budget
 
-  cond (buyer `introAnd` buyer, decision) \case
+  broadcastCond (buyer `introAnd` buyer, decision) \case
     True  -> do
       deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un seller database) (un seller title')
       deliveryDate' <- (seller `introAnd` seller, deliveryDate) ~> (buyer @@ nobody)

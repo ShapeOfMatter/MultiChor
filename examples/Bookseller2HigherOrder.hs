@@ -81,7 +81,7 @@ bookseller mkDecision = do
   decision <- mkDecision price
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  cond (buyer `introAnd` buyer, decision) \case
+  broadcastCond (buyer `introAnd` buyer, decision) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> (buyer @@ nobody)
       buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)

@@ -99,14 +99,15 @@ nullReplicationStrategy request stateRef = do
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
   (KnownSymbol a,
-   KnownSymbol b)=>
+   KnownSymbol b,
+   KnownSymbols ps)=>
   Member a ps ->
   Member b ps ->
   Located '[a] Request ->
   Located '[b] (IORef State) ->
   Choreo ps IO ()
 doBackup locA locB request stateRef = do
-  cond (explicitMember `introAnd` locA, request) \case
+  broadcastCond (explicitMember `introAnd` locA, request) \case
     Put _ _ -> do
       request' <- (explicitMember `introAnd` locA, request) ~> (locB @@ nobody)
       _ <- (locB, \un -> handleRequest (un explicitMember request') (un explicitMember stateRef))

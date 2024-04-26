@@ -86,7 +86,7 @@ kvs request (primaryStateRef, backupStateRef) = do
   request' <- (client `introAnd` client, request) ~> (primary @@ nobody)
 
   -- branch on the request
-  cond (primary `introAnd` primary, request') \case
+  broadcastCond (primary `introAnd` primary, request') \case
     -- if the request is a `PUT`, forward the request to the backup node
     Put _ _ -> do
       request'' <- (primary `introAnd` primary, request') ~> (backup @@ nobody)

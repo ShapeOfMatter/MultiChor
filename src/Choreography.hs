@@ -7,6 +7,7 @@ module Choreography (
   LocTm,
   LocTy,
   type Located,
+  KnownSymbols,
   mkLoc,
   Member,
   ExplicitMember,
@@ -30,8 +31,9 @@ module Choreography (
   (~>),
   (~~>),
   cond,
+  broadcastCond,
   cond',
-  reveal,
+  naked,
 
   -- * Message transport backends
   -- ** The HTTP backend

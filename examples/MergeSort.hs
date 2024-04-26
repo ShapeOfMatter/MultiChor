@@ -47,6 +47,7 @@ type Participants = ["primary", "worker1", "worker2"]
 sort :: (KnownSymbol a
         ,KnownSymbol c
         ,KnownSymbol b
+        ,KnownSymbols ps
         ) =>
   Member a ps ->
   Member b ps ->
@@ -55,7 +56,7 @@ sort :: (KnownSymbol a
   Choreo ps IO (Located '[a] [Int])
 sort a b c lst = do
   condition <- a `locally` \un -> do return $ length (un explicitMember lst) > 1
-  cond (explicitMember `introAnd` a, condition) \case
+  broadcastCond (explicitMember `introAnd` a, condition) \case
     True -> do
       _ <- a `locally` \un -> do return $ length (un explicitMember lst) `div` 2
       divided <- a `locally` \un -> do return $ divide (un explicitMember lst)
@@ -72,6 +73,7 @@ sort a b c lst = do
 merge :: (KnownSymbol a
          ,KnownSymbol c
          ,KnownSymbol b
+         ,KnownSymbols ps
          ) =>
   Member a ps ->
   Member b ps ->
@@ -81,15 +83,15 @@ merge :: (KnownSymbol a
   Choreo ps IO (Located '[a] [Int])
 merge a b c lhs rhs = do
   lhsHasElements <- b `locally` \un -> do return $ not (null (un explicitMember lhs))
-  cond (explicitMember `introAnd` b, lhsHasElements) \case
+  broadcastCond (explicitMember `introAnd` b, lhsHasElements) \case
     True -> do
       rhsHasElements <- c `locally` \un -> do return $ not (null (un explicitMember rhs))
-      cond (explicitMember `introAnd` c, rhsHasElements) \case
+      broadcastCond (explicitMember `introAnd` c, rhsHasElements) \case
         True -> do
           rhsHeadAtC <- c `locally` \un -> do return $ head (un explicitMember rhs)
           rhsHeadAtB <- (explicitMember `introAnd` c, rhsHeadAtC) ~> (b @@ nobody)
           takeLhs <- b `locally` \un -> do return $ head (un explicitMember lhs) <= un explicitMember rhsHeadAtB
-          cond (explicitMember `introAnd` b, takeLhs) \case
+          broadcastCond (explicitMember `introAnd` b, takeLhs) \case
             True -> do
               -- take (head lhs) and merge the rest
               lhs' <- b `locally` \un -> do return $ tail (un explicitMember lhs)

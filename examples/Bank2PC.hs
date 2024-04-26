@@ -134,7 +134,7 @@ handleTransaction (aliceBalance, bobBalance) tx = do
   canCommit <- coordinator `locally` \un -> do return $ un coordinator voteAlice && un coordinator voteBob
 
   -- Commit Phase
-  cond (coordinator `introAnd` coordinator, canCommit) \case
+  broadcastCond (coordinator `introAnd` coordinator, canCommit) \case
     True -> do
       aliceBalance' <- alice `locally` \un -> do return $ snd $ validate "alice" (un alice aliceBalance) (un alice txa)
       bobBalance' <- bob `locally` \un -> do return $ snd $ validate "bob" (un bob bobBalance) (un bob txb)

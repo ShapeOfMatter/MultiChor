@@ -28,7 +28,7 @@ type Ring g = [Edge g]
 
 type Label = Int
 
-ringLeader :: forall g. Ring g -> Choreo g (StateT Label IO) ()  -- g for graph
+ringLeader :: forall g. (KnownSymbols g) => Ring g -> Choreo g (StateT Label IO) ()  -- g for graph
 ringLeader r = loop r
   where
     loop :: Ring g -> Choreo g (StateT Label IO) ()
@@ -48,7 +48,7 @@ ringLeader r = loop r
       finished <- right `locally` \un ->
         return $ un explicitMember labelLeft == un explicitMember labelRight
 
-      cond (explicitMember `introAnd` right, finished) \case
+      broadcastCond (explicitMember `introAnd` right, finished) \case
         True  -> do
           right `locally_` \_ -> lift $ putStrLn "I'm the leader"
           return True
