@@ -63,7 +63,7 @@ carrollsDefault = const "No Handler"
 mainCho :: Choreo Participants (CLI m) ()
 mainCho = do
   choice <- (alice, \_ -> getInput "Alice's choice:") ~~> alice @@ bob @@ nobody
-  query <- flatten ((alice @@ nobody) `introAnd` (alice @@ nobody) `introAnd` (alice @@ nobody)) =<<
+  query <- flatten ((alice @@ nobody) `introAnd` (alice @@ nobody)) <$>
     cond (refl `introAnd` explicitSubset, choice) \case
       False -> (bob, \_ -> getstr "Bob's query:") ~~> alice @@ nobody
       True  -> alice `_locally` getstr "Alice's query:"

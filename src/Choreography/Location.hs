@@ -8,6 +8,7 @@ import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 import Language.Haskell.TH
 import Logic.Proof (Proof, axiom)
+import Logic.Propositional (type (&&), elimAndL, elimAndR)
 import Logic.Classes (Reflexive, refl, Transitive, transitive)
 
 -- | Term-level locations.
@@ -107,4 +108,7 @@ instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
 
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
 toLocs _ = symbolVals (Proxy @ls)
+
+flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
+flatten proof = Wrap . unwrap (elimAndR proof) . unwrap (elimAndL proof)
 
