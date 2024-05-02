@@ -1,3 +1,15 @@
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DataKinds      #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE TemplateHaskell #-}
+
+module MPCSum where
+
+import Choreography
+import Control.Monad
+import System.Environment
+import Logic.Propositional (introAnd)
+import CLI
 
 -- Multiple servers
 -- Multiple clients
@@ -13,11 +25,12 @@ $(mkLoc "client4")
 $(mkLoc "client5")
 $(mkLoc "client6")
 
-type Fp -- field elements
+type Fp = Integer -- field elements
 
 type Servers = ["server1", "server2", "server3", "server4"]
 type Clients = ["client1", "client2", "client3", "client4", "client5", "client6"]
-type Participants = Servers ++ Clients
+-- type Participants = Servers ++ Clients
+type Participants = Clients
 
 -- sendShares :: Located Fp c -> Member s Servers -> Choreo Participants (CLI m) (Located Fp s)
 -- sendShares share prf = do
@@ -32,28 +45,34 @@ type Participants = Servers ++ Clients
 --                        facetedM sendShares (zip shares Servers))
 --   return $ faceted shares
 
-serverSum :: Choreo Participants (CLI m) (Located server1 Fp, Located server2 Fp)
-serverSum = do
-  s11, s12 <- client1 `_locally` getstr "enter secret" >>= secretShare
-  s21, s22 <- client2 `_locally` getstr "enter secret" >>= secretShare
-  s11s <- (client1 `introAnd` client1, s11) ~> server1 @@ nobody
-  s21s <- (client2 `introAnd` client2, s21) ~> server1 @@ nobody
-  s12s <- (client1 `introAnd` client1, s12) ~> server2 @@ nobody
-  s22s <- (client2 `introAnd` client2, s22) ~> server2 @@ nobody
-  sum1 <- (server1, \un -> return $ (un s11s) + (un s21s)) ~~> server2 @@ nobody
-  sum2 <- (server2, \un -> return $ (un s12s) + (un s22s)) ~~> server1 @@ nobody
-  total1 <- server1 `locally` \un -> return $ (un sum1) + (un sum2)
-  total2 <- server2 `locally` \un -> return $ (un sum1) + (un sum2)
-  return $ (total1, total2)
+-- serverSum :: Choreo Participants (CLI m) (Located server1 Fp, Located server2 Fp)
+-- serverSum = do
+--   s11, s12 <- client1 `_locally` getstr "enter secret" >>= secretShare
+--   s21, s22 <- client2 `_locally` getstr "enter secret" >>= secretShare
+--   s11s <- (client1 `introAnd` client1, s11) ~> server1 @@ nobody
+--   s21s <- (client2 `introAnd` client2, s21) ~> server1 @@ nobody
+--   s12s <- (client1 `introAnd` client1, s12) ~> server2 @@ nobody
+--   s22s <- (client2 `introAnd` client2, s22) ~> server2 @@ nobody
+--   sum1 <- (server1, \un -> return $ (un s11s) + (un s21s)) ~~> server2 @@ nobody
+--   sum2 <- (server2, \un -> return $ (un s12s) + (un s22s)) ~~> server1 @@ nobody
+--   total1 <- server1 `locally` \un -> return $ (un sum1) + (un sum2)
+--   total2 <- server2 `locally` \un -> return $ (un sum1) + (un sum2)
+--   return $ (total1, total2)
+
+secretShare :: Choreo p (CLI m) (Located p (Fp, Fp))
+secretShare = do
+  secret <- getInput "secret:"
+  let s = toInteger secret
+  undefined
 
 p2pSum :: Choreo Participants (CLI m) (Located client1 Fp, Located client2 Fp)
 p2pSum = do
-  s11, s12 <- client1 `_locally` getstr "enter secret" >>= secretShare
-  s21, s22 <- client2 `_locally` getstr "enter secret" >>= secretShare
-  s12s <- (client1 `introAnd` client1, s12) ~> client2 @@ nobody
-  s21s <- (client2 `introAnd` client2, s21) ~> client1 @@ nobody
-  sum1 <- (client1, \un -> return $ (un s11) + (un s21s)) ~~> client2 @@ nobody
-  sum2 <- (client2, \un -> return $ (un s12s) + (un s22)) ~~> client1 @@ nobody
-  total1 <- client1 `locally` \un -> return $ (un sum1) + (un sum2)
-  total2 <- client2 `locally` \un -> return $ (un sum1) + (un sum2)
+  shares1 <- client1 `locally` \_ -> secretShare
+  shares2 <- client2 `locally` \_ -> secretShare
+  s12s <- (client1, \un -> return $ snd $ un client1 shares1) ~~> client2 @@ nobody
+  s21s <- (client2, \un -> return $ snd $ un client2 shares2) ~~> client1 @@ nobody
+  sum1 <- (client1, \un -> return $ (fst $ un shares1) + (un client1 s21s)) ~~> client2 @@ nobody
+  sum2 <- (client2, \un -> return $ (un s12s) + (fst $ un client2 shares2)) ~~> client1 @@ nobody
+  total1 <- client1 `locally` \un -> return $ (un client1 sum1) + (un client1 sum2)
+  total2 <- client2 `locally` \un -> return $ (un client2 sum1) + (un client2 sum2)
   return $ (total1, total2)
