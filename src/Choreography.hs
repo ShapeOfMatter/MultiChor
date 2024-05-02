@@ -20,6 +20,7 @@ module Choreography (
   singleton,
   nobody,
   (@@),
+  flatten,
 
   -- * The Choreo monad
   Choreo,
@@ -34,7 +35,7 @@ module Choreography (
   broadcastCond,
   cond',
   naked,
-  flatten,
+  enclave,
 
   -- * Message transport backends
   -- ** The HTTP backend
