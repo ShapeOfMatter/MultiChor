@@ -84,6 +84,7 @@ library examples
         , Playground
         , QuickSort
         , RingLeader
+        , MPCSum
         , Data
 
 common example
@@ -124,6 +125,7 @@ Test-Suite testExamples
                  , MergeSort
                  , Playground
                  , QuickSort
+                 , MPCSum
                  , RingLeader
 
 executable bank-2pc
@@ -209,6 +211,12 @@ executable quicksort
     main-is:          QuickSort.hs
     ghc-options:
       -main-is QuickSort
+
+executable mpc-sum
+    import: example
+    main-is:          MPCSum.hs
+    ghc-options:
+      -main-is MPCSum
 
 executable ring-leader
     import: example

@@ -59,20 +59,34 @@ type Participants = Clients
 --   total2 <- server2 `locally` \un -> return $ (un sum1) + (un sum2)
 --   return $ (total1, total2)
 
-secretShare :: Choreo p (CLI m) (Located p (Fp, Fp))
+secretShare :: CLI m (Fp, Fp)
 secretShare = do
   secret <- getInput "secret:"
-  let s = toInteger secret
-  undefined
+  return (5, secret - 5)
 
-p2pSum :: Choreo Participants (CLI m) (Located client1 Fp, Located client2 Fp)
+p2pSum :: Choreo Participants (CLI m) ()
 p2pSum = do
   shares1 <- client1 `locally` \_ -> secretShare
   shares2 <- client2 `locally` \_ -> secretShare
   s12s <- (client1, \un -> return $ snd $ un client1 shares1) ~~> client2 @@ nobody
   s21s <- (client2, \un -> return $ snd $ un client2 shares2) ~~> client1 @@ nobody
-  sum1 <- (client1, \un -> return $ (fst $ un shares1) + (un client1 s21s)) ~~> client2 @@ nobody
-  sum2 <- (client2, \un -> return $ (un s12s) + (fst $ un client2 shares2)) ~~> client1 @@ nobody
+  sum1 <- (client1, \un -> return $ (fst $ un client1 shares1) + (un client1 s21s)) ~~> client1 @@ client2 @@ nobody
+  sum2 <- (client2, \un -> return $ (un client2 s12s) + (fst $ un client2 shares2)) ~~> client1 @@ client2 @@ nobody
   total1 <- client1 `locally` \un -> return $ (un client1 sum1) + (un client1 sum2)
   total2 <- client2 `locally` \un -> return $ (un client2 sum1) + (un client2 sum2)
-  return $ (total1, total2)
+  client1 `locally_` \un -> putOutput "Total:" $ un client1 total1
+  client2 `locally_` \un -> putOutput "Total:" $ un client2 total2
+
+
+main :: IO ()
+main = do
+  [loc] <- getArgs
+  delivery <- case loc of
+    "client1"  -> runCLIIO $ runChoreography cfg p2pSum "client1"
+    "client2" -> runCLIIO $ runChoreography cfg p2pSum "client2"
+    _ -> error "unknown party"
+  print delivery
+  where
+    cfg = mkHttpConfig [ ("client1",  ("localhost", 4242))
+                       , ("client2", ("localhost", 4343))
+                       ]
