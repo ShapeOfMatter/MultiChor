@@ -17,6 +17,7 @@ import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
 import qualified DelegationFig20
 import qualified DiffieHellman
+import qualified KVS5Fig17
 import Choreography (runChoreography)
 import Choreography.Location (explicitMember, Member)
 import Choreography.Network (runNetwork)
@@ -186,6 +187,24 @@ tests' = [
                         (runChoreography config DiffieHellman.diffieHellman name)
                     ) situation
                   return $ read @Integer a === read @Integer b
+  },
+
+  getNormalPT PropertyTest {
+    name = "kvs-5-fig17",
+    tags =[],
+    property = \args@KVS5Fig17.Args{ KVS5Fig17.request=request
+                                   , KVS5Fig17.handler=handler
+                                   } -> ioProperty do
+                  let situation = [ ("client", [show request])
+                                  , ("primary", [handler])
+                                  , ("backup", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[response], [], []] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config KVS5Fig17.kvs name)
+                    ) situation
+                  return $ read response === reference args
   }
   ]
 
