@@ -21,6 +21,7 @@ import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 -- | A constrained version of `unwrap` that only unwraps values located at a
 -- specific location.
 type Unwrap (l :: LocTy) = forall ls a. Member l ls -> Located ls a -> a
+type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
 
 -- | Effect signature for the `Choreo` monad. @m@ is a monad that represents
 -- local computations.
@@ -33,6 +34,11 @@ data ChoreoSig (ps :: [LocTy]) m a where
         => Member l ps
         -> (Unwrap l -> m a)
         -> ChoreoSig ps m (Located '[l] a)
+
+  Replicative :: (KnownSymbols ls)
+        => Subset ls ps
+        -> (Unwraps ls -> a)
+        -> ChoreoSig ps m (Located ls a)
 
   Comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
        => Proof (IsMember l ls && IsMember l ps)     -- from
@@ -58,6 +64,9 @@ runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig ps m a -> m a
     handler (Local _ m)  = wrap <$> m (unwrap . (@@ nobody))
+    handler (Replicative ls f)= case toLocs ls of
+      [] -> return Empty  -- I'm not 100% sure we should care about this situation...
+      _  -> return . wrap . f $ unwrap
     handler (Comm l a _) = return $ (wrap . unwrap (elimAndL l @@ nobody)) a
     handler (Enclave _ c) = wrap <$> runChoreo c
     handler (Naked proof a) = return $ unwrap proof a
@@ -70,6 +79,9 @@ epp c l' = interpFreer handler c
     handler (Local l m)
       | toLocTm l == l' = wrap <$> run (m $ unwrap . (@@ nobody))
       | otherwise       = return Empty
+    handler (Replicative ls f)
+      | l' `elem` toLocs ls = return . wrap . f $ unwrap
+      | otherwise = return Empty
     handler (Comm s a rs) = do
       let sender = toLocTm $ elimAndR s
       let otherRecipients = sender `delete` toLocs rs
@@ -95,6 +107,13 @@ locally :: (KnownSymbol (l :: LocTy))
 infix 4 `locally`
 locally l m = toFreer (Local l m)
 
+replicatively :: (KnownSymbols ls)
+              => Subset ls ps
+              -> (Unwraps ls -> a)
+              -> Choreo ps m (Located ls a)
+infix 4 `replicatively`
+replicatively ls f = toFreer (Replicative ls f)
+
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
      => (Proof (IsMember l ls && IsMember l ps), Located ls a)  -- ^ A pair of a sender's location and a value located
@@ -105,11 +124,13 @@ infix 4 ~>
 (~>) (l, a) l' = toFreer (Comm l a l')
 
 enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
+infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch
 
 naked :: Subset ps qs
          -> Located qs a
          -> Choreo ps m a
+infix 4 `naked`
 naked proof a = toFreer $ Naked proof a
 
 -- | Conditionally execute choreographies based on a located value.

@@ -79,6 +79,7 @@ library examples
         , KVS2PrimaryBackup
         , KVS3HigherOrder
         , KVS4LocPoly
+        , KVS5Fig17
         , MergeSort
         , Playground
         , QuickSort
@@ -119,6 +120,7 @@ Test-Suite testExamples
                  , KVS2PrimaryBackup
                  , KVS3HigherOrder
                  , KVS4LocPoly
+                 , KVS5Fig17
                  , MergeSort
                  , Playground
                  , QuickSort
