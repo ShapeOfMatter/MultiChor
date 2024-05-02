@@ -110,5 +110,7 @@ toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls p
 toLocs _ = symbolVals (Proxy @ls)
 
 flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
-flatten proof = Wrap . unwrap (elimAndR proof) . unwrap (elimAndL proof)
+flatten _ Empty = Empty
+flatten _ (Wrap Empty) = Empty
+flatten _ (Wrap (Wrap a)) = Wrap a
 
