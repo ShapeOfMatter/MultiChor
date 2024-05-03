@@ -76,6 +76,17 @@ nobody = explicitSubset
 infixr 5 @@
 (@@) = flip consSub
 
+-- Not sure how I like the @@ nobody's what do you think of this?
+
+-- Make a subset from a member
+-- where the member is the only element in the subset
+memberToSubset :: Member x ys -> Subset '[x] ys
+memberToSubset single = single @@ nobody
+
+-- If this is more your thing
+(@@@) :: Member x ys -> Subset '[x] ys
+(@@@) = memberToSubset
+
 -- |Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.
 mkLoc :: String -> Q [Dec]
 mkLoc loc = do
