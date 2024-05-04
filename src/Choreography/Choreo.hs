@@ -7,6 +7,7 @@
 module Choreography.Choreo where
 
 import Data.List (delete)
+import Data.Maybe (catMaybes, fromJust)
 import Control.Monad (void, when)
 
 import Choreography.Location
@@ -20,20 +21,19 @@ import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 -- * The Choreo monad
 -- | A constrained version of `unwrap` that only unwraps values located at a
 -- specific location.
-type Unwrap (l :: LocTy) = forall ls a. Member l ls -> Located ls a -> a
+type Unwrap (l :: LocTy) = forall ls a w. (Wrapped w) => Member l ls -> w ls a -> a
 type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
 
 -- | Effect signature for the `Choreo` monad. @m@ is a monad that represents
 -- local computations.
 -- TODO take set of participants in Monad
 
--- type TestTwoLocations (l1 : LocTm) l2 = Set '[l1, l2]
 
 data ChoreoSig (ps :: [LocTy]) m a where
-  Local :: (KnownSymbol l)
-        => Member l ps
-        -> (Unwrap l -> m a)
-        -> ChoreoSig ps m (Located '[l] a)
+  Parallel :: (KnownSymbols ls)
+        => Subset ls ps
+        -> (forall l. Member l ls -> Unwrap l -> m a)
+        -> ChoreoSig ps m (Faceted ls a)
 
   Replicative :: (KnownSymbols ls)
         => Subset ls ps
@@ -59,11 +59,17 @@ data ChoreoSig (ps :: [LocTy]) m a where
 type Choreo ps m = Freer (ChoreoSig ps m)
 
 -- | Run a `Choreo` monad directly.
-runChoreo :: Monad m => Choreo ps m a -> m a
+runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
 runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig ps m a -> m a
-    handler (Local _ m)  = wrap <$> m (unwrap . (@@ nobody))
+    handler (Parallel ls m) = let label f l = do z <- f l
+                                                 return (toLocTm l, z)
+                                  x = label (`m` unwrap') `mapLocs` ls
+                              in do xs <- sequence x
+                                    return . Mine $ \ltm -> case ltm `lookup` xs of
+                                                              Nothing -> error "Central Parallel: This should never happen in a well typed choreography."
+                                                              Just a -> a
     handler (Replicative ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
@@ -72,13 +78,16 @@ runChoreo = interpFreer handler
     handler (Naked proof a) = return $ unwrap proof a
 
 -- | Endpoint projection.
-epp :: Choreo ps m a -> LocTm -> Network m a
+epp :: (Monad m) => Choreo ps m a -> LocTm -> Network m a
 epp c l' = interpFreer handler c
   where
-    handler :: ChoreoSig ps m a -> Network m a
-    handler (Local l m)
-      | toLocTm l == l' = wrap <$> run (m $ unwrap . (@@ nobody))
-      | otherwise       = return Empty
+    handler :: (Monad m) => ChoreoSig ps m a -> Network m a
+    handler (Parallel ls m) = case catMaybes ((\l -> if toLocTm l == l' then Just $ m l unwrap' else Nothing) `mapLocs` ls) of
+      [] -> return Theirs
+      [ch] -> run $ do a <- ch
+                       return $ Mine (\case l'' | l'' == l' -> a
+                                                | otherwise -> error "")
+      _ -> error "EPP Parallel: I'm sure you can hit this if you try."
     handler (Replicative ls f)
       | l' `elem` toLocs ls = return . wrap . f $ unwrap
       | otherwise = return Empty
@@ -98,14 +107,11 @@ epp c l' = interpFreer handler c
 
 -- * Choreo operations
 
--- | Perform a local computation at a given location.
-locally :: (KnownSymbol (l :: LocTy))
-        => Member l ps           -- ^ Location performing the local computation.
-        -> (Unwrap l -> m a) -- ^ The local computation given a constrained
-                             -- unwrap funciton.
-        -> Choreo ps m (Located '[l] a)
-infix 4 `locally`
-locally l m = toFreer (Local l m)
+parallel :: (KnownSymbols ls)
+         => Subset ls ps
+         -> (forall l. Member l ls -> Unwrap l -> m a)
+         -> Choreo ps m (Faceted ls a)
+parallel ls m = toFreer (Parallel ls m)
 
 replicatively :: (KnownSymbols ls)
               => Subset ls ps
@@ -141,6 +147,22 @@ cond :: (KnownSymbols ls)
      -> Choreo ps m (Located ls b)
 cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 
+
+
+fanOut :: forall qs a w ps m.
+          (KnownSymbols qs, Wrapped w)
+       => Subset qs ps
+       -> (forall q. Member q qs -> Choreo ps m (w '[q] a))
+       -> Choreo ps m (Faceted qs a)
+-- This is so frigging janky IDK where I went wrong...
+fanOut qs body = do as <- sequence $ safeUnwrapBody `mapLocs` qs
+                    return $ Mine (\l -> (fromJust $ l `lookup` as) ())
+  where safeUnwrapBody :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (LocTm, () -> a)
+        safeUnwrapBody q = do fq <- body q
+                              return (toLocTm q, \() -> (explicitMember :: Member q '[q]) `unwrap'` fq)
+
+
+
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
       => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local
@@ -172,6 +194,15 @@ cond' :: (Show a, Read a, KnownSymbol l, KnownSymbols ps)
 cond' (l, m) c = do
   x <- l `locally` m
   broadcastCond (explicitMember `introAnd` l, x) c
+
+-- | Perform a local computation at a given location.
+locally :: (KnownSymbol (l :: LocTy))
+        => Member l ps           -- ^ Location performing the local computation.
+        -> (Unwrap l -> m a) -- ^ The local computation given a constrained
+                             -- unwrap funciton.
+        -> Choreo ps m (Located '[l] a)
+infix 4 `locally`
+locally l m = localize explicitMember <$> parallel (l @@ nobody) (\l' un -> m (\lLS -> un (inSuper (consSub explicitSubset lLS) l')))
 
 locally_ :: (KnownSymbol l)
         => Member l ps

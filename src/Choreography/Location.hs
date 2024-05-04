@@ -34,7 +34,16 @@ wrap = Wrap
 -- /Note:/ Unwrapping a empty located value will throw an exception.
 unwrap :: Subset qs ls -> Located ls a -> a
 unwrap _ (Wrap a) = a
-unwrap _ Empty    = error "this should never happen for a well-typed choreography"
+unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
+
+data Faceted (ls :: [LocTy]) a
+  = Mine (LocTm -> a)
+  | Theirs
+
+mine :: (KnownSymbol l) => Member l ls -> Faceted ls a -> a
+mine l (Mine f) = f $ toLocTm l
+mine _ Theirs = error "Faceted: This should never happen for a well-typed choreography."
+
 
 
 -- GDP has its own list logic, but IDK how to use it...
@@ -97,17 +106,26 @@ singleton proof = proof  -- IKD why I can't just use id.
 toLocTm :: forall (l :: LocTy) (ps :: [LocTy]). KnownSymbol l => Member l ps -> LocTm
 toLocTm _ = symbolVal (Proxy @l)
 
+data TyUnCons ps = forall h ts. (KnownSymbol h, KnownSymbols ts) => TyCons (Member h ps) (Subset ts ps)
+                 | TyNil (Subset ps '[])
+
 class KnownSymbols ls where
-  symbolVals :: Proxy ls -> [LocTm]
+  tyUnCons :: TyUnCons ls
 
 instance KnownSymbols '[] where
-  symbolVals _ = []
+  tyUnCons = TyNil explicitSubset
 
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
-  symbolVals _ = symbolVal (Proxy @l) : symbolVals (Proxy @ls)
+  tyUnCons = TyCons (explicitMember @Symbol @l @(l ': ls)) $ consSuper refl
+
+mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]). KnownSymbols ls => (forall l. (KnownSymbol l) => Member l ls -> b) -> Subset ls ps -> [b]
+mapLocs f ls = case tyUnCons @ls of
+                 TyCons h ts -> f h :  (f . inSuper ts) `mapLocs` transitive ts ls
+                 TyNil _ -> []
+
 
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
-toLocs _ = symbolVals (Proxy @ls)
+toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
 
 flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
 infix 3 `flatten`
@@ -115,3 +133,19 @@ flatten _ Empty = Empty
 flatten _ (Wrap Empty) = Empty
 flatten _ (Wrap (Wrap a)) = Wrap a
 
+localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
+localize _ Theirs = Empty
+localize l (Mine f) = Wrap . f . toLocTm $ l
+
+fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
+fracture Empty = Theirs
+fracture (Wrap a) = Mine (\l -> if l `elem` toLocs (refl :: Subset ls ls) then a else error "Fractur: IDK if this can get hit or not...")
+
+class Wrapped w where
+  unwrap' :: (KnownSymbol l) => Member l ls -> w ls a -> a
+
+instance Wrapped Located where
+  unwrap' = unwrap . (@@ nobody)
+
+instance Wrapped Faceted where
+  unwrap' = mine
