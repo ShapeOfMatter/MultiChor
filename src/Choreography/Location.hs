@@ -4,6 +4,7 @@
 -- | This module defines locations and located values.
 module Choreography.Location where
 
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 import Language.Haskell.TH
@@ -36,14 +37,11 @@ unwrap :: Subset qs ls -> Located ls a -> a
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
-data Faceted (ls :: [LocTy]) a
-  = Mine (LocTm -> a)
-  | Theirs
+newtype Faceted (ls :: [LocTy]) a = Faceted [(LocTm, a)]
 
 mine :: (KnownSymbol l) => Member l ls -> Faceted ls a -> a
-mine l (Mine f) = f $ toLocTm l
-mine _ Theirs = error "Faceted: This should never happen for a well-typed choreography."
-
+mine l (Faceted facets) = fromMaybe (error "Faceted: This should never happen for a well-typed choreography.")
+                                    $ toLocTm l `lookup` facets
 
 
 -- GDP has its own list logic, but IDK how to use it...
@@ -123,9 +121,11 @@ mapLocs f ls = case tyUnCons @ls of
                  TyCons h ts -> f h :  (f . inSuper ts) `mapLocs` transitive ts ls
                  TyNil _ -> []
 
-
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
 toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
+
+--maybeMember :: Subset qs ps -> Member r ps -> Maybe (Member r qs)
+--maybeMember qs r = undefined `mapLocs` qs
 
 flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
 infix 3 `flatten`
@@ -134,12 +134,11 @@ flatten _ (Wrap Empty) = Empty
 flatten _ (Wrap (Wrap a)) = Wrap a
 
 localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
-localize _ Theirs = Empty
-localize l (Mine f) = Wrap . f . toLocTm $ l
+localize l (Faceted facets) = maybe Empty Wrap $ toLocTm l `lookup` facets
 
 fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
-fracture Empty = Theirs
-fracture (Wrap a) = Mine (\l -> if l `elem` toLocs (refl :: Subset ls ls) then a else error "Fractur: IDK if this can get hit or not...")
+fracture Empty = Faceted []
+fracture (Wrap a) = Faceted $ (, a) <$> toLocs (refl :: Subset ls ls)
 
 class Wrapped w where
   unwrap' :: (KnownSymbol l) => Member l ls -> w ls a -> a

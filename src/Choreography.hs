@@ -36,6 +36,8 @@ module Choreography (
   cond',
   naked,
   enclave,
+  fanOut,
+  fanIn,
 
   -- * Message transport backends
   -- ** The HTTP backend
