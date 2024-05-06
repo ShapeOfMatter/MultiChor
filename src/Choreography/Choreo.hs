@@ -40,9 +40,9 @@ data ChoreoSig (ps :: [LocTy]) m a where
         -> (Unwraps ls -> a)
         -> ChoreoSig ps m (Located ls a)
 
-  Comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
+  Comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
        => Proof (IsMember l ls && IsMember l ps)     -- from
-       -> Located ls a     -- value
+       -> w ls a     -- value
        -> Subset ls' ps    -- to
        -> ChoreoSig ps m (Located ls' a)
 
@@ -81,7 +81,7 @@ runChoreo = interpFreer handler
     handler (Replicative ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
-    handler (Comm l a _) = return $ (wrap . unwrap (elimAndL l @@ nobody)) a
+    handler (Comm l a _) = return $ (wrap . unwrap' (elimAndL l)) a
     handler (Enclave _ c) = wrap <$> runChoreo c
     handler (Naked proof a) = return $ unwrap proof a
     handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) =
@@ -111,10 +111,10 @@ epp c l' = interpFreer handler c
     handler (Comm s a rs) = do
       let sender = toLocTm $ elimAndR s
       let otherRecipients = sender `delete` toLocs rs
-      when (sender == l') $ send (unwrap (elimAndL s @@ nobody) a) otherRecipients
+      when (sender == l') $ send (unwrap' (elimAndL s) a) otherRecipients
       case () of  -- Is there a better way to write this?
         _ | l' `elem` otherRecipients -> wrap <$> recv sender
-          | l' == sender              -> return . wrap . unwrap (elimAndL s @@ nobody) $ a
+          | l' == sender              -> return . wrap . unwrap' (elimAndL s) $ a
           | otherwise                 -> return Empty
     handler (Enclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
@@ -151,8 +151,8 @@ infix 4 `replicatively`
 replicatively ls f = toFreer (Replicative ls f)
 
 -- | Communication between a sender and a receiver.
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-     => (Proof (IsMember l ls && IsMember l ps), Located ls a)  -- ^ A pair of a sender's location and a value located
+(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
+     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ A pair of a sender's location and a value located
                           -- at the sender
      -> Subset ls' ps          -- ^ A receiver's location.
      -> Choreo ps m (Located ls' a)
@@ -179,14 +179,14 @@ cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 
 fanOut :: (KnownSymbols qs, Wrapped w)
        => Subset qs ps
-       -> (forall q. Member q qs -> Choreo ps m (w '[q] a))
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))
        -> Choreo ps m (Faceted qs a)
 fanOut qs body = toFreer $ FanOut qs body
 
 fanIn :: (KnownSymbols qs, KnownSymbols rs)
        => Subset qs ps
        -> Subset rs ps
-       -> (forall q. Member q qs -> Choreo ps m (Located rs a))
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))
        -> Choreo ps m (Located rs [a])
 fanIn qs rs body = toFreer $ FanIn qs rs body
 

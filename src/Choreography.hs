@@ -21,6 +21,8 @@ module Choreography (
   nobody,
   (@@),
   flatten,
+  toLocTm,
+  localize,
 
   -- * The Choreo monad
   Choreo,
@@ -38,6 +40,8 @@ module Choreography (
   enclave,
   fanOut,
   fanIn,
+  parallel,
+  replicatively,
 
   -- * Message transport backends
   -- ** The HTTP backend

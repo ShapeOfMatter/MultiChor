@@ -15,6 +15,7 @@ import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
+import qualified CardGame
 import qualified DelegationFig20
 import qualified DiffieHellman
 import qualified KVS5Fig17
@@ -42,6 +43,23 @@ tests' = [
     tags = [],
     property = \i -> (===) @Int i i
     },
+
+  getNormalPT PropertyTest {
+    name = "bank-2pc",
+    tags =[],
+    property = \(args@(Bank2PC.Args txns) :: Bank2PC.Args "alice" "bob") -> ioProperty do
+                  let situation = [ ("client", Bank2PC.render <$> txns)
+                                  , ("coordinator", [])
+                                  , ("alice", [])
+                                  , ("bob", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  results <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config Bank2PC.startBank name)
+                    ) situation
+                  return $ results === reference args
+  },
 
   getNormalPT PropertyTest {
     name = "bookseller-0-network",
@@ -135,20 +153,20 @@ tests' = [
   },
 
   getNormalPT PropertyTest {
-    name = "bank-2pc",
+    name = "card-game",
     tags =[],
-    property = \(args@(Bank2PC.Args txns) :: Bank2PC.Args "alice" "bob") -> ioProperty do
-                  let situation = [ ("client", Bank2PC.render <$> txns)
-                                  , ("coordinator", [])
-                                  , ("alice", [])
-                                  , ("bob", [])]
+    property = \args@(CardGame.Args deck (c1, c2, c3)) -> ioProperty do
+                  let situation = [ ("dealer", show <$> cycle deck)
+                                  , ("player1", [show c1])
+                                  , ("player2", [show c2])
+                                  , ("player3", [show c3])]
                   config <- mkLocalConfig [l | (l, _) <- situation]
-                  results <-
+                  [[], [r1], [r2], [r3]] <-
                     mapConcurrently (
                       \(name, inputs) -> fst <$> runCLIStateful inputs
-                        (runChoreography config Bank2PC.startBank name)
+                        (runChoreography config (CardGame.game @'["player1", "player2", "player3"]) name)
                     ) situation
-                  return $ results === reference args
+                  return $ (read r1, read r2, read r3) === reference args
   },
 
   getNormalPT PropertyTest {

@@ -72,6 +72,7 @@ library examples
         , Bookseller1Simple
         , Bookseller2HigherOrder
         , Bookseller3LocPoly
+        , CardGame
         , DelegationFig20
         , DiffieHellman
         , Karatsuba
@@ -113,6 +114,7 @@ Test-Suite testExamples
                  , Bookseller1Simple
                  , Bookseller2HigherOrder
                  , Bookseller3LocPoly
+                 , CardGame
                  , DelegationFig20
                  , DiffieHellman
                  , Karatsuba
