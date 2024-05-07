@@ -82,6 +82,7 @@ library examples
         , KVS4LocPoly
         , KVS5Fig17
         , MergeSort
+        , MPCFake
         , Playground
         , QuickSort
         , RingLeader
@@ -124,6 +125,7 @@ Test-Suite testExamples
                  , KVS4LocPoly
                  , KVS5Fig17
                  , MergeSort
+                 , MPCFake
                  , Playground
                  , QuickSort
                  , RingLeader

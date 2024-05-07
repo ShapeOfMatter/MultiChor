@@ -7,9 +7,11 @@ module Choreography (
   LocTm,
   LocTy,
   type Located,
+  type Faceted,
   KnownSymbols,
   mkLoc,
   Member,
+  Subset,
   ExplicitMember,
   explicitMember,
   explicitSubset,
@@ -22,7 +24,9 @@ module Choreography (
   (@@),
   flatten,
   toLocTm,
+  toLocs,
   localize,
+  Wrapped,
 
   -- * The Choreo monad
   Choreo,
