@@ -67,7 +67,7 @@ game = do
       putNote $ "Cards on the table: " ++ show (un q onTheTable)
       getInput "I'll ask for another? [True/False]"
     )
-  hand2 <- fanOut players (\(q :: Member q players) -> do
+  hand2 <- fanOut players (\q -> do
       let qAddress = inSuper players q
       choice <- (q `introAnd` qAddress, wantsNextCard) ~> dealer @@ qAddress @@ nobody
       flatten (consSuper refl `introAnd` refl) <$> cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) (\case
