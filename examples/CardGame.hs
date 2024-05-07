@@ -15,12 +15,7 @@ import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 
-$(mkLoc "player1")
-$(mkLoc "player2")
-$(mkLoc "player3")
-type Players = ["player1", "player2", "player3"]
 $(mkLoc "dealer")
-type Participants = "dealer" ': Players
 
 _modulo :: Int -> Int
 _modulo = (`mod` 21)
