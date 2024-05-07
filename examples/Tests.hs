@@ -19,6 +19,7 @@ import qualified CardGame
 import qualified DelegationFig20
 import qualified DiffieHellman
 import qualified KVS5Fig17
+import qualified MPCFake
 import Choreography (runChoreography)
 import Choreography.Location (explicitMember, Member)
 import Choreography.Network (runNetwork)
@@ -223,6 +224,24 @@ tests' = [
                         (runChoreography config KVS5Fig17.kvs name)
                     ) situation
                   return $ read response === reference args
+  },
+
+  getNormalPT PropertyTest {
+    name = "mpc-fake",
+    tags =[],
+    property = \args@(MPCFake.Args circuit p1in p2in p3in p4in) -> ioProperty do
+                  let situation = [ ("trusted3rdParty", [])
+                                  , ("p1", repeat $ show p1in)
+                                  , ("p2", repeat $ show p2in)
+                                  , ("p3", repeat $ show p3in)
+                                  , ("p4", repeat $ show p4in) ]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[], [r1], [r2], [r3], [r4]] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (MPCFake.mpc circuit) name)
+                    ) situation
+                  return $ (read r1, read r2, read r3, read r4) ===  reference args
   }
   ]
 

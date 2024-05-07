@@ -10,17 +10,21 @@ import Choreography
 import CLI
 import Control.Monad (replicateM, void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
---import Data (TestArgs, reference)
+import Data (TestArgs, reference)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
 import Logic.Propositional (introAnd)
 import System.Random
---import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
+import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
 
 $(mkLoc "trusted3rdParty")
+$(mkLoc "p1")
+$(mkLoc "p2")
+$(mkLoc "p3")
+$(mkLoc "p4")
 
 
 xor :: [Bool] -> Bool
@@ -32,6 +36,41 @@ data Circuit :: [LocTy] -> Type where
   LitWire :: Bool -> Circuit ps
   AndGate :: Circuit ps -> Circuit ps -> Circuit ps
   XorGate :: Circuit ps -> Circuit ps -> Circuit ps
+
+instance Show (Circuit ps) where
+  show (InputWire p) = "InputWire<" ++ toLocTm p ++ ">"
+  show (LitWire b) = "LitWire " ++ show b
+  show (AndGate left right) = "(" ++ show left ++ ") AND (" ++ show right ++ ")"
+  show (XorGate left right) = "(" ++ show left ++ ") XOR (" ++ show right ++ ")"
+
+instance Arbitrary (Circuit '["p1", "p2", "p3", "p4"]) where
+  arbitrary = do size <- getSize
+                 if 1 >= size
+                   then oneof $ (LitWire <$> arbitrary) : (return <$> [InputWire p1, InputWire p2, InputWire p3, InputWire p4])
+                   else do left <- chooseInt (1, size)
+                           a <- resize left arbitrary
+                           b <- resize (1 `max` (size - left)) arbitrary
+                           op <- elements [AndGate, XorGate]
+                           return $ a `op` b
+
+data Args = Args{ circuit :: Circuit '["p1", "p2", "p3", "p4"]
+                , p1in :: Bool  -- These should be lists, but consuming them would be a chore...
+                , p2in :: Bool
+                , p3in :: Bool
+                , p4in :: Bool
+                } deriving (Show)
+instance Arbitrary Args where
+  arbitrary = Args <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+instance TestArgs Args (Bool, Bool, Bool, Bool) where
+  reference Args{circuit, p1in, p2in, p3in, p4in} = (answer, answer, answer, answer)
+    where recurse c = case c of
+            InputWire p -> fromJust $ toLocTm p `lookup` inputs
+            LitWire b -> b
+            AndGate left right -> recurse left && recurse right
+            XorGate left right -> recurse left /= recurse right
+          inputs = ["p1", "p2", "p3", "p4"] `zip` [p1in, p2in, p3in, p4in]
+          answer = recurse circuit
+
 
 secretShare :: (KnownSymbols parties, KnownSymbol p, Wrapped w, MonadIO m)
             => Subset parties ps
