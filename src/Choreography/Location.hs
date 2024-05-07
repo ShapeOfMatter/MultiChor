@@ -124,8 +124,6 @@ mapLocs f ls = case tyUnCons @ls of
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
 toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
 
---maybeMember :: Subset qs ps -> Member r ps -> Maybe (Member r qs)
---maybeMember qs r = undefined `mapLocs` qs
 
 flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
 infix 3 `flatten`
