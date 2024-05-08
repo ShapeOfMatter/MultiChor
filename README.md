@@ -1,180 +1,52 @@
-**THIS IS A HARD FORK**  
-That means that no attempt will be made to maintain interoperabilty, or to port any new changes to HasChor into this repo. 
-The git history has been cut off, etc. 
-The original is [here](https://github.com/gshen42/HasChor).
+---
+title: The name of the title is TODO
+shortTitle: TODO
+intro: "Type-safe and efficient choreographies for Haskell, with multiply-located values, multi-cast, and cardinality polymorphism."
+showMiniToc: true
+date: 2024-05-08
+---
 
-# HasChor
+TOOD is a library for writing choreographic programs in Haskell.
 
-HasChor is a library for *functional choreographic programming* in Haskell, introduced by our [ICFP 2023 paper](https://doi.org/10.1145/3607849).
-Choreographic programming is a programming paradigm where one writes a single program that describes the complete behavior of a distributed system and then compiles it to individual programs that run on each node.
-In this way, the generated programs are guaranteed to be *deadlock-free*.
+That means you write _one_ program, a _"choreography"_ which seamlessly describes the actions of _many_ communicating machines;
+these participants can be native Haskell threads, or various humans' laptops communicating over HTTPS, or anything in between.
+Each of these "endpoints" will "project" their behavior out of the choreography.
 
-HasChor has the following features:
-- HasChor provides a *monadic* interface for choreographic programming where choreographies are expressed as computations in a monad.
-- HasChor is implemented as an *embedded* domain-specific language, enabling it to inherit features and libraries from Haskell for free.
-- HasChor is built on top of *freer monads*, leading to a flexible, extensible, and concise implementation.
+Choreographies aren't just easier to write than distributed programs, they're automatically deadlock-free!
 
-You can find the API specification [here](https://gshen42.github.io/HasChor/).
+TODO uses some of the same conventions and internal machinery as [HasChor](https://github.com/gshen42/HasChor),
+but the API is incompatible and can express more kinds of choreographic behavior.
 
-## Usage
+- The heart of the TODO library is a choreography monad `Choreo ps m a`.
+  - `ps` is a type-level list of parties participating in the choreography,
+  - `m` is an monad used to write _local_ actions those parties can take,
+  - `a` is the returned value, typically this will be a `Located` or `Faceted` value as described below.
+- TODO is an _embedded_ DSL, as interoperable with the rest of the Haskell ecosystem as any other monad.
+  In particular, TODO gets recursion, polymorphism, and location-polymorphism "for free" as features of Haskell!
+- TODO uses multicast and multiply-located values, as introduced in [We Know I Know You Know](https://arxiv.org/abs/2403.05417).
+  - A value of type `Located ls a` is a single `a` known to all the parties listed in `ls`.
+    In a well-typed choreography, other parties, who may not know the `a`, will never attempt to use it.
+  - In the expression `(s, v) ~> rs`, a sender `s` sends the value `v` to _all_ of the recipients in `rs`, resulting in a `Located rs v`.
+  - For easy branching in choreographies, the primitives `enclave` and `naked` combine to form `cond`.
+    `(parties, guard) ``cond`` (\g -> c)` unwraps a `Located parties g` for use as a naked `g` in the conditional choreography `c`.
+- Safe handing of parties, party-sets, and located values is enforced using [Ghosts of Departed Proofs](https://hackage.haskell.org/package/gdp).
+  In particular, instead of specifying the party `"alice"` in a choreography as a `String` or a `Proxy "alice"`,
+  they're specified by a `Proof` that the type-level `"alice"` is present in the choreography and has access to the relevant values.
+  TODO provides utilities to write these proofs compactly.
+- The novel choreographic language feature "TODO polymorphism" allows you to write choreographies
+  that are polymorphic with respect to the _number of parties_ in a polymorphic party-set.
+  This is trivial if they're passively receiving values; new primitives allow them to actively communicate.
+  - `fanOut` lets a single party send different values (of the same type `a`) to a list of parties `rs`, resulting in a `Faceted rs a`.
+  - `fanIn` lets a list of parties `ss` each send a value to the same parties `rs`, resulting in a `Located rs [a]`.
+  - A `x :: Faceted ps a` represents _distinct_ `a`s known to each of `ps` _respectively_.
+- TODO allows parallel behavior of many parties to be concisely expressed.
+  - `parallel` lets many parties perform local monadic actions in parallel using their `Located` and `Faceted` values;
+    the return is `Faceted`.
+  - `replicatively` lets many parties perform _the same pure computation_ in parallel, using only their `Located` values;
+    the return is `Located`.
 
-### From Hackage
 
-Simply list `HaChor` in your cabal `build-depends` field, and you're ready to go!
+## Examples
 
-### From the Source Repository
+Many example choreographies are presented in the [examples](examples) directory.
 
-Create a `cabal.project` file and list HasChor's repository as an external source:
-
-``` cabal-config
-packages:
-    . -- your package
-
-source-repository-package
-    type: git
-    location: https://github.com/gshen42/HasChor.git
-    branch: main
-```
-
-Alternatively, if you want to make changes to HasChor, you could clone the repository and list it as a local package in the `cabal.project` file:
-
-``` cabal-config
-packages:
-    .         -- your package
-    ./HasChor -- path to HasChor repository
-```
-
-Either way, you can then list `HasChor` as a dependency in your `.cabal` file:
-
-``` cabal-config
-build-depends:
-    , base
-    , HasChor
-```
-
-## A Tour of HasChor
-
-Let's say we want to implement a bookshop protocol with three participants: a buyer, a seller, and a deliverer.
-The protocol goes as follows:
-
-1. The buyer sends the title of a book they want to buy to the seller.
-2. The seller replies to the buyer with the price of the book.
-3. The buyer decides whether or not to buy the book based on their budget.
-    1. If yes. The seller sends the title to the deliverer and gets back a delivery date, then forwards it to the buyer.
-    2. If no. The protocol ends.
-
-In HasChor, we could implement the bookshop protocol as the following program:
-
-``` haskell
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE LambdaCase     #-}
-{-# LANGUAGE TypeOperators  #-}
-
-module Main where
-
-import           Choreography       (Choreo, cond, locally, mkHttpConfig,
-                                     runChoreography, type (@), (~>))
-import           Control.Monad      (void)
-import           Data.Proxy         (Proxy (..))
-import           System.Environment (getArgs)
-
-buyer :: Proxy "buyer"
-buyer = Proxy
-
-seller :: Proxy "seller"
-seller = Proxy
-
-deliverer :: Proxy "deliverer"
-deliverer = Proxy
-
-priceOf :: String -> Int
-priceOf "Types and Programming Languages" = 80
-priceOf "Homotopy Type Theory"            = 120
-priceOf _                                 = 100
-
-type Date = String
-
-deliveryDateOf :: String -> Date
-deliveryDateOf "Types and Programming Languages" = "2002-01-04"
-deliveryDateOf "Homotopy Type Theory"            = "2013-04-20"
-deliveryDateOf _                                 = "1970-01-01"
-
-budget :: Int
-budget = 100
-
-bookshop :: Choreo IO (Maybe Date @ "buyer")
-bookshop = do
-    title <- buyer `locally` \un -> getLine
-    title' <- (buyer, title) ~> seller
-
-    price <- seller `locally` \un -> return $ priceOf (un title')
-    price' <- (seller, price) ~> buyer
-
-    decision <- buyer `locally` \un -> return $ (un price') <= budget
-    cond (buyer, decision) \case
-        True  -> do
-            title'' <- (seller, title') ~> deliverer
-            date <- deliverer `locally` \un -> return $ deliveryDateOf (un title'')
-            date' <- (deliverer, date) ~> seller
-            date'' <- (seller, date') ~> buyer
-            buyer `locally` \un -> do
-                putStrLn $ "The book will be delivered on " ++ (un date'')
-                return $ Just (un date'')
-        False ->
-            buyer `locally` \un -> do
-                putStrLn "The book is out of the budget"
-                return Nothing
-
-main :: IO ()
-main = do
-    [loc] <- getArgs
-    void $ runChoreography cfg bookshop loc
-    where
-        cfg = mkHttpConfig
-            [ ("buyer",     ("localhost", 4242))
-            , ("seller",    ("localhost", 4343))
-            , ("deliverer", ("localhost", 4444))
-            ]
-```
-
-First, we define a set of locations we will use in the choreography.
-Locations are HasChor's abstraction for nodes in a distributed system — they are just `String`s.
-Since HasChor also uses locations at the type level, we turn on the `DataKinds` extension and define term-level `Proxy`s (`buyer`, `seller`, `deliverer`) for them.
-
-Next, we have some auxiliary definitions (`priceOf`, `deliveryDateOf`, `budget`) for use in the choreography.
-
-`bookshop` is a choreography that implements the bookshop protocol:
-
-- `Choreo m a` is a monad that represents a choreography that returns a value of type `a`.
-  The `m` parameter is another monad that represents the local computation that locations can perform.
-
-- `a @ l` is a located value that represents a value of type `a` at location `l`.
-  It's kept opaque to the user to avoid misusing values at locations they're not at.
-
-- `locally :: Proxy l -> (Unwrap l -> m a) -> Choreo m (a @ l)` is the operator for performing a local compuation at a location.
-  It takes a location `l`, a local computation `m a` with access to a unwrap function, and returns a value at `l`.
-  The unwrap function is of type `Unwrap l = a @ l -> a`, which can only unwrap values at `l`.
-
-- `(~>) :: (Proxy l, a @ l) -> Proxy l' -> Choreo m (a @ l')` is the operator for communication between two locations.
-  It turns a value at `l` to the same value at `l'`.
-
-- `cond :: (Proxy l, a @ l) -> (a -> Choreo m b) -> Choreo m b` is the operator for conditional execution.
-  It takes a condition `a` at `l`, a function `a -> Choreo m b` denoting branches, and returns one of the branches.
-
-Finally, we use `runChoreography :: Backend cfg => cfg -> Choreo m a -> String -> m a` to project the choreography to a particular location and run the resulting program.
-`runChoreography` takes a *backend configuration* `cfg` which specifies the message transport backend that acutally handles sending and receiving messages. This example uses HasChor's HTTP backend, which implements the `Backend` typeclass. Alternate implementations of `Backend` could use different message transport mechanisms.
-
-## More Examples
-
-HasChor comes with a set of illustrative examples in the [examples](examples) directory.
-They are built as executables alongside the HasChor library and can be run with:
-
-``` bash
-cabal run executable-name location
-```
-
-## Further Readings
-
-- [Introduction to Choreographies](https://www.fabriziomontesi.com/introduction-to-choreographies/)
-- [Pirouette: higher-order typed functional choreographies](https://dl.acm.org/doi/10.1145/3498684)
