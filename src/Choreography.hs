@@ -7,9 +7,11 @@ module Choreography (
   LocTm,
   LocTy,
   type Located,
+  type Faceted,
   KnownSymbols,
   mkLoc,
   Member,
+  Subset,
   ExplicitMember,
   explicitMember,
   explicitSubset,
@@ -21,6 +23,10 @@ module Choreography (
   nobody,
   (@@),
   flatten,
+  toLocTm,
+  toLocs,
+  localize,
+  Wrapped,
 
   -- * The Choreo monad
   Choreo,
@@ -36,6 +42,10 @@ module Choreography (
   cond',
   naked,
   enclave,
+  fanOut,
+  fanIn,
+  parallel,
+  replicatively,
 
   -- * Message transport backends
   -- ** The HTTP backend

@@ -68,9 +68,11 @@ runCLIStateful ins tma = do (a, e) <- runStateT stateful TTYEnv{inputs = ins, ou
                          where stateful :: StateT TTYEnv m a
                                stateful = interpFreer handler tma
                                handler :: forall b. CLISig m b -> StateT TTYEnv m b
-                               handler (GetStr _) = do env@TTYEnv{inputs = ln : lns} <- get
-                                                       put env{inputs = lns}
-                                                       return ln
+                               handler (GetStr c) = do env@TTYEnv{inputs} <- get
+                                                       case inputs of
+                                                          ln : lns -> do put env{inputs = lns}
+                                                                         return ln
+                                                          [] -> error $ "No input to go with prompt " ++ show c ++ "."
                                handler (PutStr _ o) = unless (null o) $ do env@TTYEnv{outputs = os} <- get
                                                                            put env{outputs = o:os}
                                handler (Internal m) = lift m
