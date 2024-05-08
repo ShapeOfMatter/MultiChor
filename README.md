@@ -1,12 +1,8 @@
----
-title: The name of the title is TODO
-shortTitle: TODO
-intro: "Type-safe and efficient choreographies for Haskell, with multiply-located values, multi-cast, and cardinality polymorphism."
-showMiniToc: true
-date: 2024-05-08
----
+# The name of the title is TODO
 
-TOOD is a library for writing choreographic programs in Haskell.
+
+
+TODO is a library for writing choreographic programs in Haskell.
 
 That means you write _one_ program, a _"choreography"_ which seamlessly describes the actions of _many_ communicating machines;
 these participants can be native Haskell threads, or various humans' laptops communicating over HTTPS, or anything in between.
