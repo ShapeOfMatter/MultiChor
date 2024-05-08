@@ -24,7 +24,7 @@ but the API is incompatible and can express more kinds of choreographic behavior
     In a well-typed choreography, other parties, who may not know the `a`, will never attempt to use it.
   - In the expression `(s, v) ~> rs`, a sender `s` sends the value `v` to _all_ of the recipients in `rs`, resulting in a `Located rs v`.
   - For easy branching in choreographies, the primitives `enclave` and `naked` combine to form `cond`.
-    `(parties, guard) ``cond`` (\g -> c)` unwraps a `Located parties g` for use as a naked `g` in the conditional choreography `c`.
+    ``(parties, guard) `cond` (\g -> c)`` unwraps a `Located parties g` for use as a naked `g` in the conditional choreography `c`.
 - Safe handing of parties, party-sets, and located values is enforced using [Ghosts of Departed Proofs](https://hackage.haskell.org/package/gdp).
   In particular, instead of specifying the party `"alice"` in a choreography as a `String` or a `Proxy "alice"`,
   they're specified by a `Proof` that the type-level `"alice"` is present in the choreography and has access to the relevant values.
