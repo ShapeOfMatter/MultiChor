@@ -18,27 +18,27 @@ type LocTm = String
 -- | Type-level locations.
 type LocTy = Symbol
 
--- | Located values.
---
--- @Located l a@ represents a value of type @a@ at location @l@.
-data Located (l :: [LocTy]) a
-  = Wrap a -- ^ A located value @a \@ l@ from location @l@'s perspective.
-  | Empty  -- ^ A located value @a \@ l@ from locations other than @l@'s
-           -- perspective.
+-- | A single value known to many parties.
+data Located (ls :: [LocTy]) a
+  = Wrap a
+  | Empty
 
 -- | Wrap a value as a located value.
+--Why would one use this instead of the constructor?
 wrap :: a -> Located l a
 wrap = Wrap
 
--- | Unwrap a located value.
---
--- /Note:/ Unwrapping a empty located value will throw an exception.
+-- | Unwrap a `Located` value.
+--Unwrapping a empty located value will throw an exception!
 unwrap :: Subset qs ls -> Located ls a -> a
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
+-- | A unified representation of possibly-distinct homogeneous values owned by many parties.
 newtype Faceted (ls :: [LocTy]) a = Faceted [(LocTm, a)]
 
+-- | Unwrap a `Faceted` value.
+--Unwrapping an empty faceted value will throw an exception!
 mine :: (KnownSymbol l) => Member l ls -> Faceted ls a -> a
 mine l (Faceted facets) = fromMaybe (error "Faceted: This should never happen for a well-typed choreography.")
                                     $ toLocTm l `lookup` facets
@@ -76,9 +76,11 @@ instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => Exp
 instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
   explicitSubset = axiom
 
+-- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
 nobody = explicitSubset
 
+-- | Use like `:` for subset proofs.
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
 (@@) = flip consSub
@@ -100,7 +102,7 @@ mkLoc loc = do
 singleton :: forall p. (forall ps. (ExplicitMember p ps) => Member p ps) -> Member p (p ': '[])
 singleton proof = proof  -- IKD why I can't just use id.
 
--- | Convert a type-level location to a term-level location.
+-- | Convert a proof-level location to a term-level location.
 toLocTm :: forall (l :: LocTy) (ps :: [LocTy]). KnownSymbol l => Member l ps -> LocTm
 toLocTm _ = symbolVal (Proxy @l)
 
@@ -116,29 +118,34 @@ instance KnownSymbols '[] where
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
   tyUnCons = TyCons (explicitMember @Symbol @l @(l ': ls)) $ consSuper refl
 
+-- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
 mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]). KnownSymbols ls => (forall l. (KnownSymbol l) => Member l ls -> b) -> Subset ls ps -> [b]
 mapLocs f ls = case tyUnCons @ls of
                  TyCons h ts -> f h :  (f . inSuper ts) `mapLocs` transitive ts ls
                  TyNil _ -> []
 
+-- | Get the term-level list of names-as-strings fror a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
 toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
 
-
+-- | Un-nest located values.
 flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
 infix 3 `flatten`
 flatten _ Empty = Empty
 flatten _ (Wrap Empty) = Empty
 flatten _ (Wrap (Wrap a)) = Wrap a
 
+-- | Get the singlely-`Located` value of a `Faceted` at a given location.
 localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
 localize l (Faceted facets) = maybe Empty Wrap $ toLocTm l `lookup` facets
 
+-- | Use a `Located` as a `Faceted`.
 fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
 fracture Empty = Faceted []
 fracture (Wrap a) = Faceted $ (, a) <$> toLocs (refl :: Subset ls ls)
 
 class Wrapped w where
+  -- | Unwrap a `Located` or a `Faceted`. Can error if misused.
   unwrap' :: (KnownSymbol l) => Member l ls -> w ls a -> a
 
 instance Wrapped Located where

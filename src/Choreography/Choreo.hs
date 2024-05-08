@@ -18,15 +18,10 @@ import Logic.Proof (Proof)
 import Logic.Classes (refl)
 import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
--- * The Choreo monad
--- | A constrained version of `unwrap` that only unwraps values located at a
--- specific location.
+-- | Unwraps values known to the specified party.
 type Unwrap (l :: LocTy) = forall ls a w. (Wrapped w) => Member l ls -> w ls a -> a
+-- | Unwraps `Located` values known to the specified party.
 type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
-
--- | Effect signature for the `Choreo` monad. @m@ is a monad that represents
--- local computations.
--- TODO take set of participants in Monad
 
 
 data ChoreoSig (ps :: [LocTy]) m a where
@@ -66,10 +61,10 @@ data ChoreoSig (ps :: [LocTy]) m a where
        -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))
        -> ChoreoSig ps m (Located rs [a])
 
--- |Monad for writing choreographies.
+-- | Monad for writing choreographies.
 type Choreo ps m = Freer (ChoreoSig ps m)
 
--- | Run a `Choreo` monad directly.
+-- | Run a `Choreo` monad with centralized semantics.
 runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
 runChoreo = interpFreer handler
   where
@@ -135,58 +130,64 @@ epp c l' = interpFreer handler c
       in do las :: [Located rs a] <- epp (sequence bs) l'
             return if l' `elem` toLocs rs then Wrap $ unwrap (refl :: Subset rs rs) <$> las else Empty
 
--- * Choreo operations
-
+-- | Access to the inner "local" monad. The parties are not guarenteed to take the same actions, and may use `Faceted`s.
 parallel :: (KnownSymbols ls)
-         => Subset ls ps
-         -> (forall l. Member l ls -> Unwrap l -> m a)
+         => Subset ls ps  -- ^ A set of parties who will all perform the action(s) in parallel.
+         -> (forall l. Member l ls -> Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
          -> Choreo ps m (Faceted ls a)
 parallel ls m = toFreer (Parallel ls m)
 
+-- | Perform the exact same computation in replicate at multiple locations.
+--"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.
+--The computation must be pure, and can not use `Faceted`s.
 replicatively :: (KnownSymbols ls)
-              => Subset ls ps
-              -> (Unwraps ls -> a)
+              => Subset ls ps  -- ^ The set of parties who will perform the computation.
+              -> (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
               -> Choreo ps m (Located ls a)
 infix 4 `replicatively`
 replicatively ls f = toFreer (Replicative ls f)
 
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ A pair of a sender's location and a value located
-                          -- at the sender
-     -> Subset ls' ps          -- ^ A receiver's location.
+     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
 (~>) (l, a) l' = toFreer (Comm l a l')
 
+-- | Lift a choreography of involving fewer parties into the larger party space.
+--Adds a `Located ls` layer to the return type.
 enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
 infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch
 
-naked :: Subset ps qs
-         -> Located qs a
+-- | Un-locates a value known to everyone present in the choreography.
+naked :: Subset ps qs -- ^ Proof that everyone knows it.
+         -> Located qs a  -- ^ The value.
          -> Choreo ps m a
 infix 4 `naked`
 naked proof a = toFreer $ Naked proof a
 
--- | Conditionally execute choreographies based on a located value.
+-- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
-     => (Proof (IsSubset ls qs && IsSubset ls ps), Located qs a)
-     -> (a -> Choreo ls m b) -- ^ A function that describes the follow-up
-                          -- choreographies based on the value of scrutinee.
+     => (Proof (IsSubset ls qs && IsSubset ls ps), Located qs a)  -- ^ Tuple: Proof all the parties involved know the branch-guard
+                                                                  --and are present, the branch guard
+     -> (a -> Choreo ls m b) -- ^ The body of the conditional as a function from the unwrapped value.
      -> Choreo ps m (Located ls b)
 cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 
+-- | Perform a given choreography for each of several parties, giving each of them a return value that form a new `Faceted`.
 fanOut :: (KnownSymbols qs, Wrapped w)
-       => Subset qs ps
-       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))
+       => Subset qs ps  -- ^ The parties to loop over.
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))  -- ^ The body.
        -> Choreo ps m (Faceted qs a)
 fanOut qs body = toFreer $ FanOut qs body
 
+-- | Perform a given choreography for each of several parties; the return values are aggregated as a list located at the recipients.
 fanIn :: (KnownSymbols qs, KnownSymbols rs)
-       => Subset qs ps
-       -> Subset rs ps
-       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))
+       => Subset qs ps  -- ^ The parties who fan in.
+       -> Subset rs ps  -- ^ The recipients.
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
        -> Choreo ps m (Located rs [a])
 fanIn qs rs body = toFreer $ FanIn qs rs body
 
@@ -194,8 +195,7 @@ fanIn qs rs body = toFreer $ FanIn qs rs body
 
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-      => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local
-                                    -- computation.
+      => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
