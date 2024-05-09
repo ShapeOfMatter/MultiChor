@@ -138,6 +138,13 @@ executable bank-2pc
     ghc-options:
       -main-is Bank2PC
 
+executable lottery
+    import: example
+    main-is:          Lottery.hs
+    ghc-options:
+      -main-is Lottery
+
+
 executable bookseller-0-network
     import: example
     main-is:          Bookseller0Network.hs
