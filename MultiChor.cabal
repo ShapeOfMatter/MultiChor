@@ -1,9 +1,9 @@
 cabal-version:      2.4
-name:               HasChorPlus
+name:               MultiChor
 version:            0.1.0.1
 license-file:       LICENSE
 description:
-    HasChor is a library for functional choreographic programming in Haskell.
+    MultiChor is a library for functional choreographic programming in Haskell.
     See the README.md for more information.
 
 tested-with:
