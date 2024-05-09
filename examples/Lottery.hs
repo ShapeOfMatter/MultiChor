@@ -1,4 +1,3 @@
-
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
@@ -10,6 +9,11 @@ import Choreography
 import System.Environment
 import CLI
 import Logic.Classes (refl)
+import Choreography.Network.Http (API)
+import Control.Monad (replicateM)
+import Control.Monad.Cont (liftIO, MonadIO)
+import System.Random (randomIO)
+import Data.Maybe (fromJust)
 
 -- | Issue #27
 -- TODO just a stub for now
@@ -38,10 +42,49 @@ secretShare = do
 random :: CLI m (Fp)
 random = undefined
 
+lottery2 :: forall clients servers census m _h1 _h2 _hs.
+  (KnownSymbols clients, KnownSymbols servers, (_h1 ': _h2 ': _hs) ~ servers
+  , MonadIO m
+  ) =>
+  Subset clients census -> -- A proof that clients are part of the census
+  Subset servers census -> -- A proof that servers are part of the census
+  Choreo census (CLI m) ()
+lottery2 clientsSubsetProof serversSubsetProof = do
+  secret <- parallel clientsSubsetProof (\_ _ -> getInput "secret:")
+
+  -- A lookup table that maps Server to share to send
+  shares <- clientsSubsetProof `parallel` \mem un -> do
+    freeShares :: [Fp] <- case serverNames of
+                              [] -> return [] -- This can't actually happen/get used...
+                              _:others -> replicateM (length others) $ liftIO randomIO
+    let lastShare = un mem secret - sum freeShares  -- But freeShares could really be empty!
+    return $ serverNames `zip` (lastShare : freeShares)
+
+       -- -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
+       -- -> Choreo ps m (Located rs [a])
+  serversSubsetProof `fanOut` (\serverMem ->
+                                 fanIn clientsSubsetProof (inSuper serversSubsetProof serverMem @@ nobody)
+                                  (\clientMem -> (inSuper clientsSubsetProof clientMem, (\un ->
+                                                                                           let serverName = toLocTm serverMem
+                                                                                               share = fromJust $ lookup serverName $ un clientMem shares in
+                                                                                           return share
+                                                                                        )) ~~> inSuper serversSubsetProof serverMem @@ nobody)
+                                 )
+
+
+  pure undefined
+  where
+    serverNames = toLocs serversSubsetProof
 
 -- TODO arbitrary number of clients and participants >= 2 would be nice
 -- I'll move this later just like having the above for reference
 -- TODO extend to multiple servers later
+-- The census is the list of parties present in the cheorography
+-- We want to think about how pe9ople use this API
+-- Instead of listing the census explicityl
+-- Make it polymorphic
+-- And instead make this a program where we take proofs that members are part of that polymorphic census
+-- e.g. clients are a subset of some set of clients server
 lottery :: forall clients m. (KnownSymbols clients) => Choreo ("server1" ': "server2" ': clients) (CLI m) ()
 lottery = do
   -- A proof that a subset clients is a subset of clients with servers?
