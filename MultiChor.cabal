@@ -1,18 +1,25 @@
-cabal-version:      2.4
+cabal-version:      3.0
 name:               MultiChor
-version:            0.1.0.1
+version:            0.0.0.1
 license-file:       LICENSE
+license:            BSD-3-Clause
+maintainer: mako.bates@uvm.edu
+category: Distributed-Computing
+synopsis: Type-safe and efficient choreographies with TODO polymorphism.
 description:
     MultiChor is a library for functional choreographic programming in Haskell.
     See the README.md for more information.
 
 tested-with:
-    GHC == 9.6.3
-    GHC == 9.4.7
     GHC == 9.2.8
 
 extra-doc-files:
     README.md
+
+source-repository head
+  type:     git
+  location: https://github.com/ShapeOfMatter/MultiChor
+
 
 common basic-config
     default-language: GHC2021
@@ -95,8 +102,8 @@ common example
     build-depends:
         , async      >= 2.2  && < 2.3
         -- trying to get hls to work with TestSuite
-        , Cabal >= 3.6
-        , cabal-detailed-quickcheck >= 0.2.0
+        , Cabal >= 3.6.3 && < 3.7
+        , cabal-detailed-quickcheck >= 0.2.0 && < 0.3
         --
         , containers >= 0.6  && < 0.7
         , split   >= 0.2  && < 0.3
