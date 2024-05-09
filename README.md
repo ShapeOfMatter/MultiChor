@@ -11,7 +11,7 @@ Each of these "endpoints" will "project" their behavior out of the choreography.
 Choreographies aren't just easier to write than distributed programs, they're automatically deadlock-free!
 
 TODO uses some of the same conventions and internal machinery as [HasChor](https://github.com/gshen42/HasChor),
-but the API is incompatible and can express more kinds of choreographic behavior.
+but the API is incompatible and TODO can express more kinds of choreographic behavior.
 
 - The heart of the TODO library is a choreography monad `Choreo ps m a`.
   - `ps` is a type-level list of parties participating in the choreography,
