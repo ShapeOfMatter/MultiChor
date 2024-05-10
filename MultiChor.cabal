@@ -88,6 +88,7 @@ library examples
         , KVS3HigherOrder
         , KVS4LocPoly
         , KVS5Fig17
+        , KVS6SizePoly
         , MergeSort
         , MPCFake
         , Playground
@@ -132,6 +133,7 @@ Test-Suite testExamples
                  , KVS3HigherOrder
                  , KVS4LocPoly
                  , KVS5Fig17
+                 , KVS6SizePoly
                  , MergeSort
                  , MPCFake
                  , Playground

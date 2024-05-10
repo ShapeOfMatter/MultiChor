@@ -203,8 +203,8 @@ infix 4 ~~>
   x <- l `locally` m
   (explicitMember `introAnd` l, x) ~> ls'
 
-broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps)
-           => (Proof (IsMember l ls && IsMember l ps), Located ls a)
+broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
+           => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
 broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
