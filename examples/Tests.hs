@@ -4,6 +4,7 @@ import Control.Concurrent.Async (mapConcurrently)
 import Data.Maybe (maybeToList)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
+import Logic.Classes (refl)
 import Test.QuickCheck ( (===)
                        , ioProperty
                        , getPositive
@@ -19,9 +20,9 @@ import qualified CardGame
 import qualified DelegationFig20
 import qualified DiffieHellman
 import qualified KVS5Fig17
+import qualified KVS6SizePoly
 import qualified MPCFake
-import Choreography (runChoreography)
-import Choreography.Location (explicitMember, Member)
+import Choreography
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (BooksellerArgs(..), reference)
@@ -224,6 +225,36 @@ tests' = [
                         (runChoreography config KVS5Fig17.kvs name)
                     ) situation
                   return $ read response === reference args
+  },
+
+  getNormalPT PropertyTest {
+    name = "kvs-6-sizepoly",
+    tags =[],
+    property = \(KVS6SizePoly.Args requests) -> ioProperty do
+                  let situation = [ ("clientAlice", show <$> requests)
+                                  , ("primaryBob", [])
+                                  , ("backup1", [])
+                                  , ("backup2", [])
+                                  , ("backup3", [])
+                                  , ("backup4", [])
+                                  , ("backup5", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  let strategy1 = KVS6SizePoly.naryReplicationStrategy
+                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
+                                                                             "backup3", "backup4", "backup5"])
+                                    (consSuper $ consSuper refl)
+                  let client :: Member "clientAlice" '["clientAlice", "primaryBob", "backup1", "backup2", "backup3", "backup4", "backup5"]
+                      client = explicitMember
+                  [responsesA, [], [], [], [], [], []] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (KVS6SizePoly.kvs strategy1 client) name)
+                    ) situation
+                  let strategy2 = KVS6SizePoly.nullReplicationStrategy
+                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
+                                                                             "backup3", "backup4", "backup5"])
+                  (responsesB, ()) <- runCLIStateful (show <$> requests) $ runChoreo (KVS6SizePoly.kvs strategy2 client)
+                  return $ responsesA === responsesB
   },
 
   getNormalPT PropertyTest {

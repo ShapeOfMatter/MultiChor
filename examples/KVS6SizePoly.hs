@@ -1,8 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 {-
 -}
@@ -11,7 +9,6 @@ module KVS6SizePoly where
 
 import Choreography
 import CLI
-import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data.IORef (IORef)
 import qualified Data.IORef as IORef
@@ -21,7 +18,7 @@ import Data.Map qualified as Map
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
 import Logic.Propositional (introAnd)
---import System.Environment
+import Test.QuickCheck (Arbitrary, arbitrary, listOf, frequency)
 import Text.Read (readMaybe)
 
 readIORef :: MonadIO m => IORef a -> m a
@@ -51,6 +48,15 @@ data Response = Found String
               | Stopped
               | Desynchronization [Response]
               deriving (Eq, Ord, Read, Show)
+
+newtype Args = Args [Request] deriving (Eq, Ord, Read, Show)
+instance Arbitrary Args where
+  arbitrary = do reqs <- pgs
+                 return . Args $ reqs ++ [Stop]
+    where pgs = listOf $ frequency [ (1, Put <$> arbitrary <*> arbitrary)
+                                   , (1, Get <$> arbitrary)
+                                   ]
+
 
 mlookup :: String -> State -> Response
 mlookup key = maybe NotFound Found . Map.lookup key
