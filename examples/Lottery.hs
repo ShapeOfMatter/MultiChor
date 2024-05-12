@@ -110,14 +110,44 @@ lottery clients servers analyst = do
   -- TODO this is any for some reason. Something is wrong.
   r <- servers `parallel` (\server un -> pure $ sum $ un server allCommits)
 
-  -- Servers each forward share to an analyist s_R^j
+  -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
+  -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
+  allShares <- ('[analyst])
+    `fanOut` ( \analyst ->
+                fanIn
+                  servers
+                  (inSuper '[analyst] analyst @@ nobody)
+                  ( \server ->
+                      ( inSuper servers server
+                      , ( \un -> undefined
+                        )
+                      )
+                        ~~> inSuper '[analyst] analyst @@ nobody
+                  )
+             )
+
+  -- allShares <- servers
+  --   `fanOut` ( \server ->
+  --               fanIn
+  --                 analyst
+  --                 (inSuper servers server @@ nobody)
+  --                 ( \client ->
+  --                     ( inSuper analyst '[analyst] -- Maybe there's a better way
+  --                     , ( \un -> pure $ un server $ serverShares !! r
+  --                       )
+  --                     )
+  --                       ~~> inSuper analyst server @@ nobody
+  --                 )
+  --            )
+
+
   -- TODO unsafe function !!
-  allShares <-
-    fanIn servers analyst -- From the servers to the analyst
-      (\server -> -- I need a Choreo servers m (Located analyst a)
-        fanOut servers ( \server ->
-                    (inSuper servers server, \un -> pure $ un server $ serverShares !! r) ~~> analyst @@ nobody
-                )
+  -- allShares <-
+  --   fanIn servers analyst -- From the servers to the analyst
+  --     (\server -> -- I need a Choreo servers m (Located analyst a)
+  --       fanOut servers ( \server ->
+  --                   (inSuper servers server, \un -> pure $ un server $ serverShares !! r) ~~> analyst @@ nobody
+  --               )
         --(inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
       -- => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
       -- -> Subset ls' ps                   -- ^ A receiver's location.
