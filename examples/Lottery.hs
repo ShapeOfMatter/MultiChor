@@ -8,13 +8,9 @@ module Lottery where
 
 import CLI
 import Choreography
-import Choreography.Network.Http (API)
 import Control.Monad (replicateM)
 import Control.Monad.Cont (MonadIO, liftIO)
 import Data.Maybe (fromJust)
-import GHC.TypeLits (KnownSymbol)
-import Logic.Classes (refl)
-import System.Environment
 import System.Random (randomIO)
 
 
@@ -120,7 +116,7 @@ lottery clients servers analysts = do
                     (inSuper analysts analyst @@ nobody)
                     ( \server ->
                         ( inSuper servers server
-                        , \un -> pure ((un server $ serverShares) !! (fromIntegral $ un server $ r))
+                        , \un -> pure (un server serverShares !! fromIntegral (un server r))
                         )
                           ~~> inSuper analysts analyst
                           @@ nobody
