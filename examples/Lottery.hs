@@ -32,24 +32,22 @@ type Fp = Integer -- field elements
 
 type Participants = ["client1", "client2", "server1", "server2"]
 
--- TODO
-secretShare :: CLI m (Fp, Fp)
-secretShare = do
-  secret <- getInput "secret:"
-  return (5, secret - 5)
-
 -- Random field in [1 to n]
-random :: CLI m (Fp)
-random = undefined
+random :: MonadIO m => CLI m Fp
+random = liftIO randomIO
 
-lottery2 :: forall clients servers census m _h1 _h2 _hs.
-  (KnownSymbols clients, KnownSymbols servers, (_h1 ': _h2 ': _hs) ~ servers
+-- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
+lottery :: forall clients servers census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
+  ( KnownSymbols clients
+  , KnownSymbols servers
+  , (_serv1 ': _serv2 ': _servTail) ~ servers -- There should at least be two servers
+  , (_client1 ': _client2 ': _clientTail) ~ clients -- There should at least be two clients
   , MonadIO m
   ) =>
   Subset clients census -> -- A proof that clients are part of the census
   Subset servers census -> -- A proof that servers are part of the census
   Choreo census (CLI m) ()
-lottery2 clients servers = do
+lottery clients servers = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
   -- A lookup table that maps Server to share to send
@@ -60,17 +58,27 @@ lottery2 clients servers = do
     let lastShare = un mem secret - sum freeShares  -- But freeShares could really be empty!
     return $ serverNames `zip` (lastShare : freeShares)
 
-       -- -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
-       -- -> Choreo ps m (Located rs [a])
   servers `fanOut` (\server ->
-                                 fanIn clients (inSuper servers server @@ nobody)
-                                  (\client -> (inSuper clients client, (\un ->
-                                                                                           let serverName = toLocTm server
-                                                                                               share = fromJust $ lookup serverName $ un client shares in
-                                                                                           return share
-                                                                                        )) ~~> inSuper servers server @@ nobody)
-                                 )
+                          fanIn clients (inSuper servers server @@ nobody)
+                          (\client -> (inSuper clients client, (\un ->
+                                                                  let serverName = toLocTm server
+                                                                      share = fromJust $ lookup serverName $ un client shares in
+                                                                  return share
+                                                              )) ~~> inSuper servers server @@ nobody)
+                          )
 
+  -- Servers each commit to some random value
+  randomCommit <- parallel servers (\_ _ -> random)
+
+  -- Servers each send their randomly commits to all other servers
+  -- I was thinking we don't need to actually restrict to only other servers besides the current (just don't use randomCommit again only allCommits)
+  allCommits <- servers `fanOut` (\currServer -> fanIn servers
+            (inSuper servers currServer @@ nobody)
+            ( \recServer ->
+                ( inSuper servers currServer , (\un -> pure $ un currServer randomCommit)) ~~> inSuper servers currServer @@ nobody
+                                                                                                            -- ^^ TODO I was expecting recServer but compiler wants curr server
+            ))
+      
 
   pure undefined
   where
