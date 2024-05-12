@@ -54,7 +54,7 @@ lottery
   -> Subset servers census -- A proof that servers are part of the census
   -> Subset '[analyst] census -- A proof that servers are part of the census
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
-  -> Choreo census (CLI m) ()
+  -> Choreo census (CLI m) Fp
 lottery clients servers analysts = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
@@ -117,13 +117,14 @@ lottery clients servers analysts = do
                     ( \server ->
                         ( inSuper servers server
                         , \un -> pure (un server serverShares !! fromIntegral (un server r))
-                        )
-                          ~~> inSuper analysts analyst
-                          @@ nobody
+                        ) ~~> inSuper analysts analyst @@ nobody
                     )
                )
+
   -- analyst combines allShares
-  -- analysts `parallel` (\analyst un -> un analyst $ sum allShares)
+  answer <- analysts `parallel` (\analyst un -> pure $ sum $ un analyst $ allShares)
+
+  -- Now I just need to pull it out of Faceted or something. Maybe proove that analyst is in census and there's is only 1 so we can directly reveal it
 
   pure undefined
  where
