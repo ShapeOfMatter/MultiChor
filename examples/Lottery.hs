@@ -49,11 +49,11 @@ lottery2 :: forall clients servers census m _h1 _h2 _hs.
   Subset clients census -> -- A proof that clients are part of the census
   Subset servers census -> -- A proof that servers are part of the census
   Choreo census (CLI m) ()
-lottery2 clientsSubsetProof serversSubsetProof = do
-  secret <- parallel clientsSubsetProof (\_ _ -> getInput "secret:")
+lottery2 clients servers = do
+  secret <- parallel clients (\_ _ -> getInput "secret:")
 
   -- A lookup table that maps Server to share to send
-  shares <- clientsSubsetProof `parallel` \mem un -> do
+  shares <- clients `parallel` \mem un -> do
     freeShares :: [Fp] <- case serverNames of
                               [] -> return [] -- This can't actually happen/get used...
                               _:others -> replicateM (length others) $ liftIO randomIO
@@ -62,19 +62,19 @@ lottery2 clientsSubsetProof serversSubsetProof = do
 
        -- -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
        -- -> Choreo ps m (Located rs [a])
-  serversSubsetProof `fanOut` (\serverMem ->
-                                 fanIn clientsSubsetProof (inSuper serversSubsetProof serverMem @@ nobody)
-                                  (\clientMem -> (inSuper clientsSubsetProof clientMem, (\un ->
-                                                                                           let serverName = toLocTm serverMem
-                                                                                               share = fromJust $ lookup serverName $ un clientMem shares in
+  servers `fanOut` (\server ->
+                                 fanIn clients (inSuper servers server @@ nobody)
+                                  (\client -> (inSuper clients client, (\un ->
+                                                                                           let serverName = toLocTm server
+                                                                                               share = fromJust $ lookup serverName $ un client shares in
                                                                                            return share
-                                                                                        )) ~~> inSuper serversSubsetProof serverMem @@ nobody)
+                                                                                        )) ~~> inSuper servers server @@ nobody)
                                  )
 
 
   pure undefined
   where
-    serverNames = toLocs serversSubsetProof
+    serverNames = toLocs servers
 
 main :: IO ()
 main = undefined
