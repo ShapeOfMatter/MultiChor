@@ -66,7 +66,6 @@ consSet = consSuper refl  -- these are circular, is that bad?
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
--- Given a subset xs of ys where x is a member of ys then form a x with xs that subsets ys
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
 consSub = const $ const axiom
 

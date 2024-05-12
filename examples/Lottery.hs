@@ -37,27 +37,31 @@ random :: MonadIO m => CLI m Fp
 random = liftIO randomIO
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
-lottery :: forall clients servers census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
+lottery :: forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
   ( KnownSymbols clients
   , KnownSymbols servers
+  , KnownSymbols '[analyst]
   , (_serv1 ': _serv2 ': _servTail) ~ servers -- There should at least be two servers
   , (_client1 ': _client2 ': _clientTail) ~ clients -- There should at least be two clients
   , MonadIO m
   ) =>
   Subset clients census -> -- A proof that clients are part of the census
   Subset servers census -> -- A proof that servers are part of the census
+  Subset '[analyst] census -> -- A proof that servers are part of the census
+  -- Subset analyst] census -> -- A proof the the analyst is part of the census
   Choreo census (CLI m) ()
-lottery clients servers = do
+lottery clients servers analyst = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
   -- A lookup table that maps Server to share to send
-  shares <- clients `parallel` \mem un -> do
+  shares <- clients `parallel` \client un -> do
     freeShares :: [Fp] <- case serverNames of
                               [] -> return [] -- This can't actually happen/get used...
                               _:others -> replicateM (length others) $ liftIO randomIO
-    let lastShare = un mem secret - sum freeShares  -- But freeShares could really be empty!
+    let lastShare = un client secret - sum freeShares  -- But freeShares could really be empty!
     return $ serverNames `zip` (lastShare : freeShares)
 
+  -- Clients each
   servers `fanOut` (\server ->
                           fanIn clients (inSuper servers server @@ nobody)
                           (\client -> (inSuper clients client, (\un ->
@@ -75,10 +79,15 @@ lottery clients servers = do
   allCommits <- servers `fanOut` (\currServer -> fanIn servers
             (inSuper servers currServer @@ nobody)
             ( \recServer ->
-                ( inSuper servers currServer , (\un -> pure $ un currServer randomCommit)) ~~> inSuper servers currServer @@ nobody
+                ( inSuper servers currServer , \un -> pure $ un currServer randomCommit) ~~> inSuper servers currServer @@ nobody
                                                                                                             -- ^^ TODO I was expecting recServer but compiler wants curr server
             ))
-      
+
+  -- Sum all shares
+  -- TODO modular sum
+  r <- servers `parallel` (\server un -> pure $ sum $ un server allCommits)
+
+  -- Servers each forward share to an analyist
 
   pure undefined
   where
