@@ -61,8 +61,9 @@ lottery
 lottery clients servers analyst = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
+
   -- A lookup table that maps Server to share to send
-  shares <-
+  clientShares <-
     clients `parallel` \client un -> do
       freeShares :: [Fp] <- case serverNames of
         [] -> return [] -- This can't actually happen/get used...
@@ -70,8 +71,8 @@ lottery clients servers analyst = do
       let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
       return $ serverNames `zip` (lastShare : freeShares)
 
-  -- Clients each
-  servers
+  --
+  serverShares <- servers
     `fanOut` ( \server ->
                 fanIn
                   clients
@@ -80,7 +81,7 @@ lottery clients servers analyst = do
                       ( inSuper clients client
                       , ( \un ->
                             let serverName = toLocTm server
-                                share = fromJust $ lookup serverName $ un client shares
+                                share = fromJust $ lookup serverName $ un client clientShares
                              in return share
                         )
                       )
