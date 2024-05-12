@@ -71,7 +71,6 @@ lottery clients servers analyst = do
       let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
       return $ serverNames `zip` (lastShare : freeShares)
 
-  --
   serverShares <- servers
     `fanOut` ( \server ->
                 fanIn
@@ -85,8 +84,7 @@ lottery clients servers analyst = do
                              in return share
                         )
                       )
-                        ~~> inSuper servers server
-                        @@ nobody
+                        ~~> inSuper servers server @@ nobody
                   )
              )
 
@@ -117,7 +115,13 @@ lottery clients servers analyst = do
   allShares <-
     fanIn servers analyst -- From the servers to the analyst
       (\server -> -- I need a Choreo servers m (Located analyst a)
-         undefined
+        fanOut servers ( \server ->
+                    (inSuper servers server, \un -> pure $ un server $ serverShares !! r) ~~> analyst @@ nobody
+                )
+        --(inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
+      -- => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
+      -- -> Subset ls' ps                   -- ^ A receiver's location.
+      -- -> Choreo ps m (Located ls' a)
       )
       -- fanOut servers ( \server ->
       --             (inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
@@ -130,7 +134,9 @@ lottery clients servers analyst = do
   pure undefined
  where
   serverNames = toLocs servers
-
+  -- I wonder if we can use helpers to make GDP and programs more distinct/clear?
+  -- A proof that server is in servers
+  proveServerIsInServers server = inSuper servers server @@ nobody
 
 main :: IO ()
 main = undefined
