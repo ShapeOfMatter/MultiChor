@@ -1,0 +1,64 @@
+# How many spaces to use as an indent
+# - any non-negative integer
+indentation: 2
+
+# Where to place arrows in type signatures
+# - trailing
+# - leading
+function-arrows: leading
+
+# Where to place commas in lists, tuples, etc.
+# - trailing
+# - leading
+comma-style: leading
+
+# How to format multiline import/export lists (diff-friendly lists have trailing
+# commas but keep the opening parenthesis on the same line as import)
+# - leading
+# - trailing
+# - diff-friendly
+import-export-style: leading
+
+# Use an extra level of indentation vs only half-indent the where keyword
+# -	true
+# - false
+indent-wheres: false
+
+# rec {x = 1} vs rec{x = 1}
+# -	true
+# - false
+record-brace-space: false
+
+# Number of newlines between top-level declarations
+# - any non-negative integer
+newlines-between-decls: 2
+
+# Use -- |, {- |, or {-| for multiline haddocks (single-line haddocks always use --)
+# - single-line
+# - multi-line
+# - multi-line-compact
+haddock-style: single-line
+
+# How to style let blocks (auto uses newline if there's a newline in the input and
+# inline otherwise, and mixed uses inline only when the let has exactly one binding)
+# - inline
+# - newline
+# - auto
+# - mixed
+let-style: auto
+
+# How to align the in keyword with respect to let
+# - left-align
+# - right-align
+in-style: right-align
+
+# Be less aggressive in reformatting input, e.g. keep empty lines in import list
+# -	true
+# - false
+respectful: true
+
+# The auto option will keep parentheses if they already exist, but won't add parentheses if not.
+# - auto
+# - always
+# - never
+single-constraint-parens: never
