@@ -185,8 +185,8 @@ fanOut qs body = toFreer $ FanOut qs body
 
 -- | Perform a given choreography for each of several parties; the return values are aggregated as a list located at the recipients.
 fanIn :: (KnownSymbols qs, KnownSymbols rs)
-       => Subset qs ps  -- ^ The parties who fan in. Each client that has 1 secret share for the given rs
-       -> Subset rs ps  -- ^ The recipients. the one server we send to
+       => Subset qs ps  -- ^ The parties who fan in.
+       -> Subset rs ps  -- ^ The recipients.
        -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
        -> Choreo ps m (Located rs [a])
 fanIn qs rs body = toFreer $ FanIn qs rs body
