@@ -85,9 +85,17 @@ lottery clients servers analyst = do
 
   -- Sum all shares
   -- TODO modular sum
+  -- TODO this is any for some reason. Something is wrong.
   r <- servers `parallel` (\server un -> pure $ sum $ un server allCommits)
 
-  -- Servers each forward share to an analyist
+  -- Servers each forward share to an analyist s_R^j
+  -- TODO unsafe function !!
+  allShares <- servers `fanIn` (\server ->
+                ( inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
+                        )
+
+  -- analyst combines allShares
+  -- analyst `locally` (\un -> un analyst $ sum allShares)
 
   pure undefined
   where
