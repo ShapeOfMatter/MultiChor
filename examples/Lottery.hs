@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 module Lottery where
 
@@ -58,7 +59,7 @@ lottery
   -> Subset '[analyst] census -- A proof that servers are part of the census
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) ()
-lottery clients servers analyst = do
+lottery clients servers analysts = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
 
@@ -78,11 +79,10 @@ lottery clients servers analyst = do
                   (inSuper servers server @@ nobody)
                   ( \client ->
                       ( inSuper clients client
-                      , ( \un ->
+                      , \un ->
                             let serverName = toLocTm server
                                 share = fromJust $ lookup serverName $ un client clientShares
                              in return share
-                        )
                       )
                         ~~> inSuper servers server @@ nobody
                   )
@@ -112,54 +112,20 @@ lottery clients servers analyst = do
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
-  allShares <- ('[analyst])
+  allShares <- analysts
     `fanOut` ( \analyst ->
                 fanIn
                   servers
-                  (inSuper '[analyst] analyst @@ nobody)
+                  (inSuper analysts analyst @@ nobody)
                   ( \server ->
                       ( inSuper servers server
-                      , ( \un -> undefined
-                        )
+                      , \un -> pure ((un server $ serverShares) !! (fromIntegral $ un server $  r))
                       )
-                        ~~> inSuper '[analyst] analyst @@ nobody
+                        ~~> inSuper analysts analyst @@ nobody
                   )
              )
-
-  -- allShares <- servers
-  --   `fanOut` ( \server ->
-  --               fanIn
-  --                 analyst
-  --                 (inSuper servers server @@ nobody)
-  --                 ( \client ->
-  --                     ( inSuper analyst '[analyst] -- Maybe there's a better way
-  --                     , ( \un -> pure $ un server $ serverShares !! r
-  --                       )
-  --                     )
-  --                       ~~> inSuper analyst server @@ nobody
-  --                 )
-  --            )
-
-
-  -- TODO unsafe function !!
-  -- allShares <-
-  --   fanIn servers analyst -- From the servers to the analyst
-  --     (\server -> -- I need a Choreo servers m (Located analyst a)
-  --       fanOut servers ( \server ->
-  --                   (inSuper servers server, \un -> pure $ un server $ serverShares !! r) ~~> analyst @@ nobody
-  --               )
-        --(inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
-      -- => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
-      -- -> Subset ls' ps                   -- ^ A receiver's location.
-      -- -> Choreo ps m (Located ls' a)
-      )
-      -- fanOut servers ( \server ->
-      --             (inSuper servers server, \un -> pure $ un server $ allCommits !! r) ~~> analyst @@ nobody
-      --         )
-
   -- analyst combines allShares
-  -- TODO it will think it's a list so probably use parallel
-  -- analyst `locally` (\un -> un analyst $ sum allShares)
+   -- analysts `parallel` (\analyst un -> un analyst $ sum allShares)
 
   pure undefined
  where
