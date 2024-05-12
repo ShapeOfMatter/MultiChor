@@ -1,8 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Lottery where
 
@@ -62,7 +62,6 @@ lottery
 lottery clients servers analysts = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
-
   -- A lookup table that maps Server to share to send
   clientShares <-
     clients `parallel` \client un -> do
@@ -72,14 +71,15 @@ lottery clients servers analysts = do
       let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
       return $ serverNames `zip` (lastShare : freeShares)
 
-  serverShares <- servers
-    `fanOut` ( \server ->
-                fanIn
-                  clients
-                  (inSuper servers server @@ nobody)
-                  ( \client ->
-                      ( inSuper clients client
-                      , \un ->
+  serverShares <-
+    servers
+      `fanOut` ( \server ->
+                  fanIn
+                    clients
+                    (inSuper servers server @@ nobody)
+                    ( \client ->
+                        ( inSuper clients client
+                        , \un ->
                             let serverName = toLocTm server
                                 share = fromJust $ lookup serverName $ un client clientShares
                              in return share
@@ -112,20 +112,22 @@ lottery clients servers analysts = do
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
-  allShares <- analysts
-    `fanOut` ( \analyst ->
-                fanIn
-                  servers
-                  (inSuper analysts analyst @@ nobody)
-                  ( \server ->
-                      ( inSuper servers server
-                      , \un -> pure ((un server $ serverShares) !! (fromIntegral $ un server $  r))
-                      )
-                        ~~> inSuper analysts analyst @@ nobody
-                  )
-             )
+  allShares <-
+    analysts
+      `fanOut` ( \analyst ->
+                  fanIn
+                    servers
+                    (inSuper analysts analyst @@ nobody)
+                    ( \server ->
+                        ( inSuper servers server
+                        , \un -> pure ((un server $ serverShares) !! (fromIntegral $ un server $ r))
+                        )
+                          ~~> inSuper analysts analyst
+                          @@ nobody
+                    )
+               )
   -- analyst combines allShares
-   -- analysts `parallel` (\analyst un -> un analyst $ sum allShares)
+  -- analysts `parallel` (\analyst un -> un analyst $ sum allShares)
 
   pure undefined
  where
@@ -133,6 +135,7 @@ lottery clients servers analysts = do
   -- I wonder if we can use helpers to make GDP and programs more distinct/clear?
   -- A proof that server is in servers
   proveServerIsInServers server = inSuper servers server @@ nobody
+
 
 main :: IO ()
 main = undefined
