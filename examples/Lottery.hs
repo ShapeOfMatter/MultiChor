@@ -13,6 +13,7 @@ import Control.Monad.Cont (MonadIO, liftIO)
 import Data.Maybe (fromJust)
 import System.Random (randomIO)
 import GHC.TypeLits (KnownSymbol)
+import Logic.Propositional (introAnd)
 
 
 -- | Issue #27
@@ -90,8 +91,8 @@ lottery clients servers analyst = do
                     servers
                     (inSuper servers currServer @@ nobody)
                     ( \recServer ->
-                        (inSuper servers currServer, \un -> pure $ un currServer randomCommit) ~~> inSuper servers currServer @@ nobody
-                                                                                                                -- \^^ TODO I was expecting recServer but compiler wants curr server
+                        (currServer `introAnd` inSuper servers currServer, randomCommit) ~> inSuper servers currServer @@ nobody
+                                                                                                -- \^^ TODO I was expecting recServer but compiler wants curr server
                     )
                )
 
@@ -116,9 +117,6 @@ lottery clients servers analyst = do
   pure undefined
  where
   serverNames = toLocs servers
-  -- Not sure if it's odd I need this. Might be wrong somewhere
-  mem :: Member x xs -> Member x (x ': '[])
-  mem _ = undefined  -- TODO
 
 main :: IO ()
 main = undefined
