@@ -109,7 +109,7 @@ lottery clients servers analyst = do
                         ) ~~> analyst @@ nobody
                     )
 
-  answer <- analyst `locally` (\un -> pure $ sum $ un (mem analyst) $ allShares)
+  answer <- analyst `locally` (\un -> pure $ sum $ un explicitMember $ allShares)
 
   -- Now I just need to pull it out of Faceted or something. Maybe proove that analyst is in census and there's is only 1 so we can directly reveal it
 
