@@ -58,7 +58,7 @@ instance Arbitrary Args where
 game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) (CLI m) ()
 game = do
   let players = consSuper refl
-  hand1 <- fanOut @players players (\q -> do
+  hand1 <- fanOut players (\q -> do
       (dealer, \_ -> getInput ("Enter random card for " ++ toLocTm q)) ~~> inSuper players q @@ nobody
     )
   onTheTable <- fanIn players players (\q -> (q `introAnd` inSuper players q, hand1) ~> players)
