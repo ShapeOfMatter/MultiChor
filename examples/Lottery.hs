@@ -56,7 +56,7 @@ lottery
   -> Subset servers census -- A proof that servers are part of the census
   -> Member analyst census -- A proof that servers are part of the census
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
-  -> Choreo census (CLI m) Fp
+  -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
@@ -112,9 +112,10 @@ lottery clients servers analyst = do
 
   answer <- analyst `locally` (\un -> pure $ sum $ un explicitMember $ allShares)
 
-  -- Now I just need to pull it out of Faceted or something. Maybe proove that analyst is in census and there's is only 1 so we can directly reveal it
+  analyst `locally_` \un -> putOutput "The answer is: " (un explicitMember answer)
 
-  pure undefined
+  pure ()
+
  where
   serverNames = toLocs servers
 
