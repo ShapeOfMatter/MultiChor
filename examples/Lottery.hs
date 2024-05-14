@@ -12,6 +12,7 @@ import Control.Monad (replicateM)
 import Control.Monad.Cont (MonadIO, liftIO)
 import Data.Maybe (fromJust)
 import System.Random (randomIO)
+import GHC.TypeLits (KnownSymbol)
 
 
 -- | Issue #27
@@ -45,17 +46,17 @@ lottery
   :: forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail
    . ( KnownSymbols clients
      , KnownSymbols servers
-     , KnownSymbols '[analyst]
      , (_serv1 ': _serv2 ': _servTail) ~ servers -- There should at least be two servers
      , (_client1 ': _client2 ': _clientTail) ~ clients -- There should at least be two clients
      , MonadIO m
+     , KnownSymbol analyst
      )
   => Subset clients census -- A proof that clients are part of the census
   -> Subset servers census -- A proof that servers are part of the census
-  -> Subset '[analyst] census -- A proof that servers are part of the census
+  -> Member analyst census -- A proof that servers are part of the census
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) Fp
-lottery clients servers analysts = do
+lottery clients servers analyst = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
   -- A lookup table that maps Server to share to send
@@ -67,20 +68,15 @@ lottery clients servers analysts = do
       let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
       return $ serverNames `zip` (lastShare : freeShares)
 
-  serverShares <-
-    servers
-      `fanOut` ( \server ->
-                  fanIn
-                    clients
-                    (inSuper servers server @@ nobody)
+  serverShares <- servers `fanOut` ( \server ->
+                  fanIn clients (inSuper servers server @@ nobody)
                     ( \client ->
                         ( inSuper clients client
                         , \un ->
                             let serverName = toLocTm server
                                 share = fromJust $ lookup serverName $ un client clientShares
                              in return share
-                      )
-                        ~~> inSuper servers server @@ nobody
+                      ) ~~> inSuper servers server @@ nobody
                   )
              )
 
@@ -89,9 +85,7 @@ lottery clients servers analysts = do
 
   -- Servers each send their randomly commits to all other servers
   -- I was thinking we don't need to actually restrict to only other servers besides the current (just don't use randomCommit again only allCommits)
-  allCommits <-
-    servers
-      `fanOut` ( \currServer ->
+  allCommits <- servers `fanOut` ( \currServer ->
                   fanIn
                     servers
                     (inSuper servers currServer @@ nobody)
@@ -108,31 +102,23 @@ lottery clients servers analysts = do
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
-  allShares <-
-    analysts
-      `fanOut` ( \analyst ->
-                  fanIn
-                    servers
-                    (inSuper analysts analyst @@ nobody)
+  allShares <- fanIn servers (analyst @@ nobody)
                     ( \server ->
                         ( inSuper servers server
                         , \un -> pure (un server serverShares !! fromIntegral (un server r))
-                        ) ~~> inSuper analysts analyst @@ nobody
+                        ) ~~> analyst @@ nobody
                     )
-               )
 
-  -- analyst combines allShares
-  answer <- analysts `parallel` (\analyst un -> pure $ sum $ un analyst $ allShares)
+  answer <- analyst `locally` (\un -> pure $ sum $ un (mem analyst) $ allShares)
 
   -- Now I just need to pull it out of Faceted or something. Maybe proove that analyst is in census and there's is only 1 so we can directly reveal it
 
   pure undefined
  where
   serverNames = toLocs servers
-  -- I wonder if we can use helpers to make GDP and programs more distinct/clear?
-  -- A proof that server is in servers
-  proveServerIsInServers server = inSuper servers server @@ nobody
-
+  -- Not sure if it's odd I need this. Might be wrong somewhere
+  mem :: Member x xs -> Member x (x ': '[])
+  mem _ = undefined  -- TODO
 
 main :: IO ()
 main = undefined
