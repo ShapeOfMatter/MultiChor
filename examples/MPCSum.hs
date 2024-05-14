@@ -7,9 +7,10 @@
 module MPCSum where
 
 import Choreography
-import Control.Monad
+--import Control.Monad
+import Control.Monad.Cont (MonadIO)
 import System.Environment
-import Logic.Propositional (introAnd)
+--import Logic.Propositional (introAnd)
 import CLI
 import System.Random
 
@@ -87,12 +88,15 @@ type Participants = Clients
 
 
 
-secretShare :: CLI m (Fp, Fp)
+secretShare :: (MonadIO m) => CLI m (Fp, Fp)
 secretShare = do
-  secret :: Integer <- getInput "secret:"
-  return (5, (fromInteger secret) - 5)
+  -- secret :: Integer <- getInput "secret:"
+  let secret :: Integer = 15
+  s1 :: Fp <- randomIO
+  putOutput "My share s1" s1
+  return (s1, (fromInteger secret) - s1)
 
-p2pSum :: Choreo Participants (CLI m) ()
+p2pSum :: (MonadIO m) => Choreo Participants (CLI m) ()
 p2pSum = do
   shares1 <- client1 `locally` \_ -> secretShare
   shares2 <- client2 `locally` \_ -> secretShare
@@ -115,6 +119,6 @@ main = do
     _ -> error "unknown party"
   print delivery
   where
-    cfg = mkHttpConfig [ ("client1",  ("localhost", 4242))
+    cfg = mkHttpConfig [ ("client1", ("localhost", 4242))
                        , ("client2", ("localhost", 4343))
                        ]
