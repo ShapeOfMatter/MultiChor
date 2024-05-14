@@ -99,7 +99,7 @@ lottery clients servers analyst = do
   -- Sum all shares
   -- TODO modular sum
   -- TODO this is any for some reason. Something is wrong.
-  r <- servers `parallel` (\server un -> pure $ sum $ un server allCommits)
+  r <- servers `replicatively` (\un -> sum $ un servers allCommits)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
