@@ -110,11 +110,7 @@ lottery clients servers analyst = do
                         ) ~~> analyst @@ nobody
                     )
 
-  answer <- analyst `locally` (\un -> pure $ sum $ un explicitMember $ allShares)
-
-  analyst `locally_` \un -> putOutput "The answer is: " (un explicitMember answer)
-
-  pure ()
+  analyst `locally_` \un -> putOutput "The answer is: " $ sum $ un explicitMember allShares
 
  where
   serverNames = toLocs servers
