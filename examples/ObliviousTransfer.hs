@@ -12,8 +12,10 @@ import Control.Monad.Cont (MonadIO)
 import System.Environment
 --import Logic.Propositional (introAnd)
 import CLI
---import GHC.TypeLits (KnownSymbol)
+import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
+import Logic.Classes (Reflexive, refl, Transitive, transitive)
+
 
 import qualified Sel.PublicKey.Cipher as Cipher
 
@@ -21,6 +23,7 @@ import qualified Sel.PublicKey.Cipher as Cipher
 -- Multiple clients
 $(mkLoc "client1")
 $(mkLoc "client2")
+$(mkLoc "client3")
 
 -- p2pSum :: (MonadIO m) => Choreo Participants (CLI m) ()
 -- p2pSum = do
@@ -47,30 +50,35 @@ ot2Insecure b1 b2 s = do
   sr <- (client2 `introAnd` client2, s) ~> client1 @@ nobody
   (client1, \un -> return $ un client1 $ if (un client1 sr) then b1 else b2) ~~> client2 @@ nobody
 
-ot2 :: (MonadIO m) =>
-  Located '["client1"] Bool ->  -- sender
-  Located '["client1"] Bool ->  -- sender
-  Located '["client2"] Bool ->  -- receiver
-  Choreo '["client1", "client2"] (CLI m) (Located '["client2"] Bool)
+ot2 :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) =>
+  Located '[p1] Bool ->  -- sender
+  Located '[p1] Bool ->  -- sender
+  Located '[p2] Bool ->  -- receiver
+  Choreo '[p1, p2] (CLI m) (Located '[p2] Bool)
 ot2 b1 b2 s = do
-  ks1 <- client1 `locally` \_ -> return Cipher.newKeyPair
-  sr <- (client2 `introAnd` client2, s) ~> client1 @@ nobody
-  (client1, \un -> return $ un client1 $ if (un client1 sr) then b1 else b2) ~~> client2 @@ nobody
+  let p1 = explicitMember :: Member p1 '[p1, p2]
+  let p11 = explicitMember :: Member p1 '[p1]
+  let p2 = (inSuper (consSuper refl) explicitMember) :: Member p2 '[p1, p2]
+  ks1 <- p2 `locally` \_ -> return Cipher.newKeyPair
+  sr <- (explicitMember `introAnd` p2, s) ~> p1 @@ nobody
+  (p1, \un -> return $ un p11 $ if (un p11 sr) then b1 else b2) ~~> p2 @@ nobody
 
-otTest :: (MonadIO m) => Choreo '["client1", "client2"] (CLI m) ()
+otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
-  b1 <- client1 `locally` \_ -> return False
-  b2 <- client1 `locally` \_ -> return True
-  s <- client2 `locally` \_ -> return False
+  let p1 = explicitMember :: Member p1 '[p1, p2]
+  let p2 = (inSuper (consSuper refl) explicitMember) :: Member p2 '[p1, p2]
+  b1 <- p1 `_locally` return False
+  b2 <- p1 `_locally` return True
+  s <- p2 `_locally` return False
   otResult <- ot2 b1 b2 s
-  client2 `locally_` \un -> putOutput "OT output:" $ un client2 otResult
+  p2 `locally_` \un -> putOutput "OT output:" $ un explicitMember otResult
 
 main :: IO ()
 main = do
   [loc] <- getArgs
   delivery <- case loc of
-    "client1"  -> runCLIIO $ runChoreography cfg otTest "client1"
-    "client2" -> runCLIIO $ runChoreography cfg otTest "client2"
+    "client1" -> runCLIIO $ runChoreography cfg (otTest @"client1" @"client2") "client1"
+    "client2" -> runCLIIO $ runChoreography cfg (otTest @"client1" @"client2") "client2"
     _ -> error "unknown party"
   print delivery
   where
