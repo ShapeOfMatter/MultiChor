@@ -232,6 +232,8 @@ executable mpc-sum
     main-is:          MPCSum.hs
     ghc-options:
       -main-is MPCSum
+    build-depends:
+      sel == 0.0.1.0
 
 executable ring-leader
     import: example
