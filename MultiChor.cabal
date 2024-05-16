@@ -235,6 +235,14 @@ executable mpc-sum
     build-depends:
       sel == 0.0.1.0
 
+executable oblivious-transfer
+    import: example
+    main-is:          ObliviousTransfer.hs
+    ghc-options:
+      -main-is ObliviousTransfer
+    build-depends:
+      sel == 0.0.1.0
+
 executable ring-leader
     import: example
     main-is:          RingLeader.hs
