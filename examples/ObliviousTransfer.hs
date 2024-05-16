@@ -17,6 +17,7 @@ import Logic.Propositional (introAnd)
 import Logic.Classes (Reflexive, refl, Transitive, transitive)
 
 
+import qualified Sel.PublicKey.Seal as Seal
 import qualified Sel.PublicKey.Cipher as Cipher
 
 -- Multiple servers
@@ -63,11 +64,12 @@ ot2 b1 b2 s = do
   ks2 <- p2 `_locally` (liftIO Cipher.newKeyPair)
   --pks <- p2 `locally` \un -> return (fst $ un explicitMember ks1, fst $ un explicitMember ks2)
 
-  pks <- (p2, \un -> return (fst $ un explicitMember ks1, fst $ un explicitMember ks2)) ~~> p1 @@ nobody
+  pks <- (p2, \un -> return (Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks1,
+                             Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks2)) ~~> p1 @@ nobody
   encrypted <- p1 `locally` \un -> enc (un explicitMember pks) (un explicitMember b1) (un explicitMember b2)
   sr <- (explicitMember `introAnd` p2, s) ~> p1 @@ nobody
   (p1, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> p2 @@ nobody
-    where enc (pk1, pk2) b1 b2 = undefined
+    where enc (pk1, pk2) b1 b2 = (Seal.seal b1 pk1, Seal.seal b2 pk2)
 
 otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
