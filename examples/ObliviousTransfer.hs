@@ -8,7 +8,7 @@ module ObliviousTransfer where
 
 import Choreography
 --import Control.Monad
-import Control.Monad.Cont (MonadIO)
+import Control.Monad.Cont (MonadIO, liftIO)
 import System.Environment
 --import Logic.Propositional (introAnd)
 import CLI
@@ -57,11 +57,17 @@ ot2 :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) =>
   Choreo '[p1, p2] (CLI m) (Located '[p2] Bool)
 ot2 b1 b2 s = do
   let p1 = explicitMember :: Member p1 '[p1, p2]
-  let p11 = explicitMember :: Member p1 '[p1]
   let p2 = (inSuper (consSuper refl) explicitMember) :: Member p2 '[p1, p2]
-  ks1 <- p2 `locally` \_ -> return Cipher.newKeyPair
+
+  ks1 <- p2 `_locally` (liftIO Cipher.newKeyPair)
+  ks2 <- p2 `_locally` (liftIO Cipher.newKeyPair)
+  --pks <- p2 `locally` \un -> return (fst $ un explicitMember ks1, fst $ un explicitMember ks2)
+
+  pks <- (p2, \un -> return (fst $ un explicitMember ks1, fst $ un explicitMember ks2)) ~~> p1 @@ nobody
+  encrypted <- p1 `locally` \un -> enc (un explicitMember pks) (un explicitMember b1) (un explicitMember b2)
   sr <- (explicitMember `introAnd` p2, s) ~> p1 @@ nobody
-  (p1, \un -> return $ un p11 $ if (un p11 sr) then b1 else b2) ~~> p2 @@ nobody
+  (p1, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> p2 @@ nobody
+    where enc (pk1, pk2) b1 b2 = undefined
 
 otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
