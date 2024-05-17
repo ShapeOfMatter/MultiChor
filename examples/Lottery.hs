@@ -14,6 +14,7 @@ import Data.Maybe (fromJust)
 import System.Random (randomIO)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
+import Logic.Classes (refl)
 
 
 -- | Issue #27
@@ -86,20 +87,14 @@ lottery clients servers analyst = do
 
   -- Servers each send their randomly commits to all other servers
   -- I was thinking we don't need to actually restrict to only other servers besides the current (just don't use randomCommit again only allCommits)
-  allCommits <- servers `fanOut` ( \currServer ->
-                  fanIn
-                    servers
-                    (inSuper servers currServer @@ nobody)
-                    ( \recServer ->
-                        (currServer `introAnd` inSuper servers currServer, randomCommit) ~> inSuper servers currServer @@ nobody
-                                                                                                -- \^^ TODO I was expecting recServer but compiler wants curr server
+  allCommits <- fanIn servers servers ( \server ->
+                        (server `introAnd` inSuper servers server, randomCommit) ~> servers
                     )
-               )
 
   -- Sum all shares
   -- TODO modular sum
   -- TODO this is any for some reason. Something is wrong.
-  r <- servers `replicatively` (\un -> sum $ un servers allCommits)
+  r <- servers `replicatively` (\un -> sum $ un refl allCommits)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
