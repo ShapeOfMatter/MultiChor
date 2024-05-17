@@ -15,10 +15,25 @@ import CLI
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
 import Logic.Classes (Reflexive, refl, Transitive, transitive)
-
+import qualified Data.ByteString as BS
 
 import qualified Sel.PublicKey.Seal as Seal
 import qualified Sel.PublicKey.Cipher as Cipher
+
+import Data.ByteString.Char8 (ByteString, pack)
+import Text.Read (Read(..), readPrec, lexP, parens)
+
+import Data.Maybe (fromJust)
+--import Text.ParserCombinators.ReadP (readP_to_Prec)
+
+boolToByteString :: Bool -> BS.StrictByteString
+boolToByteString = pack . show
+
+byteStringToBool :: BS.StrictByteString -> Bool
+byteStringToBool bs
+    | bs == pack (show True)  = True
+    | bs == pack (show False) = False
+    | otherwise             = undefined
 
 -- Multiple servers
 -- Multiple clients
@@ -51,25 +66,65 @@ ot2Insecure b1 b2 s = do
   sr <- (client2 `introAnd` client2, s) ~> client1 @@ nobody
   (client1, \un -> return $ un client1 $ if (un client1 sr) then b1 else b2) ~~> client2 @@ nobody
 
-ot2 :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) =>
-  Located '[p1] Bool ->  -- sender
-  Located '[p1] Bool ->  -- sender
-  Located '[p2] Bool ->  -- receiver
-  Choreo '[p1, p2] (CLI m) (Located '[p2] Bool)
+ot2 :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+  Located '[sender] Bool ->  -- sender
+  Located '[sender] Bool ->  -- sender
+  Located '[receiver] Bool ->  -- receiver
+  Choreo '[sender, receiver] (CLI m) (Located '[receiver] Bool)
 ot2 b1 b2 s = do
-  let p1 = explicitMember :: Member p1 '[p1, p2]
-  let p2 = (inSuper (consSuper refl) explicitMember) :: Member p2 '[p1, p2]
+  let sender = explicitMember :: Member sender '[sender, receiver]
+  let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
 
-  ks1 <- p2 `_locally` (liftIO Cipher.newKeyPair)
-  ks2 <- p2 `_locally` (liftIO Cipher.newKeyPair)
-  --pks <- p2 `locally` \un -> return (fst $ un explicitMember ks1, fst $ un explicitMember ks2)
+  ks1 <- receiver `_locally` (liftIO Cipher.newKeyPair)
+  ks2 <- receiver `_locally` (liftIO Cipher.newKeyPair)
+  pks <- (receiver, \un -> return (Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks1,
+                             Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks2)) ~~> sender @@ nobody
+  encrypted <- sender `locally` \un -> enc (un explicitMember pks)
+                                       (un explicitMember b1)
+                                       (un explicitMember b2)
+  encryptedR <- (explicitMember `introAnd` sender, encrypted) ~> receiver @@ nobody
+  decrypted <- receiver `locally` \un -> return (dec (un explicitMember s) (un explicitMember ks1) (un explicitMember ks2) (un explicitMember encryptedR))
+  return decrypted
 
-  pks <- (p2, \un -> return (Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks1,
-                             Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks2)) ~~> p1 @@ nobody
-  encrypted <- p1 `locally` \un -> enc (un explicitMember pks) (un explicitMember b1) (un explicitMember b2)
-  sr <- (explicitMember `introAnd` p2, s) ~> p1 @@ nobody
-  (p1, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> p2 @@ nobody
-    where enc (pk1, pk2) b1 b2 = (Seal.seal b1 pk1, Seal.seal b2 pk2)
+dec :: Bool ->
+  (Cipher.PublicKey, Cipher.SecretKey) ->
+  (Cipher.PublicKey, Cipher.SecretKey) ->
+  (BS.StrictByteString, BS.StrictByteString) -> Bool
+dec s (pk1, sk1) (pk2, sk2) (cb1, cb2) =
+  case (Cipher.cipherTextFromHexByteString cb1,
+        Cipher.cipherTextFromHexByteString cb2) of
+    (Right c1, Right c2) -> byteStringToBool $ fromJust $ if s then Seal.open c1 pk1 sk1 else Seal.open c2 pk2 sk2
+    (_, _) -> undefined
+
+
+enc :: (MonadIO m) => (BS.StrictByteString, BS.StrictByteString) -> Bool -> Bool ->
+  CLI m (BS.StrictByteString, BS.StrictByteString)
+enc (pk1, pk2) b1 b2 = do
+  putOutput "OT output:" $ b1
+  c1 <- liftIO $ Seal.seal (boolToByteString b1) (getPK pk1)
+  c2 <- liftIO $ Seal.seal (boolToByteString b2) (getPK pk2)
+  return (Cipher.cipherTextToHexByteString c1,
+          Cipher.cipherTextToHexByteString c2)
+
+-- instance Read Cipher.CipherText where
+--   readsPrec = readP_to_Prec $ \_ -> do
+--     str <- lexP
+--     let bs = BS.pack str
+--     case Cipher.cipherTextFromHexByteString bs of
+--       Left _ -> undefined
+--       Right c -> return (c, "")
+
+getPK :: BS.StrictByteString -> Cipher.PublicKey
+getPK pkb = let skb = BS.empty in
+  case Cipher.keyPairFromHexByteStrings pkb skb of
+    Left _ -> undefined
+    Right (pk, _) -> pk
+
+getSK :: BS.StrictByteString -> Cipher.SecretKey
+getSK skb = let pkb = BS.empty in
+  case Cipher.keyPairFromHexByteStrings pkb skb of
+    Left _ -> undefined
+    Right (_, sk) -> sk
 
 otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
