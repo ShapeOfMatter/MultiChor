@@ -39,8 +39,9 @@ type Participants = ["client1", "client2", "server1", "server2"]
 
 
 -- Random field in [1 to n]
-random :: MonadIO m => CLI m Fp
-random = liftIO randomIO
+-- TODO bound by n
+random :: MonadIO m => Fp -> CLI m Fp
+random n = liftIO randomIO
 
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
@@ -82,19 +83,21 @@ lottery clients servers analyst = do
                   )
              )
 
-  -- Servers each commit to some random value
-  randomCommit <- parallel servers (\_ _ -> random)
+  -- 1) Each server selects a random number within range [0,τ]
+  ρ <- parallel servers (\_ _ -> random τ)
 
-  -- Servers each send their randomly commits to all other servers
-  -- I was thinking we don't need to actually restrict to only other servers besides the current (just don't use randomCommit again only allCommits)
-  allCommits <- fanIn servers servers ( \server ->
-                        (server `introAnd` inSuper servers server, randomCommit) ~> servers
+  -- Salt value
+  ψ <- parallel servers (\_ _ -> random largeValue)
+
+  -- 2) Each server computers and publishes the hash α = H(ρ, ψ) to server as a commitment
+  α <- fanIn servers servers ( \server ->
+                        (inSuper servers server, \un -> hash (un server ψ) (un server ρ)) ~~> servers
                     )
 
   -- Sum all shares
   -- TODO modular sum
   -- TODO this is any for some reason. Something is wrong.
-  r <- servers `replicatively` (\un -> sum $ un refl allCommits)
+  r <- servers `replicatively` (\un -> sum $ un refl α)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
@@ -109,6 +112,14 @@ lottery clients servers analyst = do
 
  where
   serverNames = toLocs servers
+  n = length $ toLocs servers
+  -- TODO some multiple of n. Is any arbitrary multiple fine or should we do something random
+  τ = undefined
+  -- TODO maybe not the max? or we can do maxBound / 2
+  -- I also kind of mix up ψ and the other ψ looking symbol
+  largeValue = undefined
+  -- TODO choose some hash function
+  hash ρ ψ = undefined
 
 main :: IO ()
 main = undefined
