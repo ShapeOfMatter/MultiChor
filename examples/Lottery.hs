@@ -63,8 +63,7 @@ lottery clients servers analyst = do
   secret <- parallel clients (\_ _ -> getInput "secret:")
 
   -- A lookup table that maps Server to share to send
-  clientShares <-
-    clients `parallel` \client un -> do
+  clientShares <- clients `parallel` \client un -> do
       freeShares :: [Fp] <- case serverNames of
         [] -> return [] -- This can't actually happen/get used...
         _ : others -> replicateM (length others) $ liftIO randomIO
@@ -95,6 +94,7 @@ lottery clients servers analyst = do
                     )
 
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
+  -- Where ₀ represents the opened variants that is Located at all servers rather than Faceted
   ψ₀ <- fanIn servers servers ( \server ->
                         (server `introAnd` inSuper servers server, ψ) ~> servers
                     )
@@ -102,6 +102,12 @@ lottery clients servers analyst = do
   ρ₀ <- fanIn servers servers ( \server ->
                         (server `introAnd` inSuper servers server, ρ) ~> servers
                     )
+
+  -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
+  -- TODO hopefully this is in order but if not I should change the types to be [(Loc, a)]
+  check <- parallel servers (\server un -> pure $ (un server α) == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+
+
   -- Sum all shares
   -- TODO modular sum
   -- TODO this is any for some reason. Something is wrong.
