@@ -105,13 +105,12 @@ lottery clients servers analyst = do
 
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   -- TODO hopefully this is in order but if not I should change the types to be [(Loc, a)]
-  check <- parallel servers (\server un -> pure $ (un server α) == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+  check <- parallel servers (\server un -> pure $ un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
 
 
   -- Sum all shares
   -- TODO modular sum
-  -- TODO this is any for some reason. Something is wrong.
-  r <- servers `replicatively` (\un -> sum $ un refl α)
+  r <- servers `replicatively` (\un -> sum $ un refl ρ₀)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
