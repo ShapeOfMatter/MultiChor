@@ -115,11 +115,10 @@ lottery clients servers analyst = do
   ω <- servers `replicatively` (\un -> sum $ un refl ρ₀)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
-  -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
   allShares <- fanIn servers (analyst @@ nobody)
                     ( \server ->
                         ( inSuper servers server
-                        , \un -> pure (un server serverShares !! fromIntegral (un server r))
+                        , \un -> pure (un server serverShares !! fromIntegral (un server ω))
                         ) ~~> analyst @@ nobody
                     )
 
