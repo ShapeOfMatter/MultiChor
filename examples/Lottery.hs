@@ -89,11 +89,19 @@ lottery clients servers analyst = do
   -- Salt value
   ψ <- parallel servers (\_ _ -> random largeValue)
 
-  -- 2) Each server computers and publishes the hash α = H(ρ, ψ) to server as a commitment
+  -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
   α <- fanIn servers servers ( \server ->
-                        (inSuper servers server, \un -> hash (un server ψ) (un server ρ)) ~~> servers
+                        (inSuper servers server, \un -> pure $ hash (un server ψ) (un server ρ)) ~~> servers
                     )
 
+  -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
+  ψ₀ <- fanIn servers servers ( \server ->
+                        (server `introAnd` inSuper servers server, ψ) ~> servers
+                    )
+
+  ρ₀ <- fanIn servers servers ( \server ->
+                        (server `introAnd` inSuper servers server, ρ) ~> servers
+                    )
   -- Sum all shares
   -- TODO modular sum
   -- TODO this is any for some reason. Something is wrong.
@@ -119,6 +127,7 @@ lottery clients servers analyst = do
   -- I also kind of mix up ψ and the other ψ looking symbol
   largeValue = undefined
   -- TODO choose some hash function
+  hash :: Fp -> Fp -> Fp
   hash ρ ψ = undefined
 
 main :: IO ()
