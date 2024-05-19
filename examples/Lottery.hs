@@ -108,9 +108,11 @@ lottery clients servers analyst = do
   check <- parallel servers (\server un -> pure $ un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
 
 
-  -- Sum all shares
+  -- 5) If all the checks are successfull. Then sum shares.
+  -- TODO need to get a Located Bool servers from the Faceted Bool servers or something then a Cond
+  -- Where ω is an index on the shares
   -- TODO modular sum
-  r <- servers `replicatively` (\un -> sum $ un refl ρ₀)
+  ω <- servers `replicatively` (\un -> sum $ un refl ρ₀)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
   -- TODO that's a bit weird? Should be able to get rid of Faceted for a single location
@@ -129,7 +131,6 @@ lottery clients servers analyst = do
   -- TODO some multiple of n. Is any arbitrary multiple fine or should we do something random
   τ = undefined
   -- TODO maybe not the max? or we can do maxBound / 2
-  -- I also kind of mix up ψ and the other ψ looking symbol
   largeValue = undefined
   -- TODO choose some hash function
   hash :: Fp -> Fp -> Fp
