@@ -15,6 +15,9 @@ import System.Random (randomIO)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
 import Logic.Classes (refl)
+import Control.Monad (unless)
+import Control.Exception (throwIO)
+import GHC.Exception (Exception)
 
 
 -- | Issue #27
@@ -42,6 +45,10 @@ type Participants = ["client1", "client2", "server1", "server2"]
 -- TODO bound by n
 random :: MonadIO m => Fp -> CLI m Fp
 random n = liftIO randomIO
+
+data LotteryError = CommitmentCheckFailed deriving (Show)
+
+instance Exception LotteryError
 
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
@@ -89,23 +96,20 @@ lottery clients servers analyst = do
   ψ <- parallel servers (\_ _ -> random largeValue)
 
   -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
-  α <- fanIn servers servers ( \server ->
-                        (inSuper servers server, \un -> pure $ hash (un server ψ) (un server ρ)) ~~> servers
-                    )
+  α <- fanIn servers servers ( \server -> (inSuper servers server, \un -> pure $ hash (un server ψ) (un server ρ)) ~~> servers)
 
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
   -- Where ₀ represents the opened variants that is Located at all servers rather than Faceted
-  ψ₀ <- fanIn servers servers ( \server ->
-                        (server `introAnd` inSuper servers server, ψ) ~> servers
-                    )
+  ψ₀ <- fanIn servers servers ( \server -> (server `introAnd` inSuper servers server, ψ) ~> servers)
 
-  ρ₀ <- fanIn servers servers ( \server ->
-                        (server `introAnd` inSuper servers server, ρ) ~> servers
-                    )
+  ρ₀ <- fanIn servers servers ( \server -> (server `introAnd` inSuper servers server, ρ) ~> servers)
 
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   -- TODO hopefully this is in order but if not I should change the types to be [(Loc, a)]
-  check <- parallel servers (\server un -> pure $ un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+  _ <- parallel servers (\server un -> do
+                                unless (un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+                                  (liftIO $ throwIO CommitmentCheckFailed)
+                            )
 
 
   -- 5) If all the checks are successfull. Then sum shares.
@@ -127,10 +131,11 @@ lottery clients servers analyst = do
  where
   serverNames = toLocs servers
   n = length $ toLocs servers
-  -- TODO some multiple of n. Is any arbitrary multiple fine or should we do something random
-  τ = undefined
-  -- TODO maybe not the max? or we can do maxBound / 2
-  largeValue = undefined
+  -- This is some multiple of n. I'm just choosing n to make it simpler for now.
+  τ :: Fp
+  τ = fromIntegral n
+  largeValue :: Integer
+  largeValue = 99999999
   -- TODO choose some hash function
   hash :: Fp -> Fp -> Fp
   hash ρ ψ = undefined
