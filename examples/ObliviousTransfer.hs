@@ -4,7 +4,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module ObliviousTransfer where
+module ObliviousTransfer (ot2, ot4, main) where
 
 import Choreography
 --import Control.Monad
@@ -61,11 +61,6 @@ generateFakePK = do
     return $ RSA.PublicKey 512 (bytesToInteger bytes) 65537
       where bytesToInteger bs = foldl (\acc byte -> (acc `shiftL` 8) + fromIntegral byte) 0 (BS.unpack bs)
 
--- Multiple servers
--- Multiple clients
-$(mkLoc "client1")
-$(mkLoc "client2")
-$(mkLoc "client3")
 
 --------------------------------------------------
 -- 1-out-of-2 Oblivious transfer
