@@ -241,7 +241,11 @@ executable oblivious-transfer
     ghc-options:
       -main-is ObliviousTransfer
     build-depends:
-      sel == 0.0.1.0
+      sel == 0.0.1.0,
+      cryptonite,
+      base64-bytestring,
+      text,
+      memory
 
 executable ring-leader
     import: example

@@ -21,10 +21,41 @@ import qualified Sel.PublicKey.Seal as Seal
 import qualified Sel.PublicKey.Cipher as Cipher
 
 import Data.ByteString.Char8 (ByteString, pack)
+import qualified Data.ByteString.Lazy as BL
 import Text.Read (Read(..), readPrec, lexP, parens)
 
 import Data.Maybe (fromJust)
 --import Text.ParserCombinators.ReadP (readP_to_Prec)
+
+-- For cryptonite
+import qualified Crypto.PubKey.RSA as RSA
+import qualified Crypto.PubKey.RSA.OAEP as OAEP
+import qualified Crypto.PubKey.RSA.PSS as PSS
+import qualified Crypto.Hash.Algorithms as HASH
+import qualified Crypto.Random.Types as CRT
+import qualified Data.Text.Encoding as E
+import           Data.ByteArray.Encoding as BAE
+
+import Data.Bits (shiftL)
+--import Data.Text
+
+genKeyPair :: CRT.MonadRandom m => m (RSA.PublicKey, RSA.PrivateKey)
+genKeyPair = RSA.generate 512 65537
+
+encryptRSA :: CRT.MonadRandom m => RSA.PublicKey -> Bool -> m ByteString
+encryptRSA p a = do
+  let bs = boolToByteString a
+  x <- OAEP.encrypt (OAEP.defaultOAEPParams HASH.SHA1) p bs
+  case x of
+    Left _ -> undefined
+    Right b -> return b
+
+decryptRSA :: CRT.MonadRandom m => RSA.PrivateKey -> ByteString -> m Bool
+decryptRSA r bs = do
+  x <- OAEP.decryptSafer (OAEP.defaultOAEPParams HASH.SHA1) r bs
+  case x of
+    Left _ -> undefined
+    Right b -> return $ byteStringToBool b
 
 boolToByteString :: Bool -> BS.StrictByteString
 boolToByteString = pack . show
@@ -66,7 +97,29 @@ ot2Insecure b1 b2 s = do
   sr <- (client2 `introAnd` client2, s) ~> client1 @@ nobody
   (client1, \un -> return $ un client1 $ if (un client1 sr) then b1 else b2) ~~> client2 @@ nobody
 
-ot2 :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+genKeys :: (CRT.MonadRandom m) => Bool -> m (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey)
+genKeys s = do
+  (pk, sk) <- genKeyPair
+  fakePk <- generateFakePK
+  return $ if s then (pk, fakePk, sk) else (fakePk, pk, sk)
+
+enc :: (CRT.MonadRandom m) =>
+       (RSA.PublicKey, RSA.PublicKey) -> Bool -> Bool ->
+       m (ByteString, ByteString)
+enc (pk1, pk2) b1 b2 = do
+  c1 <- encryptRSA pk1 b1
+  c2 <- encryptRSA pk2 b2
+  return (c1, c2)
+
+dec :: (CRT.MonadRandom m) =>
+       (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey) ->
+       Bool -> (ByteString, ByteString) ->
+       m Bool
+dec (_, _, sk) s (c1, c2) = do
+  m <- if s then decryptRSA sk c1 else decryptRSA sk c2
+  return m
+
+ot2 :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m, CRT.MonadRandom m) =>
   Located '[sender] Bool ->  -- sender
   Located '[sender] Bool ->  -- sender
   Located '[receiver] Bool ->  -- receiver
@@ -75,31 +128,30 @@ ot2 b1 b2 s = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
 
-  ks1 <- receiver `_locally` (liftIO Cipher.newKeyPair)
-  ks2 <- receiver `_locally` (liftIO Cipher.newKeyPair)
-  pks <- (receiver, \un -> return (Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks1,
-                             Cipher.publicKeyToHexByteString $ fst $ un explicitMember ks2)) ~~> sender @@ nobody
-  encrypted <- sender `locally` \un -> enc (un explicitMember pks)
-                                       (un explicitMember b1)
-                                       (un explicitMember b2)
-  encryptedR <- (explicitMember `introAnd` sender, encrypted) ~> receiver @@ nobody
-  decrypted <- receiver `locally` \un -> return (dec (un explicitMember s) (un explicitMember ks1) (un explicitMember ks2) (un explicitMember encryptedR))
+  keys <- receiver `locally` \un -> (liftIO $ genKeys $ un explicitMember s)
+  pks <- (receiver, \un -> let (pk1, pk2, _) = (un explicitMember keys) in return (pk1, pk2)) ~~> sender @@ nobody
+  encrypted <- (sender, \un -> liftIO $ enc (un explicitMember pks)
+                                            (un explicitMember b1)
+                                            (un explicitMember b2)) ~~> receiver @@ nobody
+  decrypted <- receiver `locally` \un -> liftIO $ dec (un explicitMember keys)
+                                                      (un explicitMember s)
+                                                      (un explicitMember encrypted)
   return decrypted
 
-dec :: Bool ->
+dec2 :: Bool ->
   (Cipher.PublicKey, Cipher.SecretKey) ->
   (Cipher.PublicKey, Cipher.SecretKey) ->
   (BS.StrictByteString, BS.StrictByteString) -> Bool
-dec s (pk1, sk1) (pk2, sk2) (cb1, cb2) =
+dec2 s (pk1, sk1) (pk2, sk2) (cb1, cb2) =
   case (Cipher.cipherTextFromHexByteString cb1,
         Cipher.cipherTextFromHexByteString cb2) of
     (Right c1, Right c2) -> byteStringToBool $ fromJust $ if s then Seal.open c1 pk1 sk1 else Seal.open c2 pk2 sk2
     (_, _) -> undefined
 
 
-enc :: (MonadIO m) => (BS.StrictByteString, BS.StrictByteString) -> Bool -> Bool ->
+enc2 :: (MonadIO m) => (BS.StrictByteString, BS.StrictByteString) -> Bool -> Bool ->
   CLI m (BS.StrictByteString, BS.StrictByteString)
-enc (pk1, pk2) b1 b2 = do
+enc2 (pk1, pk2) b1 b2 = do
   putOutput "OT output:" $ b1
   c1 <- liftIO $ Seal.seal (boolToByteString b1) (getPK pk1)
   c2 <- liftIO $ Seal.seal (boolToByteString b2) (getPK pk2)
@@ -126,7 +178,7 @@ getSK skb = let pkb = BS.empty in
     Left _ -> undefined
     Right (_, sk) -> sk
 
-otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m) => Choreo '[p1, p2] (CLI m) ()
+otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m, CRT.MonadRandom m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
   let p1 = explicitMember :: Member p1 '[p1, p2]
   let p2 = (inSuper (consSuper refl) explicitMember) :: Member p2 '[p1, p2]
@@ -136,8 +188,29 @@ otTest = do
   otResult <- ot2 b1 b2 s
   p2 `locally_` \un -> putOutput "OT output:" $ un explicitMember otResult
 
+boolToByte :: Bool -> BL.ByteString
+boolToByte True  = BL.pack [1]  -- Represent True as byte 1
+boolToByte False = BL.pack [0]  -- Represent False as byte 0
+
+-- Function to generate a 512-bit integer
+generateFakePK :: CRT.MonadRandom m => m RSA.PublicKey
+generateFakePK = do
+    bytes <- CRT.getRandomBytes 512
+    return $ RSA.PublicKey 512 (bytesToInteger bytes) 65537
+      where bytesToInteger bs = foldl (\acc byte -> (acc `shiftL` 8) + fromIntegral byte) 0 (BS.unpack bs)
+
+
 main :: IO ()
 main = do
+  (pk, sk) <- genKeyPair
+  encrypted <- encryptRSA pk True
+  decrypted <- decryptRSA sk encrypted
+  fakePK <- generateFakePK
+  encrypted2 <- encryptRSA fakePK True
+  putStrLn $ "pk:" ++ show pk
+  putStrLn $ "Enc:" ++ show encrypted
+  putStrLn $ "Dec:" ++ show decrypted
+  putStrLn $ "Enc2:" ++ show encrypted2
   [loc] <- getArgs
   delivery <- case loc of
     "client1" -> runCLIIO $ runChoreography cfg (otTest @"client1" @"client2") "client1"
