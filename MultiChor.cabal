@@ -232,8 +232,6 @@ executable mpc-sum
     main-is:          MPCSum.hs
     ghc-options:
       -main-is MPCSum
-    build-depends:
-      sel == 0.0.1.0
 
 executable oblivious-transfer
     import: example
@@ -242,6 +240,16 @@ executable oblivious-transfer
       -main-is ObliviousTransfer
     build-depends:
       cryptonite
+
+executable gmw-real
+    import: example
+    main-is:          GMWReal.hs
+    ghc-options:
+      -main-is GMWReal
+    build-depends:
+      cryptonite
+    other-modules:
+      ObliviousTransfer
 
 executable ring-leader
     import: example

@@ -14,8 +14,6 @@ import System.Environment
 import CLI
 import System.Random
 
-import qualified Sel.PublicKey.Cipher as Cipher
-
 -- Multiple servers
 -- Multiple clients
 $(mkLoc "server1")
