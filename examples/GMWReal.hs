@@ -75,21 +75,21 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
           answer = recurse circuit
 
 
-secretShare :: (KnownSymbols parties, KnownSymbol p, Wrapped w, MonadIO m)
-            => Subset parties ps
-            -> Member p ps
-            -> (Member p owners, w owners Bool)
-            -> Choreo ps m (Faceted parties Bool)
-secretShare parties p (ownership, value) = do
+secretShare :: forall parties p m.
+  (KnownSymbols parties, KnownSymbol p, MonadIO m)
+            => Member p parties
+            -> Located '[p] Bool
+            -> Choreo parties m (Faceted parties Bool)
+secretShare p value = do
   shares <- p `locally` \un -> do (freeShares :: [Bool]) <- case partyNames of
                                                               [] -> return [] -- This can't actually happen/get used...
                                                               _:others -> replicateM (length others) $ liftIO randomIO
-                                  let lastShare = xor (un ownership value : freeShares)  -- But freeShares could really be empty!
+                                  let lastShare = xor (un explicitMember value : freeShares)  -- But freeShares could really be empty!
                                   return $ partyNames `zip` (lastShare : freeShares)
-  parties `fanOut` \q -> do
+  refl `fanOut` \q -> do
     share <- (p @@ nobody) `replicatively` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
-    (explicitMember `introAnd` p, share) ~> inSuper parties q @@ nobody
-  where partyNames = toLocs parties
+    (explicitMember `introAnd` p, share) ~> q @@ nobody
+  where partyNames = toLocs @parties refl
 
 reveal :: (KnownSymbols ps)
        => Faceted ps Bool
@@ -112,7 +112,7 @@ fMult :: forall parties m.
       -> Choreo parties (CLI m) (Faceted parties Bool)
 fMult u_shares v_shares = do
   let party_names = toLocs @parties refl
-  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \p_i un -> genBools party_names
+  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \_ _ -> genBools party_names
   b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
   ind_names :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
   new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
@@ -127,7 +127,7 @@ computeShare :: LocTm -> Bool -> Bool
              -> [(LocTm, Bool)]
              -> Bool -> Bool
 computeShare p_i u_i v_i a_ij b = xor $ [u_i, v_i, b] ++ (map snd $ filter ok a_ij)
-  where ok (p_j, _) = not (p_j == p_i)
+  where ok (p_j, _) = p_j /= p_i
 
 -- use OT to do multiplication, for party p_j
 fMultOne :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
@@ -158,40 +158,34 @@ fMultBij a_ij_s u_shares v_shares p_j p_i = do
       a_ij :: Located '[p_i] Bool <- p_i `locally` \un -> return $ fromJust $ lookup p_j_name (un p_i a_ij_s)
       u_i :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
       b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un explicitMember a_ij
-      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un explicitMember u_i) == (un explicitMember a_ij)
+      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ xor [un explicitMember u_i,
+                                                                      un explicitMember a_ij]
       select_bit :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
       b_ij_w :: Located '[p_i, p_j] (Located '[p_j] Bool) <- (p_i @@ p_j @@ nobody) `enclave` (ot2 b1 b2 select_bit)
       let b_ij :: Located '[p_j] Bool = (consSet `introAnd` refl) `flatten` b_ij_w
       return b_ij
 
 
-computeWire :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+computeWire :: forall parties m.
+               (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
             => Circuit parties
             -> Choreo parties (CLI m) (Faceted parties Bool)
-computeWire circuit = undefined
--- case circuit of
---   InputWire p -> do
---     value <- inSuper parties p `_locally` getInput "Enter a secret input value:"
---     secretShare parties (inSuper parties p) (explicitMember, value)
---   LitWire b -> do
---     let shares = partyNames `zip` (b : repeat False)
---     parties `fanOut` \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
---   AndGate l r -> do
---     lResult <- computeWire l
---     rResult <- computeWire r
---     fMult lResult rResult
---     -- inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
---     --   (inSuper parties p, \un -> return (un p lResult, un p rResult)) ~~> trustedAnd @@ nobody
---     -- outputVal <- (trustedAnd @@ nobody) `replicatively` \un ->
---     --   let ovs = un refl inputShares
---     --   in case ovs of [] -> error "make sure there's at least one party"
---     --                  _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
---     -- secretShare parties trustedAnd (explicitMember, outputVal)
---   XorGate l r -> do
---     lResult <- computeWire l
---     rResult <- computeWire r
---     parties `parallel` \p un -> return (un p lResult /= un p rResult)
---   where partyNames = toLocs parties
+computeWire circuit = case circuit of
+  InputWire p -> do
+    value :: Located '[p] Bool <- p `_locally` getInput "Enter a secret input value:"
+    secretShare p value
+  LitWire b -> do
+    let shares = partyNames `zip` (b : repeat False)
+    refl `fanOut` \p -> p `_locally` return (fromJust $ toLocTm p `lookup` shares)
+  AndGate l r -> do
+    lResult <- computeWire l
+    rResult <- computeWire r
+    fMult lResult rResult
+  XorGate l r -> do
+    lResult <- computeWire l
+    rResult <- computeWire r
+    refl `parallel` \p un -> return $ xor [un p lResult, un p rResult]
+  where partyNames = toLocs @parties refl
 
 mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties
@@ -199,7 +193,7 @@ mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
 mpc circuit = do
   outputWire <- computeWire circuit
   result <- reveal outputWire
-  void $ refl `parallel` \p un -> putOutput "The resulting bit:" $ result
+  void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
 
 type Clients = '["p1", "p2", "p3"]
 main :: IO ()
