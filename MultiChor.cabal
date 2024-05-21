@@ -142,6 +142,10 @@ Test-Suite testExamples
                  , QuickSort
                  , MPCSum
                  , RingLeader
+                 , GMWReal
+                 , ObliviousTransfer
+    build-depends:
+      cryptonite
 
 executable bank-2pc
     import: example

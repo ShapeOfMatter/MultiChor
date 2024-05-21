@@ -195,19 +195,19 @@ mpc circuit = do
   result <- reveal outputWire
   void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
 
-type Clients = '["p1", "p2", "p3"]
-main :: IO ()
-main = do
-  let circuit :: Circuit Clients = AndGate (AndGate (InputWire p1) (InputWire p2)) (InputWire p3)
-  [loc] <- getArgs
-  delivery <- case loc of
-    "p1" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p1"
-    "p2" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p2"
-    "p3" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p3"
-    _ -> error "unknown party"
-  print delivery
-  where
-    cfg = mkHttpConfig [ ("p1", ("localhost", 4242))
-                       , ("p2", ("localhost", 4343))
-                       , ("p3", ("localhost", 4344))
-                       ]
+-- type Clients = '["p1", "p2", "p3"]
+-- main :: IO ()
+-- main = do
+--   let circuit :: Circuit Clients = AndGate (AndGate (InputWire p1) (InputWire p2)) (InputWire p3)
+--   [loc] <- getArgs
+--   delivery <- case loc of
+--     "p1" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p1"
+--     "p2" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p2"
+--     "p3" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p3"
+--     _ -> error "unknown party"
+--   print delivery
+--   where
+--     cfg = mkHttpConfig [ ("p1", ("localhost", 4242))
+--                        , ("p2", ("localhost", 4343))
+--                        , ("p3", ("localhost", 4344))
+--                        ]
