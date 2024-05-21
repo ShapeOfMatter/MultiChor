@@ -3,7 +3,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-
 module GMWReal where
 
 import System.Environment
@@ -22,6 +21,7 @@ import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
 import ObliviousTransfer
+import qualified Crypto.Random.Types as CRT
 
 $(mkLoc "trusted3rdParty")
 $(mkLoc "p1")
@@ -100,43 +100,105 @@ reveal shares = do
                                                                  aS -> xor aS
   naked refl value
 
-computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, MonadIO m)
-            => Member trustedAnd ps
-            -> Subset parties ps
-            -> Circuit parties
-            -> Choreo ps (CLI m) (Faceted parties Bool)
-computeWire trustedAnd parties circuit = case circuit of
-  InputWire p -> do
-    value <- inSuper parties p `_locally` getInput "Enter a secret input value:"
-    secretShare parties (inSuper parties p) (explicitMember, value)
-  LitWire b -> do
-    let shares = partyNames `zip` (b : repeat False)
-    parties `fanOut` \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
-  AndGate l r -> do
-    lResult <- compute l
-    rResult <- compute r
-    inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
-      (inSuper parties p, \un -> return (un p lResult, un p rResult)) ~~> trustedAnd @@ nobody
-    outputVal <- (trustedAnd @@ nobody) `replicatively` \un ->
-      let ovs = un refl inputShares
-      in case ovs of [] -> error "make sure there's at least one party"
-                     _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
-    secretShare parties trustedAnd (explicitMember, outputVal)
-  XorGate l r -> do
-    lResult <- compute l
-    rResult <- compute r
-    parties `parallel` \p un -> return (un p lResult /= un p rResult)
-  where compute = computeWire trustedAnd parties
-        partyNames = toLocs parties
+genBools :: (MonadIO m) => [LocTm] -> CLI m [(LocTm, Bool)]
+genBools names = mapM genBool names
+  where genBool n = do r <- randomRIO (0, 1 :: Int); return $ (n, r == 0)
 
-mpc :: (KnownSymbols parties, MonadIO m)
+-- use OT to do multiplication
+fMult :: forall parties m.
+  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+      => Faceted parties Bool
+      -> Faceted parties Bool
+      -> Choreo parties (CLI m) (Faceted parties Bool)
+fMult u_shares v_shares = do
+  let party_names = toLocs @parties refl
+  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \p_i un -> genBools party_names
+  b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
+  new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
+                                                                           undefined
+                                                                           (un p_i u_shares)
+                                                                           (un p_i v_shares)
+                                                                           (un p_i a_ij_s)
+                                                                           (un p_i b_ij_s))
+  return new_shares
+
+computeShare :: LocTm -> Bool -> Bool
+             -> [(LocTm, Bool)]
+             -> Bool -> Bool
+computeShare p_i u_i v_i a_ij b = xor $ [u_i, v_i, b] ++ (map snd $ filter ok a_ij)
+  where ok (p_j, _) = not (p_j == p_i)
+
+-- use OT to do multiplication, for party p_j
+fMultOne :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
+         => Faceted parties [(LocTm, Bool)]
+         -> Faceted parties Bool
+         -> Faceted parties Bool
+         -> Member p_j parties
+         -> Choreo parties (CLI m) (Located '[p_j] Bool)
+fMultOne a_ij_s u_shares v_shares p_j = do
+  b_jis :: Located '[p_j] [Bool] <- fanIn refl (p_j @@ nobody) (fMultBij a_ij_s u_shares v_shares p_j)
+  sumShares :: Located '[p_j] Bool <- p_j `locally` \un -> return $ xor $ un explicitMember b_jis
+  return sumShares
+
+-- use OT to do multiplication, for party p_i and p_j
+fMultBij :: (KnownSymbols parties, KnownSymbol p_i, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
+         => Faceted parties [(LocTm, Bool)]
+         -> Faceted parties Bool
+         -> Faceted parties Bool
+         -> Member p_j parties
+         -> Member p_i parties
+         -> Choreo parties (CLI m) (Located '[p_j] Bool)
+fMultBij a_ij_s u_shares v_shares p_j p_i = do
+  let p_i_name = toLocTm p_i
+      p_j_name = toLocTm p_j
+  case p_i_name == p_j_name of
+    True  -> p_j `_locally` return False
+    False -> do
+      a_ij :: Located '[p_i] Bool <- p_i `locally` \un -> return $ fromJust $ lookup p_j_name (un p_i a_ij_s)
+      u_i :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
+      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un explicitMember a_ij
+      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un explicitMember u_i) == (un explicitMember a_ij)
+      select_bit :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
+      b_ij_w :: Located '[p_i, p_j] (Located '[p_j] Bool) <- (p_i @@ p_j @@ nobody) `enclave` (ot2 b1 b2 select_bit)
+      let b_ij :: Located '[p_j] Bool = (consSet `introAnd` refl) `flatten` b_ij_w
+      return b_ij
+
+
+computeWire :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+            => Circuit parties
+            -> Choreo parties (CLI m) (Faceted parties Bool)
+computeWire circuit = undefined
+-- case circuit of
+--   InputWire p -> do
+--     value <- inSuper parties p `_locally` getInput "Enter a secret input value:"
+--     secretShare parties (inSuper parties p) (explicitMember, value)
+--   LitWire b -> do
+--     let shares = partyNames `zip` (b : repeat False)
+--     parties `fanOut` \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
+--   AndGate l r -> do
+--     lResult <- computeWire l
+--     rResult <- computeWire r
+--     fMult lResult rResult
+--     -- inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
+--     --   (inSuper parties p, \un -> return (un p lResult, un p rResult)) ~~> trustedAnd @@ nobody
+--     -- outputVal <- (trustedAnd @@ nobody) `replicatively` \un ->
+--     --   let ovs = un refl inputShares
+--     --   in case ovs of [] -> error "make sure there's at least one party"
+--     --                  _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
+--     -- secretShare parties trustedAnd (explicitMember, outputVal)
+--   XorGate l r -> do
+--     lResult <- computeWire l
+--     rResult <- computeWire r
+--     parties `parallel` \p un -> return (un p lResult /= un p rResult)
+--   where partyNames = toLocs parties
+
+mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties
-    -> Choreo ("trusted3rdParty" ': parties) (CLI m) ()
+    -> Choreo parties (CLI m) ()
 mpc circuit = do
-  let parties = consSuper refl
-  outputWire <- computeWire trusted3rdParty parties circuit
-  result <- enclave parties $ reveal outputWire
-  void $ parties `parallel` \p un -> putOutput "The resulting bit:" $ un p result
+  outputWire <- computeWire circuit
+  result <- reveal outputWire
+  void $ refl `parallel` \p un -> putOutput "The resulting bit:" $ result
 
 type Clients = '["p1", "p2", "p3"]
 main :: IO ()
