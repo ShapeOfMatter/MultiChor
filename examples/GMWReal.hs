@@ -5,7 +5,7 @@
 
 module GMWReal where
 
-import System.Environment
+--import System.Environment
 
 import Choreography
 import CLI
@@ -126,7 +126,7 @@ fMult u_shares v_shares = do
 computeShare :: LocTm -> Bool -> Bool
              -> [(LocTm, Bool)]
              -> Bool -> Bool
-computeShare p_i u_i v_i a_ij b = xor $ [u_i, v_i, b] ++ (map snd $ filter ok a_ij)
+computeShare p_i u_i v_i a_ij b = xor $ [u_i && v_i, b] ++ (map snd $ filter ok a_ij)
   where ok (p_j, _) = p_j /= p_i
 
 -- use OT to do multiplication, for party p_j
