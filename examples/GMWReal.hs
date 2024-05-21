@@ -114,8 +114,9 @@ fMult u_shares v_shares = do
   let party_names = toLocs @parties refl
   a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \p_i un -> genBools party_names
   b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
+  ind_names :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
   new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
-                                                                           undefined
+                                                                           (un p_i ind_names)
                                                                            (un p_i u_shares)
                                                                            (un p_i v_shares)
                                                                            (un p_i a_ij_s)
