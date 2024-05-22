@@ -123,7 +123,7 @@ lottery clients servers analyst = do
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   -- TODO hopefully this is in order but if not I should change the types to be [(Loc, a)]
   _ <- parallel servers (\server un -> do
-                                unless (un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+                                unless (un server α == ((hash <$> un server ψ₀) <*> un server ρ₀))
                                   (liftIO $ throwIO CommitmentCheckFailed)
                             )
 
