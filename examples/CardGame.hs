@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 
 module CardGame where
@@ -15,7 +14,6 @@ import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 
-$(mkLoc "dealer")
 
 _modulo :: Int -> Int
 _modulo = (`mod` 21)
@@ -57,28 +55,33 @@ instance Arbitrary Args where
  -}
 game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) (CLI m) ()
 game = do
-  let players = consSuper refl
-  hand1 <- fanOut players (\q -> do
-      (dealer, \_ -> getInput ("Enter random card for " ++ toLocTm q)) ~~> inSuper players q @@ nobody
-    )
-  onTheTable <- fanIn players players (\q -> (q `introAnd` inSuper players q, hand1) ~> players)
-  wantsNextCard <- players `parallel` (\q un -> do
-      putNote $ "My first card is: " ++ show (un q hand1)
-      putNote $ "Cards on the table: " ++ show (un q onTheTable)
+  let players :: Subset players ("dealer" ': players)
+      players = consSuper refl
+      dealer :: forall ps. (ExplicitMember "dealer" ps) => Member "dealer" ps
+      dealer = explicitMember
+  hand1 <- fanOut players \player -> do
+      card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
+      (dealer `introAnd` dealer, card1) ~> inSuper players player @@ nobody
+  onTheTable <- fanIn players players \player -> do
+      (player `introAnd` inSuper players player, hand1) ~> players
+  wantsNextCard <- players `parallel` \player un -> do
+      putNote $ "My first card is: " ++ show (un player hand1)
+      putNote $ "Cards on the table: " ++ show (un player onTheTable)
       getInput "I'll ask for another? [True/False]"
-    )
-  hand2 <- fanOut players (\q -> do
-      let qAddress = inSuper players q
-      choice <- (q `introAnd` qAddress, wantsNextCard) ~> dealer @@ qAddress @@ nobody
-      flatten (consSuper refl `introAnd` refl) <$> cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) (\case
-          True -> do card2 <- (dealer, \_ -> getInput (toLocTm q ++ " wants another card")) ~~> consSuper refl
-                     consSuper refl `replicatively` (\un -> [un refl $ localize q hand1, un refl card2])
-          False -> consSuper refl `replicatively` (\un -> [un refl $ localize q hand1])
-        )
-    )
-  tableCard <- (dealer, \_ -> getInput "Enter a single card for everyone:") ~~> players
-  _ <- players `parallel` (\q un -> do
-      let hand = un q tableCard : un q hand2
+  hand2 <- fanOut players \player -> do
+      let qAddress = inSuper players player
+      choice <- (player `introAnd` qAddress, wantsNextCard) ~> dealer @@ qAddress @@ nobody
+      flatten (consSuper refl `introAnd` refl) <$>
+        cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
+            True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ " wants another card:")
+                       card2 <- (dealer `introAnd` dealer, cd2) ~> consSuper refl
+                       consSuper refl `replicatively` (\un -> [un refl $ localize player hand1
+                                                              ,un refl card2])
+            False -> consSuper refl `replicatively` (\un -> [un refl $ localize player hand1])
+  tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
+  tableCard <- (dealer `introAnd` dealer, tblCrd) ~> players
+  _ <- players `parallel` (\player un -> do
+      let hand = un player tableCard : un player hand2
       putNote $ "My hand: " ++ show hand
       putOutput "My win result:" $ sum hand > card 19
     )
