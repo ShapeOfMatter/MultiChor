@@ -23,6 +23,7 @@ import Crypto.Hash (Digest)
 import Data.ByteString (ByteString, toStrict)
 import qualified GHC.TypeLits as TL
 import Data.Data (Proxy(..))
+import System.Environment (getArgs)
 
 -- Multiple servers
 -- Multiple clients
@@ -78,7 +79,7 @@ lottery
      )
   => Subset clients census -- A proof that clients are part of the census
   -> Subset servers census -- A proof that servers are part of the census
-  -> Member analyst census -- A proof that servers are part of the census
+  -> Member analyst census -- A proof that the analyst is part of the census
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
@@ -126,7 +127,6 @@ lottery clients servers analyst = do
                                   (liftIO $ throwIO CommitmentCheckFailed)
                             )
 
-
   -- 5) If all the checks are successfull. Then sum shares.
   -- TODO need to get a Located Bool servers from the Faceted Bool servers or something then a Cond
   -- Where ω is an index on the shares
@@ -157,4 +157,25 @@ lottery clients servers analyst = do
   hash (Fp ρ) (Fp ψ) = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
-main = undefined
+main = do
+  [loc] <- getArgs
+  let clientProof = undefined
+      serverProof = undefined
+      analystProof = undefined
+  _ <- case loc of
+    "client1" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "client1"
+    "client2" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "client2"
+    "server1" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "server1"
+    "server2" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "server2"
+    "analyst" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "analyst"
+    _ -> error "unknown party"
+  return ()
+  where
+    config =
+      mkHttpConfig
+        [ ("client1", ("localhost", 5000)),
+          ("client2", ("localhost", 5001)),
+          ("server1", ("localhost", 5002)),
+          ("server2", ("localhost", 5003)),
+          ("analyst", ("localhost", 5004))
+        ]
