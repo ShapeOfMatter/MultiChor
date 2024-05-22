@@ -27,7 +27,7 @@ type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
 data ChoreoSig (ps :: [LocTy]) m a where
   Parallel :: (KnownSymbols ls)
         => Subset ls ps
-        -> (forall l. Member l ls -> Unwrap l -> m a)
+        -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)
         -> ChoreoSig ps m (Faceted ls a)
 
   Replicative :: (KnownSymbols ls)
@@ -133,7 +133,7 @@ epp c l' = interpFreer handler c
 -- | Access to the inner "local" monad. The parties are not guarenteed to take the same actions, and may use `Faceted`s.
 parallel :: (KnownSymbols ls)
          => Subset ls ps  -- ^ A set of parties who will all perform the action(s) in parallel.
-         -> (forall l. Member l ls -> Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
+         -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
          -> Choreo ps m (Faceted ls a)
 parallel ls m = toFreer (Parallel ls m)
 
