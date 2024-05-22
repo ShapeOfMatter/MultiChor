@@ -8,16 +8,19 @@ module Lottery where
 
 import CLI
 import Choreography
-import Control.Monad (replicateM)
+import Control.Monad ( replicateM, unless )
 import Control.Monad.Cont (MonadIO, liftIO)
 import Data.Maybe (fromJust)
 import System.Random (randomIO)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
 import Logic.Classes (refl)
-import Control.Monad (unless)
 import Control.Exception (throwIO)
 import GHC.Exception (Exception)
+import qualified Crypto.Hash as Crypto
+import qualified Data.Binary as Binary
+import Crypto.Hash (Digest)
+import Data.ByteString (ByteString, toStrict)
 
 
 -- | Issue #27
@@ -136,9 +139,10 @@ lottery clients servers analyst = do
   τ = fromIntegral n
   largeValue :: Integer
   largeValue = 99999999
-  -- TODO choose some hash function
-  hash :: Fp -> Fp -> Fp
-  hash ρ ψ = undefined
+  -- TODO now sure how I properly do  ρ || ψ
+  -- I just encoded to bytes then concated them
+  hash :: Fp -> Fp -> Digest Crypto.SHA256
+  hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
 main = undefined
