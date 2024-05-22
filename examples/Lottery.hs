@@ -133,7 +133,7 @@ lottery clients servers analyst = do
   -- TODO modular sum
   ω <- servers `replicatively` (\un -> sum $ un refl ρ₀)
 
-  -- Servers each forward share to an analyist s_R^j we end up with a Faceted but only for a single analyst
+  -- Servers each forward share to an analyist s_R^j we end up with a Located but only for a single analyst
   allShares <- fanIn servers (analyst @@ nobody)
                     ( \server ->
                         ( inSuper servers server
