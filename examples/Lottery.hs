@@ -11,7 +11,7 @@ import Choreography
 import Control.Monad ( replicateM, unless )
 import Control.Monad.Cont (MonadIO, liftIO)
 import Data.Maybe (fromJust)
-import System.Random (randomIO)
+import System.Random (randomIO, Random)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
 import Logic.Classes (refl)
@@ -21,11 +21,8 @@ import qualified Crypto.Hash as Crypto
 import qualified Data.Binary as Binary
 import Crypto.Hash (Digest)
 import Data.ByteString (ByteString, toStrict)
-
-
--- | Issue #27
--- TODO just a stub for now
--- TODO make this nicer when we have fanin and fanout to avoid redundent code
+import qualified GHC.TypeLits as TL
+import Data.Data (Proxy(..))
 
 -- Multiple servers
 -- Multiple clients
@@ -37,8 +34,22 @@ $(mkLoc "client1")
 $(mkLoc "client2")
 
 
--- TODO fix later
-type Fp = Integer -- field elements
+newtype Fp (prime :: TL.Nat) = Fp Integer deriving (Show, Eq)
+
+toFp :: forall prime. (TL.KnownNat prime) => Integer -> Fp prime
+toFp i = Fp $ mod i (TL.natVal $ Proxy @prime)
+
+unsafeToInt :: forall prime. (TL.KnownNat prime) => Fp prime -> Integer
+unsafeToInt (Fp i) = i
+
+instance (TL.KnownNat prime) => Num (Fp prime) where
+  (+) (Fp x) (Fp y) = toFp $ x + y
+  (*) (Fp x) (Fp y) = toFp $ x * y
+  -- TODO rest of implementation
+  -- Just realized there's an existing finite field library. Not sure if we'd prefer this or the other
+
+instance Read (Fp prime) -- TODO
+instance Random (Fp prime) -- TODO
 
 
 type Participants = ["client1", "client2", "server1", "server2"]
@@ -46,7 +57,7 @@ type Participants = ["client1", "client2", "server1", "server2"]
 
 -- Random field in [1 to n]
 -- TODO bound by n
-random :: MonadIO m => Fp -> CLI m Fp
+random :: MonadIO m => Fp p -> CLI m (Fp p)
 random n = liftIO randomIO
 
 data LotteryError = CommitmentCheckFailed deriving (Show)
@@ -56,13 +67,14 @@ instance Exception LotteryError
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
 lottery
-  :: forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail
+  :: forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail p
    . ( KnownSymbols clients
      , KnownSymbols servers
      , (_serv1 ': _serv2 ': _servTail) ~ servers -- There should at least be two servers
      , (_client1 ': _client2 ': _clientTail) ~ clients -- There should at least be two clients
      , MonadIO m
      , KnownSymbol analyst
+     , TL.KnownNat p -- Finite Field
      )
   => Subset clients census -- A proof that clients are part of the census
   -> Subset servers census -- A proof that servers are part of the census
@@ -70,11 +82,11 @@ lottery
   -- Subset analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
-  secret <- parallel clients (\_ _ -> getInput "secret:")
+  secret <- parallel clients (\_ _ -> getInput @(Fp p) "secret:")
 
   -- A lookup table that maps Server to share to send
   clientShares <- clients `parallel` \client un -> do
-      freeShares :: [Fp] <- case serverNames of
+      freeShares :: [Fp p] <- case serverNames of
         [] -> return [] -- This can't actually happen/get used...
         _ : others -> replicateM (length others) $ liftIO randomIO
       let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
@@ -125,7 +137,7 @@ lottery clients servers analyst = do
   allShares <- fanIn servers (analyst @@ nobody)
                     ( \server ->
                         ( inSuper servers server
-                        , \un -> pure (un server serverShares !! fromIntegral (un server ω))
+                        , \un -> pure (un server serverShares !! fromIntegral (unsafeToInt (un server ω)))
                         ) ~~> analyst @@ nobody
                     )
 
@@ -135,14 +147,14 @@ lottery clients servers analyst = do
   serverNames = toLocs servers
   n = length $ toLocs servers
   -- This is some multiple of n. I'm just choosing n to make it simpler for now.
-  τ :: Fp
+  τ :: Fp p
   τ = fromIntegral n
-  largeValue :: Integer
-  largeValue = 99999999
+  largeValue :: Fp p
+  largeValue = Fp $ TL.natVal (Proxy @p) - 1
   -- TODO now sure how I properly do  ρ || ψ
   -- I just encoded to bytes then concated them
-  hash :: Fp -> Fp -> Digest Crypto.SHA256
-  hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
+  hash :: Fp p -> Fp p -> Digest Crypto.SHA256
+  hash (Fp ρ) (Fp ψ) = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
 main = undefined
