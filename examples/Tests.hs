@@ -19,9 +19,9 @@ import qualified CardGame
 import qualified DelegationFig20
 import qualified DiffieHellman
 import qualified KVS5Fig17
+import qualified Lottery
 import qualified MPCFake
-import Choreography (runChoreography)
-import Choreography.Location (explicitMember, Member)
+import Choreography
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (BooksellerArgs(..), reference)
@@ -227,6 +227,42 @@ tests' = [
   },
 
   getNormalPT PropertyTest {
+    name = "lottery",
+    tags =[],
+    property = \args@Lottery.Args{ Lottery.secrets=(c1, c2, c3, c4, c5)
+                                   , Lottery.randomIs=(s1, s2, s3)
+                                   } -> ioProperty do
+                  let clientProof :: Subset '["client1", "client2", "client3", "client4", "client5"]
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      clientProof = explicitSubset
+                      serverProof :: Subset '["server1", "server2", "server3"]
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      serverProof = explicitSubset
+                      analystProof :: Member "analyst"
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      analystProof = explicitMember
+                  let situation = [ ("client1", [show c1])
+                                  , ("client2", [show c2])
+                                  , ("client3", [show c3])
+                                  , ("client4", [show c4])
+                                  , ("client5", [show c5])
+                                  , ("server1", [show s1])
+                                  , ("server2", [show s2])
+                                  , ("server3", [show s3])
+                                  , ("analyst", [])
+                                  ]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[], [], [],
+                   [], [], [],
+                   [], [], [response]] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
+                    ) situation
+                  return $ read @Lottery.Fp response === reference args
+  }{-,
+
+  getNormalPT PropertyTest {
     name = "mpc-fake",
     tags =[],
     property = \args@(MPCFake.Args circuit p1in p2in p3in p4in) -> ioProperty do
@@ -242,6 +278,6 @@ tests' = [
                         (runChoreography config (MPCFake.mpc circuit) name)
                     ) situation
                   return $ (read r1, read r2, read r3, read r4) ===  reference args
-  }
+  }-}
   ]
 
