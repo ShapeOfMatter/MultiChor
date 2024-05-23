@@ -265,13 +265,16 @@ tests' = [
                                    , Lottery.randomIs=(s1, s2, s3)
                                    } -> ioProperty do
                   let clientProof :: Subset '["client1", "client2", "client3", "client4", "client5"]
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       clientProof = explicitSubset
                       serverProof :: Subset '["server1", "server2", "server3"]
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       serverProof = explicitSubset
                       analystProof :: Member "analyst"
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       analystProof = explicitMember
                   let situation = [ ("client1", [show c1])
                                   , ("client2", [show c2])
@@ -284,9 +287,9 @@ tests' = [
                                   , ("analyst", [])
                                   ]
                   config <- mkLocalConfig [l | (l, _) <- situation]
-                  [[], [], [],
-                   [], [], [],
-                   [], [], [response]] <-
+                  [[], [], [], [], [],  -- clients return nothing
+                   [], [], [],          -- servers return nothing
+                   [response]] <-
                     mapConcurrently (
                       \(name, inputs) -> fst <$> runCLIStateful inputs
                         (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
