@@ -73,7 +73,7 @@ game = do
       choice <- (player `introAnd` qAddress, wantsNextCard) ~> dealer @@ qAddress @@ nobody
       flatten (consSuper refl `introAnd` refl) <$>
         cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
-            True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ " wants another card:")
+            True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
                        card2 <- (dealer `introAnd` dealer, cd2) ~> consSuper refl
                        consSuper refl `replicatively` (\un -> [un refl $ localize player hand1
                                                               ,un refl card2])
