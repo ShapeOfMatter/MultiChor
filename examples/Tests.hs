@@ -276,7 +276,7 @@ tests' = [
                   return $ (read r1, read r2, read r3, read r4) ===  reference args
   },
 
-  getNormalPT PropertyTest {
+  getPropertyTestWith (stdTestArgs{verbosity=Verbose, maxSuccess=100, maxSize=10}) PropertyTest {
     name = "gmw-real",
     tags =[],
     property = \args@(GMWReal.Args circuit p1in p2in p3in p4in) -> ioProperty do
