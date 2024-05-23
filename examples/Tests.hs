@@ -229,6 +229,36 @@ tests' = [
   },
 
   getNormalPT PropertyTest {
+    name = "kvs-6-sizepoly",
+    tags =[],
+    property = \(KVS6SizePoly.Args requests) -> ioProperty do
+                  let situation = [ ("clientAlice", show <$> requests)
+                                  , ("primaryBob", [])
+                                  , ("backup1", [])
+                                  , ("backup2", [])
+                                  , ("backup3", [])
+                                  , ("backup4", [])
+                                  , ("backup5", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  let strategy1 = KVS6SizePoly.naryReplicationStrategy
+                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
+                                                                             "backup3", "backup4", "backup5"])
+                                    (consSuper $ consSuper refl)
+                  let client :: Member "clientAlice" '["clientAlice", "primaryBob", "backup1", "backup2", "backup3", "backup4", "backup5"]
+                      client = explicitMember
+                  [responsesA, [], [], [], [], [], []] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (KVS6SizePoly.kvs strategy1 client) name)
+                    ) situation
+                  let strategy2 = KVS6SizePoly.nullReplicationStrategy
+                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
+                                                                             "backup3", "backup4", "backup5"])
+                  (responsesB, ()) <- runCLIStateful (show <$> requests) $ runChoreo (KVS6SizePoly.kvs strategy2 client)
+                  return $ responsesA === responsesB
+  },
+
+  getNormalPT PropertyTest {
     name = "lottery",
     tags =[],
     property = \args@Lottery.Args{ Lottery.secrets=(c1, c2, c3, c4, c5)
@@ -298,35 +328,6 @@ tests' = [
                         (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
                     ) situation
                   return $ read @Lottery.Fp response === reference args
-  },
-  getNormalPT PropertyTest {
-    name = "kvs-6-sizepoly",
-    tags =[],
-    property = \(KVS6SizePoly.Args requests) -> ioProperty do
-                  let situation = [ ("clientAlice", show <$> requests)
-                                  , ("primaryBob", [])
-                                  , ("backup1", [])
-                                  , ("backup2", [])
-                                  , ("backup3", [])
-                                  , ("backup4", [])
-                                  , ("backup5", [])]
-                  config <- mkLocalConfig [l | (l, _) <- situation]
-                  let strategy1 = KVS6SizePoly.naryReplicationStrategy
-                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
-                                                                             "backup3", "backup4", "backup5"])
-                                    (consSuper $ consSuper refl)
-                  let client :: Member "clientAlice" '["clientAlice", "primaryBob", "backup1", "backup2", "backup3", "backup4", "backup5"]
-                      client = explicitMember
-                  [responsesA, [], [], [], [], [], []] <-
-                    mapConcurrently (
-                      \(name, inputs) -> fst <$> runCLIStateful inputs
-                        (runChoreography config (KVS6SizePoly.kvs strategy1 client) name)
-                    ) situation
-                  let strategy2 = KVS6SizePoly.nullReplicationStrategy
-                                    (explicitMember :: Member "primaryBob" '["clientAlice", "primaryBob", "backup1", "backup2",
-                                                                             "backup3", "backup4", "backup5"])
-                  (responsesB, ()) <- runCLIStateful (show <$> requests) $ runChoreo (KVS6SizePoly.kvs strategy2 client)
-                  return $ responsesA === responsesB
   },
 
   getNormalPT PropertyTest {
