@@ -45,6 +45,7 @@ instance TestArgs Args Fp where
     let i = (s1 + s2 + s3) `mod` 5
 
     in [c1, c2, c3, c4, c5] !! i
+
 instance Arbitrary Args where
   arbitrary = Args <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
                    <*> ((,,) <$> arbitrary <*> arbitrary <*> arbitrary)

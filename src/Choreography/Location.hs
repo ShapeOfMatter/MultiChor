@@ -62,7 +62,6 @@ instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
 consSet :: Subset xs (x ': xs)
 consSet = consSuper refl  -- these are circular, is that bad?
 
--- Given a subset xs of ys then form a subset of xs with y with ys
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
@@ -71,9 +70,6 @@ consSub = const $ const axiom
 
 inSuper :: Subset xs ys -> Member x xs -> Member x ys
 inSuper _ _ = axiom
-
-
-
 
 class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
