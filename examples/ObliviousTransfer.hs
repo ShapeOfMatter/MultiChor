@@ -29,7 +29,7 @@ import Data.Bits (shiftL)
 
 -- Helpers for RSA encryption
 genKeyPair :: CRT.MonadRandom m => m (RSA.PublicKey, RSA.PrivateKey)
-genKeyPair = RSA.generate 512 65537
+genKeyPair = RSA.generate 64 65537
 
 encryptRSA :: CRT.MonadRandom m => RSA.PublicKey -> Bool -> m ByteString
 encryptRSA p a = do
@@ -57,8 +57,8 @@ byteStringToBool bs
 
 generateFakePK :: CRT.MonadRandom m => m RSA.PublicKey
 generateFakePK = do
-    bytes <- CRT.getRandomBytes 512
-    return $ RSA.PublicKey 512 (bytesToInteger bytes) 65537
+    bytes <- CRT.getRandomBytes 64
+    return $ RSA.PublicKey 64 (bytesToInteger bytes) 65537
       where bytesToInteger bs = foldl (\acc byte -> (acc `shiftL` 8) + fromIntegral byte) 0 (BS.unpack bs)
 
 

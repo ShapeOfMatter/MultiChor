@@ -203,7 +203,7 @@ mpcmany circuit = do
 type Clients = '["p1", "p2"]--, "p3", "p4"]
 main :: IO ()
 main = do
-  let circuit :: Circuit Clients = (AndGate (InputWire p2) (InputWire p2))
+  let circuit :: Circuit Clients = (AndGate (LitWire True) (LitWire True))
   [loc] <- getArgs
   delivery <- case loc of
     "p1" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p1"
