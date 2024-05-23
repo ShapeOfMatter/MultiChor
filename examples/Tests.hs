@@ -298,28 +298,33 @@ tests' = [
   },
 
   getNormalPT PropertyTest {
-    name = "lottery-colluding", -- The case where all servers collude
+    name = "lottery-central-semantics", -- We don't have good controls over the sequencing of party-loops or operations in the central semantics;
+                                        -- but at least it's deterministic and this will notice if it breaks!
     tags =[],
-    property = \args@(Lottery.ColludingArgs (Lottery.Args { Lottery.secrets=(c1, c2, c3, c4, c5)
-                                   , Lottery.randomIs=(0, 0, 0)
-                                   })) -> ioProperty do
+    property = \Lottery.Args { Lottery.secrets=(c1, c2, c3, c4, c5)
+                                   , Lottery.randomIs=(s1, s2, s3)
+                                   } -> ioProperty do
                   let clientProof :: Subset '["client1", "client2", "client3", "client4", "client5"]
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       clientProof = explicitSubset
                       serverProof :: Subset '["server1", "server2", "server3"]
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       serverProof = explicitSubset
                       analystProof :: Member "analyst"
-                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                                            '["client1", "client2", "client3", "client4", "client5",
+                                              "server1", "server2", "server3", "analyst"]
                       analystProof = explicitMember
+                      lottery = Lottery.lottery clientProof serverProof analystProof
                   let situation = [ ("client1", [show c1])
                                   , ("client2", [show c2])
                                   , ("client3", [show c3])
                                   , ("client4", [show c4])
                                   , ("client5", [show c5])
-                                  , ("server1", [show @Integer 0])
-                                  , ("server2", [show @Integer 0])
-                                  , ("server3", [show @Integer 0])
+                                  , ("server1", [show s1])
+                                  , ("server2", [show s2])
+                                  , ("server3", [show s3])
                                   , ("analyst", [])
                                   ]
                   config <- mkLocalConfig [l | (l, _) <- situation]
@@ -328,9 +333,12 @@ tests' = [
                    [], [], [response]] <-
                     mapConcurrently (
                       \(name, inputs) -> fst <$> runCLIStateful inputs
-                        (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
+                        (runChoreography config lottery name)
                     ) situation
-                  return $ read @Lottery.Fp response === reference args
+                  [centralSemanticsResponse] <- fst <$> runCLIStateful [show c1, show c2, show c3, show c4, show c5,
+                                                                        show s1, show s2, show s3]
+                                                                       (runChoreo lottery)
+                  return $ read @Lottery.Fp response === read centralSemanticsResponse
   },
 
   getNormalPT PropertyTest {

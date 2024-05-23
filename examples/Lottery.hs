@@ -26,8 +26,9 @@ import Choreography
 import CLI
 import Data (TestArgs, reference)
 
-
-type Fp = $(primeField 999983)  -- arbitrary "large" prime
+-- | Arbitrary "large" prime
+newtype Fp = Fp $(primeField 999983)                           -- AFAICT the hint warning needs a newer version of hlint to go away:
+           deriving (Bounded, Enum, Eq, Ord, Num, Read, Show)  -- https://github.com/ndmitchell/hlint/issues/1226
 
 instance Arbitrary Fp where
   arbitrary = arbitraryBoundedEnum
@@ -51,15 +52,6 @@ instance Arbitrary Args where
                    <*> ((,,) <$> arbitrary <*> arbitrary <*> arbitrary)
 
 
-newtype ColludingArgs = ColludingArgs Args deriving (Eq, Show, Read)
-
--- All the servers collude to choose the first client
-instance TestArgs ColludingArgs Fp where
-  reference (ColludingArgs (Args{secrets=(c1, _, _, _, _), randomIs=_})) = c1
-
-instance Arbitrary ColludingArgs where
-  arbitrary = (\x y -> ColludingArgs $ Args x y) <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
-                   <*> pure (0, 0, 0) -- TODO clean
 
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
