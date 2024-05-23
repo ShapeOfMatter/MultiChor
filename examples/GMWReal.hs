@@ -5,7 +5,7 @@
 
 module GMWReal where
 
---import System.Environment
+import System.Environment
 
 import Choreography
 import CLI
@@ -157,9 +157,8 @@ fMultBij a_ij_s u_shares v_shares p_j p_i = do
     False -> do
       a_ij :: Located '[p_i] Bool <- p_i `locally` \un -> return $ fromJust $ lookup p_j_name (un p_i a_ij_s)
       u_i :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
-      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un explicitMember a_ij
-      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ xor [un explicitMember u_i,
-                                                                      un explicitMember a_ij]
+      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un explicitMember u_i) /= (un explicitMember a_ij)
+      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un explicitMember a_ij
       select_bit :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
       b_ij_w :: Located '[p_i, p_j] (Located '[p_j] Bool) <- (p_i @@ p_j @@ nobody) `enclave` (ot2 b1 b2 select_bit)
       let b_ij :: Located '[p_j] Bool = (consSet `introAnd` refl) `flatten` b_ij_w
@@ -195,19 +194,27 @@ mpc circuit = do
   result <- reveal outputWire
   void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
 
--- type Clients = '["p1", "p2", "p3"]
--- main :: IO ()
--- main = do
---   let circuit :: Circuit Clients = AndGate (AndGate (InputWire p1) (InputWire p2)) (InputWire p3)
---   [loc] <- getArgs
---   delivery <- case loc of
---     "p1" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p1"
---     "p2" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p2"
---     "p3" -> runCLIIO $ runChoreography cfg (mpc @Clients circuit) "p3"
---     _ -> error "unknown party"
---   print delivery
---   where
---     cfg = mkHttpConfig [ ("p1", ("localhost", 4242))
---                        , ("p2", ("localhost", 4343))
---                        , ("p3", ("localhost", 4344))
---                        ]
+mpcmany :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+    => Circuit parties
+    -> Choreo parties (CLI m) ()
+mpcmany circuit = do
+  mpc circuit
+
+type Clients = '["p1", "p2"]--, "p3", "p4"]
+main :: IO ()
+main = do
+  let circuit :: Circuit Clients = (AndGate (InputWire p2) (InputWire p2))
+  [loc] <- getArgs
+  delivery <- case loc of
+    "p1" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p1"
+    "p2" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p2"
+--    "p3" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p3"
+--    "p4" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p4"
+    _ -> error "unknown party"
+  print delivery
+  where
+    cfg = mkHttpConfig [ ("p1", ("localhost", 4242))
+                       , ("p2", ("localhost", 4343))
+--                       , ("p3", ("localhost", 4344))
+--                       , ("p4", ("localhost", 4345))
+                       ]
