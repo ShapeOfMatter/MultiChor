@@ -28,6 +28,7 @@ import Data (TestArgs, reference)
 
 
 type Fp = $(primeField 999983)  -- arbitrary "large" prime
+
 instance Arbitrary Fp where
   arbitrary = arbitraryBoundedEnum
 
@@ -48,6 +49,16 @@ instance Arbitrary Args where
   arbitrary = Args <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
                    <*> ((,,) <$> arbitrary <*> arbitrary <*> arbitrary)
 
+
+newtype ColludingArgs = ColludingArgs Args deriving (Eq, Show, Read)
+
+-- All the servers collude to choose the first client
+instance TestArgs ColludingArgs Fp where
+  reference (ColludingArgs (Args{secrets=(c1, c2, c3, c4, c5), randomIs=_})) = c1
+
+instance Arbitrary ColludingArgs where
+  arbitrary = (\x y -> ColludingArgs $ Args x y) <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+                   <*> pure (0, 0, 0) -- TODO clean
 
 
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e

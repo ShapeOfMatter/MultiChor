@@ -260,7 +260,44 @@ tests' = [
                         (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
                     ) situation
                   return $ read @Lottery.Fp response === reference args
-  }{-,
+  },
+
+  getNormalPT PropertyTest {
+    name = "lottery-colluding", -- The case where all servers collude
+    tags =[],
+    property = \args@(Lottery.ColludingArgs (Lottery.Args { Lottery.secrets=(c1, c2, c3, c4, c5)
+                                   , Lottery.randomIs=(0, 0, 0)
+                                   })) -> ioProperty do
+                  let clientProof :: Subset '["client1", "client2", "client3", "client4", "client5"]
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      clientProof = explicitSubset
+                      serverProof :: Subset '["server1", "server2", "server3"]
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      serverProof = explicitSubset
+                      analystProof :: Member "analyst"
+                                            '["client1", "client2", "client3", "client4", "client5", "server1", "server2", "server3", "analyst"]
+                      analystProof = explicitMember
+                  let situation = [ ("client1", [show c1])
+                                  , ("client2", [show c2])
+                                  , ("client3", [show c3])
+                                  , ("client4", [show c4])
+                                  , ("client5", [show c5])
+                                  , ("server1", [show @Integer 0])
+                                  , ("server2", [show @Integer 0])
+                                  , ("server3", [show @Integer 0])
+                                  , ("analyst", [])
+                                  ]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[], [], [],
+                   [], [], [],
+                   [], [], [response]] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (Lottery.lottery clientProof serverProof analystProof) name)
+                    ) situation
+                  return $ read @Lottery.Fp response === reference args
+  }
+  {-,
 
   getNormalPT PropertyTest {
     name = "mpc-fake",
