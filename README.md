@@ -29,9 +29,9 @@ but the API is incompatible and can express more kinds of choreographic behavior
   In particular, instead of specifying the party `"alice"` in a choreography as a `String` or a `Proxy "alice"`,
   they're specified by a `Proof` that the type-level `"alice"` is present in the choreography and has access to the relevant values.
   MultiChor provides utilities to write these proofs compactly.
-- The novel choreographic language feature "TODO polymorphism" allows you to write choreographies
+- In addition to location polymorphism, MultiChor allows you to write choreographies
   that are polymorphic with respect to the _number of parties_ in a polymorphic party-set.
-  This is trivial if they're passively receiving values; new primitives allow them to actively communicate.
+  This is trivial if they're passively receiving values; new primitives allow them to actively communicate:
   - `fanOut` lets a single party send different values (of the same type `a`) to a list of parties `rs`, resulting in a `Faceted rs a`.
   - `fanIn` lets a list of parties `ss` each send a value to the same parties `rs`, resulting in a `Located rs [a]`.
   - A `x :: Faceted ps a` represents _distinct_ `a`s known to each of `ps` _respectively_.

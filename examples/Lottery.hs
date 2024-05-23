@@ -55,7 +55,7 @@ newtype ColludingArgs = ColludingArgs Args deriving (Eq, Show, Read)
 
 -- All the servers collude to choose the first client
 instance TestArgs ColludingArgs Fp where
-  reference (ColludingArgs (Args{secrets=(c1, c2, c3, c4, c5), randomIs=_})) = c1
+  reference (ColludingArgs (Args{secrets=(c1, _, _, _, _), randomIs=_})) = c1
 
 instance Arbitrary ColludingArgs where
   arbitrary = (\x y -> ColludingArgs $ Args x y) <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)

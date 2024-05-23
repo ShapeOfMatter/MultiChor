@@ -1,11 +1,13 @@
 cabal-version:      3.0
 name:               MultiChor
 version:            0.0.0.1
-license-file:       LICENSE
+license-files:
+    , LICENSE
+    , LICENSE.inherited
 license:            BSD-3-Clause
 maintainer: mako.bates@uvm.edu
 category: Distributed-Computing
-synopsis: Type-safe and efficient choreographies with TODO polymorphism.
+synopsis: Type-safe and efficient choreographies with location-set polymorphism.
 description:
     MultiChor is a library for functional choreographic programming in Haskell.
     See the README.md for more information.
@@ -91,6 +93,7 @@ library examples
         , KVS3HigherOrder
         , KVS4LocPoly
         , KVS5Fig17
+        , KVS6SizePoly
         , MergeSort
         , MPCFake
         , Playground
@@ -136,6 +139,7 @@ Test-Suite testExamples
                  , KVS4LocPoly
                  , KVS5Fig17
                  , Lottery
+                 , KVS6SizePoly
                  , MergeSort
                  , MPCFake
                  , Playground
