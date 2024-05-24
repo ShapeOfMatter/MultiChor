@@ -11,6 +11,7 @@ A template for writing your own choreography.
 module Playground where
 
 import Choreography
+import Choreography.Network.Http
 import Control.Monad
 import System.Environment
 

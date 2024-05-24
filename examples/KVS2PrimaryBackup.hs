@@ -27,9 +27,7 @@ GET hello
 
 module KVS2PrimaryBackup where
 
-import Choreography (runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
 import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)

@@ -53,6 +53,7 @@ library choreography
     exposed-modules:
         Choreography
         Choreography.Choreo
+        Choreography.Core
         Choreography.Location
         Choreography.Network
         Choreography.Network.Http
@@ -62,6 +63,7 @@ library choreography
     other-modules:
         Choreography.Internal.Choreo
         Choreography.Internal.Location
+        Choreography.Internal.Network
 
 common lib-dependent
     import: basic-config

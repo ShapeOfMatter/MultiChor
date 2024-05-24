@@ -7,14 +7,13 @@
 module ObliviousTransfer (ot2, ot4, main) where
 
 import Choreography
---import Control.Monad
+import Choreography.Network.Http
 import Control.Monad.Cont (MonadIO, liftIO)
 import System.Environment
---import Logic.Propositional (introAnd)
 import CLI
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)
-import Logic.Classes (refl) -- Reflexive, Transitive, transitive
+import Logic.Classes (refl)
 import qualified Data.ByteString as BS
 
 import Data.ByteString.Char8 (ByteString, pack)

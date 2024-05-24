@@ -26,9 +26,7 @@ module QuickSort where
 
 import Control.Concurrent.Async (mapConcurrently_)
 
-import Choreography (runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography 
 import Choreography.Network.Local
 import Logic.Propositional (introAnd)
 import GHC.TypeLits (KnownSymbol)

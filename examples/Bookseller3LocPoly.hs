@@ -19,6 +19,7 @@ Same as [`bookseller-1-simple`](../bookseller-1-simple) but with `cabal run book
 module Bookseller3LocPoly where
 
 import Choreography
+import Choreography.Network.Http
 import CLI
 import Data (deliveryDateOf, priceOf)
 import GHC.TypeLits

@@ -3,38 +3,15 @@
 
 -- | This module defines locations and located values.
 module Choreography.Location (
-    consSet
-  , consSub
-  , consSuper
-  , ExplicitMember
-  , explicitMember
-  , ExplicitSubset
-  , explicitSubset
-  , Faceted()
-  , flatten
-  , fracture
-  , inSuper
-  , type IsMember
-  , type IsSubset
-  , KnownSymbols()
-  , localize
-  , LocTm
-  , LocTy
-  , Located()
-  , mkLoc
-  , Member
+    mkLoc
   , nobody
   , singleton
-  , Subset
-  , toLocTm
-  , toLocs
-  , Wrapped()
   , (@@)
 ) where
 
 import Language.Haskell.TH
 
-import Choreography.Internal.Location
+import Choreography.Core
 
 
 -- | The `[]` case of subset proofs.

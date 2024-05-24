@@ -1,7 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -24,6 +23,7 @@ import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryBoundedEnum)
 
 import Choreography
+import Choreography.Network.Http
 import CLI
 import Data (TestArgs, reference)
 

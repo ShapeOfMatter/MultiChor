@@ -5,7 +5,7 @@
 -- monad.
 module Choreography.Network.Http where
 
-import Choreography.Location
+import Choreography.Core
 import Choreography.Network hiding (run, send)
 import Data.Proxy (Proxy(..))
 import Data.HashMap.Strict (HashMap, (!))

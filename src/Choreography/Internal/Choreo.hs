@@ -15,7 +15,7 @@ import Logic.Proof (Proof)
 import Logic.Propositional (type (&&), elimAndL, elimAndR)
 
 import Choreography.Internal.Location
-import Choreography.Network
+import Choreography.Internal.Network
 import Control.Monad.Freer
 
 -- | Unwraps values known to the specified party.

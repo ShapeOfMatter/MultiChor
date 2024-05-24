@@ -26,9 +26,7 @@ cabal run karatsuba 100 200
 
 module Karatsuba where
 
-import Choreography (runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
 import Choreography.Network.Local
 import Control.Concurrent.Async (mapConcurrently_)
 import GHC.TypeLits (KnownSymbol)

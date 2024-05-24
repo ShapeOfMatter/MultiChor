@@ -12,6 +12,7 @@ Experinmental implementaion of ring leader election.
 module RingLeader where
 
 import Choreography
+import Choreography.Network.Http
 import GHC.TypeLits (KnownSymbol)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State

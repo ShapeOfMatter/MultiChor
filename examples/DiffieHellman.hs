@@ -36,9 +36,8 @@ This sample uses [`System.Random`](https://hackage.haskell.org/package/random-1.
 
 module DiffieHellman where
 
-import Choreography (mkHttpConfig, runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
+import Choreography.Network.Http
 import CLI
 import Control.Monad.Cont (MonadIO)
 import Logic.Propositional (introAnd)

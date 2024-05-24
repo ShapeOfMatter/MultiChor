@@ -69,6 +69,7 @@ module Bookseller1Simple where
 import Logic.Propositional (introAnd)
 
 import Choreography
+import Choreography.Network.Http
 import System.Environment
 
 import Data (deliveryDateOf, priceOf)

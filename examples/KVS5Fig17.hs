@@ -10,9 +10,7 @@ This is an implementation of the choreogrpahy shown in fig17 of We Know I Know Y
 
 module KVS5Fig17 where
 
-import Choreography (runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
 import Choreography.Network.Http
 import CLI
 import Data (TestArgs, reference)

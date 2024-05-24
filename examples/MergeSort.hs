@@ -26,9 +26,7 @@ cabal run mergesort primary
 
 module MergeSort where
 
-import Choreography (runChoreography)
-import Choreography.Choreo
-import Choreography.Location
+import Choreography
 import Choreography.Network.Http
 import GHC.TypeLits (KnownSymbol)
 import Logic.Propositional (introAnd)

@@ -54,6 +54,7 @@ but with buyer2's contribution, now it can.
 module Bookseller2HigherOrder where
 
 import Choreography
+import Choreography.Network.Http
 import System.Environment
 import Logic.Propositional (introAnd)
 

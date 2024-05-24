@@ -6,31 +6,19 @@
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo (
     broadcastCond
-  , Choreo
   , cond
   , cond'
-  , fanIn
-  , fanOut
-  , enclave
-  , epp
-  , naked
   , locally
   , locally_
   , _locally
   , _locally_
-  , parallel
-  , congruently
-  , runChoreo
-  , Unwrap
-  , Unwraps
   , (~>)
   , (~~>)
 ) where
 
 import Control.Monad (void)
 
-import Choreography.Internal.Choreo
-import Choreography.Internal.Location
+import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
 import Logic.Proof (Proof)

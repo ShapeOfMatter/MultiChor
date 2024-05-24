@@ -8,6 +8,7 @@ module GMWReal where
 import System.Environment
 
 import Choreography
+import Choreography.Network.Http
 import CLI
 import Control.Monad (replicateM, void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
