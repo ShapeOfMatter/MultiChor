@@ -59,6 +59,9 @@ library choreography
         Choreography.Network.Local
         Control.Monad.Freer
         CLI
+    other-modules:
+        Choreography.Internal.Choreo
+        Choreography.Internal.Location
 
 common lib-dependent
     import: basic-config
