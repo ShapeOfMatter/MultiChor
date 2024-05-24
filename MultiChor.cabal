@@ -153,6 +153,10 @@ Test-Suite testExamples
                  , QuickSort
                  , MPCSum
                  , RingLeader
+                 , GMWReal
+                 , ObliviousTransfer
+    build-depends:
+      cryptonite
 
 executable bank-2pc
     import: example
@@ -250,6 +254,24 @@ executable mpc-sum
     main-is:          MPCSum.hs
     ghc-options:
       -main-is MPCSum
+
+executable oblivious-transfer
+    import: example
+    main-is:          ObliviousTransfer.hs
+    ghc-options:
+      -main-is ObliviousTransfer
+    build-depends:
+      cryptonite
+
+executable gmw-real
+    import: example
+    main-is:          GMWReal.hs
+    ghc-options:
+      -main-is GMWReal
+    build-depends:
+      cryptonite
+    other-modules:
+      ObliviousTransfer
 
 executable ring-leader
     import: example

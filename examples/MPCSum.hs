@@ -2,14 +2,17 @@
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module MPCSum where
 
 import Choreography
-import Control.Monad
+--import Control.Monad
+import Control.Monad.Cont (MonadIO)
 import System.Environment
-import Logic.Propositional (introAnd)
+--import Logic.Propositional (introAnd)
 import CLI
+import System.Random
 
 -- Multiple servers
 -- Multiple clients
@@ -25,7 +28,31 @@ $(mkLoc "client4")
 $(mkLoc "client5")
 $(mkLoc "client6")
 
-type Fp = Integer -- field elements
+--------------------------------------------------
+-- Prime characteristic
+p :: Integer
+p = 17
+
+-- Field elements
+newtype Fp = Fp Integer deriving (Eq, Show, Read)
+
+instance Num Fp where
+    Fp x + Fp y = Fp $ (x+y) `mod` p
+    Fp x - Fp y = Fp $ (x-y) `mod` p
+    Fp x * Fp y = Fp $ (x*y) `mod` p
+    negate (Fp x) = Fp $ (-x) `mod` p
+    abs = id
+    signum (Fp 0) = Fp 0
+    signum _ = Fp 1
+    fromInteger n = Fp $ n `mod` p
+
+instance Random Fp where
+    randomR (Fp lo, Fp hi) gen =
+        let (x, gen') = randomR (lo, hi) gen
+        in (Fp $ x `mod` p, gen')
+    random gen = randomR (0, Fp (p - 1)) gen
+
+--------------------------------------------------
 
 type Servers = ["server1", "server2", "server3", "server4"]
 type Clients = ["client1", "client2", "client3", "client4", "client5", "client6"]
@@ -59,12 +86,17 @@ type Participants = Clients
 --   total2 <- server2 `locally` \un -> return $ (un sum1) + (un sum2)
 --   return $ (total1, total2)
 
-secretShare :: CLI m (Fp, Fp)
-secretShare = do
-  secret <- getInput "secret:"
-  return (5, secret - 5)
 
-p2pSum :: Choreo Participants (CLI m) ()
+
+secretShare :: (MonadIO m) => CLI m (Fp, Fp)
+secretShare = do
+  -- secret :: Integer <- getInput "secret:"
+  let secret :: Integer = 15
+  s1 :: Fp <- randomIO
+  putOutput "My share s1" s1
+  return (s1, (fromInteger secret) - s1)
+
+p2pSum :: (MonadIO m) => Choreo Participants (CLI m) ()
 p2pSum = do
   shares1 <- client1 `locally` \_ -> secretShare
   shares2 <- client2 `locally` \_ -> secretShare
@@ -87,6 +119,6 @@ main = do
     _ -> error "unknown party"
   print delivery
   where
-    cfg = mkHttpConfig [ ("client1",  ("localhost", 4242))
+    cfg = mkHttpConfig [ ("client1", ("localhost", 4242))
                        , ("client2", ("localhost", 4343))
                        ]

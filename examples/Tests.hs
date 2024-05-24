@@ -23,6 +23,7 @@ import qualified KVS5Fig17
 import qualified Lottery
 import qualified KVS6SizePoly
 import qualified MPCFake
+import qualified GMWReal
 import Choreography
 import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
@@ -357,5 +358,23 @@ tests' = [
                         (runChoreography config (MPCFake.mpc circuit) name)
                     ) situation
                   return $ (read r1, read r2, read r3, read r4) ===  reference args
-    }
+  },
+
+  getPropertyTestWith (stdTestArgs{verbosity=Verbose, maxSuccess=100, maxSize=10}) PropertyTest {
+    name = "gmw-real",
+    tags =[],
+    property = \args@(GMWReal.Args circuit p1in p2in p3in p4in) -> ioProperty do
+                  let situation = [ ("p1", repeat $ show p1in)
+                                  , ("p2", repeat $ show p2in)
+                                  , ("p3", repeat $ show p3in)
+                                  , ("p4", repeat $ show p4in) ]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [[r1], [r2], [r3], [r4]] <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (GMWReal.mpc circuit) name)
+                    ) situation
+                  return $ (read r1, read r2, read r3, read r4) ===  reference args
+  }
+
   ]
