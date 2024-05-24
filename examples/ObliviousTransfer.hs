@@ -75,51 +75,36 @@ ot2Insecure b1 b2 s = do
   sr <- (explicitMember `introAnd` receiver, s) ~> sender @@ nobody
   (sender, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> receiver @@ nobody
 
--- Generate keys for OT, only one has a SK and the rest are fake
 genKeys :: (CRT.MonadRandom m) => Bool -> m (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey)
-genKeys s = do
+genKeys s = do -- Generate keys for OT. One key is real, and one is fake - select bit decides
   (pk, sk) <- genKeyPair
   fakePk <- generateFakePK
   return $ if s then (pk, fakePk, sk) else (fakePk, pk, sk)
 
--- Encryption based on select bit
-enc2 :: (CRT.MonadRandom m) =>
-       (RSA.PublicKey, RSA.PublicKey) -> Bool -> Bool ->
-       m (ByteString, ByteString)
-enc2 (pk1, pk2) b1 b2 = do
-  c1 <- encryptRSA pk1 b1
-  c2 <- encryptRSA pk2 b2
-  return (c1, c2)
+encryptS :: (CRT.MonadRandom m) => -- Encryption based on select bit
+            (RSA.PublicKey, RSA.PublicKey) -> Bool -> Bool -> m (ByteString, ByteString)
+encryptS (pk1, pk2) b1 b2 = do c1 <- encryptRSA pk1 b1; c2 <- encryptRSA pk2 b2; return (c1, c2)
 
--- Decryption based on select bit
-dec2 :: (CRT.MonadRandom m) =>
-       (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey) ->
-       Bool -> (ByteString, ByteString) ->
-       m Bool
-dec2 (_, _, sk) s (c1, c2) = do
-  m <- if s then decryptRSA sk c1 else decryptRSA sk c2
-  return m
-
+decryptS :: (CRT.MonadRandom m) => -- Decryption based on select bit
+       (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey) -> Bool -> (ByteString, ByteString) -> m Bool
+decryptS (_, _, sk) s (c1, c2) = if s then decryptRSA sk c1 else decryptRSA sk c2
 
 -- One out of two OT
 ot2 :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m, CRT.MonadRandom m) =>
-  Located '[sender] Bool ->  -- sender
-  Located '[sender] Bool ->  -- sender
-  Located '[receiver] Bool ->  -- receiver
-  Choreo '[sender, receiver] (CLI m) (Located '[receiver] Bool)
+  Located '[sender] Bool -> Located '[sender] Bool -> Located '[receiver] Bool
+  -> Choreo '[sender, receiver] (CLI m) (Located '[receiver] Bool)
 ot2 b1 b2 s = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
 
   keys <- receiver `locally` \un -> (liftIO $ genKeys $ un explicitMember s)
   pks <- (receiver, \un -> let (pk1, pk2, _) = (un explicitMember keys) in return (pk1, pk2)) ~~> sender @@ nobody
-  encrypted <- (sender, \un -> liftIO $ enc2 (un explicitMember pks)
-                                             (un explicitMember b1)
-                                             (un explicitMember b2)) ~~> receiver @@ nobody
-  decrypted <- receiver `locally` \un -> liftIO $ dec2 (un explicitMember keys)
-                                                       (un explicitMember s)
-                                                       (un explicitMember encrypted)
-  return decrypted
+  encrypted <- (sender, \un -> liftIO $ encryptS (un explicitMember pks)
+                                                 (un explicitMember b1)
+                                                 (un explicitMember b2)) ~~> receiver @@ nobody
+  receiver `locally` \un -> liftIO $ decryptS (un explicitMember keys)
+                                              (un explicitMember s)
+                                              (un explicitMember encrypted)
 
 --------------------------------------------------
 -- 1-out-of-4 Oblivious transfer

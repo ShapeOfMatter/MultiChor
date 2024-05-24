@@ -76,20 +76,17 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
           answer = recurse circuit
 
 
-secretShare :: forall parties p m.
-  (KnownSymbols parties, KnownSymbol p, MonadIO m)
-            => Member p parties
-            -> Located '[p] Bool
-            -> Choreo parties m (Faceted parties Bool)
+genShares :: (MonadIO m) => [LocTm] -> Bool -> m [(LocTm, Bool)]
+genShares parties x = do
+  freeShares <- replicateM (length parties - 1) $ liftIO randomIO -- generate n-1 random shares
+  return $ zip parties $ xor (x : freeShares) : freeShares        -- make the sum equal to x
+
+secretShare :: forall parties p m. (KnownSymbols parties, KnownSymbol p, MonadIO m)
+            => Member p parties -> Located '[p] Bool -> Choreo parties m (Faceted parties Bool)
 secretShare p value = do
-  shares <- p `locally` \un -> do (freeShares :: [Bool]) <- case partyNames of
-                                                              [] -> return [] -- This can't actually happen/get used...
-                                                              _:others -> replicateM (length others) $ liftIO randomIO
-                                  let lastShare = xor (un explicitMember value : freeShares)  -- But freeShares could really be empty!
-                                  return $ partyNames `zip` (lastShare : freeShares)
-  refl `fanOut` \q -> do
-    share <- (p @@ nobody) `congruently` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
-    (explicitMember `introAnd` p, share) ~> q @@ nobody
+  shares <- p `locally` \un -> genShares partyNames (un explicitMember value)
+  refl `fanOut` \q ->
+    (p, \un -> return $ fromJust $ toLocTm q `lookup` un explicitMember shares) ~~> q @@ nobody
   where partyNames = toLocs @parties refl
 
 reveal :: (KnownSymbols ps)
@@ -166,24 +163,17 @@ fMultBij a_ij_s u_shares v_shares p_j p_i = do
       return b_ij
 
 
-computeWire :: forall parties m.
-               (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
-            => Circuit parties
-            -> Choreo parties (CLI m) (Faceted parties Bool)
-computeWire circuit = case circuit of
+gmw :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+    => Circuit parties -> Choreo parties (CLI m) (Faceted parties Bool)
+gmw circuit = case circuit of
   InputWire p -> do
     value :: Located '[p] Bool <- p `_locally` getInput "Enter a secret input value:"
     secretShare p value
-  LitWire b -> do
-    let shares = partyNames `zip` (b : repeat False)
+  LitWire b -> let shares = partyNames `zip` (b : repeat False) in
     refl `fanOut` \p -> p `_locally` return (fromJust $ toLocTm p `lookup` shares)
-  AndGate l r -> do
-    lResult <- computeWire l
-    rResult <- computeWire r
-    fMult lResult rResult
+  AndGate l r -> do lResult <- gmw l; rResult <- gmw r; fMult lResult rResult
   XorGate l r -> do
-    lResult <- computeWire l
-    rResult <- computeWire r
+    lResult <- gmw l; rResult <- gmw r
     refl `parallel` \p un -> return $ xor [un p lResult, un p rResult]
   where partyNames = toLocs @parties refl
 
@@ -191,7 +181,7 @@ mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties
     -> Choreo parties (CLI m) ()
 mpc circuit = do
-  outputWire <- computeWire circuit
+  outputWire <- gmw circuit
   result <- reveal outputWire
   void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
 
