@@ -43,7 +43,7 @@ module Choreography (
   fanOut,
   fanIn,
   parallel,
-  replicatively,
+  congruently,
 
   -- * Message transport backends
   -- ** The HTTP backend

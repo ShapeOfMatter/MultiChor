@@ -114,7 +114,7 @@ naryReplicationStrategy primary backups =
                          localResponse <- servers `parallel` \server un -> handleRequest (un server stateRef) (un server request')
                          responses <- fanIn servers (primary @@ nobody) \server ->
                                         (server `introAnd` inSuper servers server, localResponse) ~> primary @@ nobody
-                         response <- (primary @@ nobody) `replicatively` \un ->
+                         response <- (primary @@ nobody) `congruently` \un ->
                            case nub . un refl $ responses of [r] -> r
                                                              rs -> Desynchronization rs
                          ((explicitMember `introAnd` primary, response) ~> refl) >>= naked refl
@@ -136,7 +136,7 @@ naryHumans primary backups =
                          localResponse <- primary `locally` \un -> handleRequest (un explicitMember stateRef) (un pHas request)
                          responses <- fanIn backups (primary @@ nobody) \server ->
                            (server `introAnd` inSuper backups server, backupResponse) ~> primary @@ nobody
-                         response <- (primary @@ nobody) `replicatively` \un ->
+                         response <- (primary @@ nobody) `congruently` \un ->
                            case nub $ un refl localResponse : un refl responses of
                              [r] -> r
                              rs -> Desynchronization rs

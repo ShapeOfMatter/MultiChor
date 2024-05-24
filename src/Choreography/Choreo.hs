@@ -19,7 +19,7 @@ module Choreography.Choreo (
   , _locally
   , _locally_
   , parallel
-  , replicatively
+  , congruently
   , runChoreo
   , Unwrap
   , Unwraps

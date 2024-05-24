@@ -38,7 +38,7 @@ but the API is incompatible and can express more kinds of choreographic behavior
 - MultiChor allows parallel behavior of many parties to be concisely expressed.
   - `parallel` lets many parties perform local monadic actions in parallel using their `Located` and `Faceted` values;
     the return is `Faceted`.
-  - `replicatively` lets many parties perform _the same pure computation_ in parallel, using only their `Located` values;
+  - `congruently` lets many parties perform _the same pure computation_ in parallel, using only their `Located` values;
     the return is `Located`.
 
 

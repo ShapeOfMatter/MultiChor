@@ -84,7 +84,7 @@ secretShare parties p (ownership, value) = do
                                   let lastShare = xor (un ownership value : freeShares)  -- But freeShares could really be empty!
                                   return $ partyNames `zip` (lastShare : freeShares)
   parties `fanOut` \q -> do
-    share <- (p @@ nobody) `replicatively` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
+    share <- (p @@ nobody) `congruently` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
     (explicitMember `introAnd` p, share) ~> inSuper parties q @@ nobody
   where partyNames = toLocs parties
 
@@ -93,8 +93,8 @@ reveal :: (KnownSymbols ps)
        -> Choreo ps m Bool
 reveal shares = do
   allShares <- fanIn refl refl \p -> (explicitMember `introAnd` p, localize p shares) ~> refl
-  value <- refl `replicatively` \un -> case un refl allShares of [] -> error "There's nobody who can hit this"
-                                                                 aS -> xor aS
+  value <- refl `congruently` \un -> case un refl allShares of [] -> error "There's nobody who can hit this"
+                                                               aS -> xor aS
   naked refl value
 
 computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, MonadIO m)
@@ -114,7 +114,7 @@ computeWire trustedAnd parties circuit = case circuit of
     rResult <- compute r
     inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
       (inSuper parties p, \un -> return (un p lResult, un p rResult)) ~~> trustedAnd @@ nobody
-    outputVal <- (trustedAnd @@ nobody) `replicatively` \un ->
+    outputVal <- (trustedAnd @@ nobody) `congruently` \un ->
       let ovs = un refl inputShares
       in case ovs of [] -> error "make sure there's at least one party"
                      _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
