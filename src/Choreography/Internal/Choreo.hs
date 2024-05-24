@@ -148,12 +148,12 @@ infix 4 `congruently`
 congruently ls f = toFreer (Congruent ls f)
 
 -- | Communication between a sender and a receiver.
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
+comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
      => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
-infix 4 ~>
-(~>) (l, a) l' = toFreer (Comm l a l')
+infix 4 `comm`
+comm (l, a) l' = toFreer (Comm l a l')
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --Adds a `Located ls` layer to the return type.

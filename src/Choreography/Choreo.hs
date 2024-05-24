@@ -39,6 +39,14 @@ import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
 
 
+-- | Communication between a sender and a receiver.
+(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
+     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     -> Subset ls' ps          -- ^ The recipients.
+     -> Choreo ps m (Located ls' a)
+infix 4 ~>
+(~>) = comm
+
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
      => (Proof (IsSubset ls qs && IsSubset ls ps), Located qs a)  -- ^ Tuple: Proof all the parties involved know the branch-guard
