@@ -140,12 +140,12 @@ parallel ls m = toFreer (Parallel ls m)
 -- | Perform the exact same computation in replicate at multiple locations.
 --"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.
 --The computation must be pure, and can not use `Faceted`s.
-replicatively :: (KnownSymbols ls)
+congruently :: (KnownSymbols ls)
               => Subset ls ps  -- ^ The set of parties who will perform the computation.
               -> (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
               -> Choreo ps m (Located ls a)
-infix 4 `replicatively`
-replicatively ls f = toFreer (Replicative ls f)
+infix 4 `congruently`
+congruently ls f = toFreer (Replicative ls f)
 
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)

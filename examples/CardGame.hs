@@ -75,9 +75,9 @@ game = do
         cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
             True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
                        card2 <- (dealer `introAnd` dealer, cd2) ~> consSuper refl
-                       consSuper refl `replicatively` (\un -> [un refl $ localize player hand1
+                       consSuper refl `congruently` (\un -> [un refl $ localize player hand1
                                                               ,un refl card2])
-            False -> consSuper refl `replicatively` (\un -> [un refl $ localize player hand1])
+            False -> consSuper refl `congruently` (\un -> [un refl $ localize player hand1])
   tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
   tableCard <- (dealer `introAnd` dealer, tblCrd) ~> players
   _ <- players `parallel` (\player un -> do

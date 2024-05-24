@@ -116,7 +116,7 @@ lottery clients servers analyst = do
 
   -- 5) If all the checks are successfull. Then sum shares.
   -- Where ω is an index on the shares
-  ω <- servers `replicatively` (\un -> sum (un refl ρ₀) `mod` n)
+  ω <- servers `congruently` (\un -> sum (un refl ρ₀) `mod` n)
 
   -- Servers each forward share to an analyist s_R^j we end up with a Located but only for a single analyst
   allShares <- fanIn servers (analyst @@ nobody)
