@@ -103,7 +103,6 @@ library examples
         , Playground
         , QuickSort
         , RingLeader
-        , MPCSum
         , Data
 
 common example
@@ -151,7 +150,6 @@ Test-Suite testExamples
                  , MPCFake
                  , Playground
                  , QuickSort
-                 , MPCSum
                  , RingLeader
                  , GMWReal
                  , ObliviousTransfer
@@ -248,12 +246,6 @@ executable quicksort
     main-is:          QuickSort.hs
     ghc-options:
       -main-is QuickSort
-
-executable mpc-sum
-    import: example
-    main-is:          MPCSum.hs
-    ghc-options:
-      -main-is MPCSum
 
 executable oblivious-transfer
     import: example
