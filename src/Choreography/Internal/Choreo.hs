@@ -30,7 +30,7 @@ data ChoreoSig (ps :: [LocTy]) m a where
         -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)
         -> ChoreoSig ps m (Faceted ls a)
 
-  Replicative :: (KnownSymbols ls)
+  Congruent :: (KnownSymbols ls)
         => Subset ls ps
         -> (Unwraps ls -> a)
         -> ChoreoSig ps m (Located ls a)
@@ -73,7 +73,7 @@ runChoreo = interpFreer handler
                                                  return (toLocTm l, z)
                                   x = label (`m` unwrap') `mapLocs` ls
                               in Faceted <$> sequence x
-    handler (Replicative ls f)= case toLocs ls of
+    handler (Congruent ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
     handler (Comm l a _) = return $ (wrap . unwrap' (elimAndL l)) a
@@ -100,7 +100,7 @@ epp c l' = interpFreer handler c
     handler (Parallel ls m) = (Faceted <$>) . sequence . catMaybes $ (
         \l -> if toLocTm l == l' then Just $ (l', ) <$> run (m l unwrap') else Nothing
       ) `mapLocs` ls
-    handler (Replicative ls f)
+    handler (Congruent ls f)
       | l' `elem` toLocs ls = return . wrap . f $ unwrap
       | otherwise = return Empty
     handler (Comm s a rs) = do
@@ -145,7 +145,7 @@ congruently :: (KnownSymbols ls)
               -> (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
               -> Choreo ps m (Located ls a)
 infix 4 `congruently`
-congruently ls f = toFreer (Replicative ls f)
+congruently ls f = toFreer (Congruent ls f)
 
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
