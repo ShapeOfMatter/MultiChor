@@ -93,7 +93,7 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
   broadcastCond (primary `introAnd` primary, request) \case
     Put _ _ -> do
-      request' <- (primary `introAnd` primary, request) ~> backup @@ nobody
+      request' <- (primary, (primary, request)) ~> backup @@ nobody
       _ <- (backup,
         \un ->
           handleRequest (un backup request') (un backup backupStateRef)
@@ -116,13 +116,13 @@ kvs ::
   ReplicationStrategy a ->
   Choreo Participants IO (Located '["client"] Response)
 kvs request stateRefs replicationStrategy = do
-  request' <- (client `introAnd` client, request) ~> primary @@ nobody
+  request' <- (client, (client, request)) ~> primary @@ nobody
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
 
   -- send response to client
-  (primary `introAnd` primary, response) ~> client @@ nobody
+  (primary, (primary, response)) ~> client @@ nobody
 
 -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
 nullReplicationChoreo :: Choreo Participants IO ()

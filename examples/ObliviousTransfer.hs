@@ -12,7 +12,6 @@ import Control.Monad.Cont (MonadIO, liftIO)
 import System.Environment
 import CLI
 import GHC.TypeLits (KnownSymbol)
-import Logic.Propositional (introAnd)
 import Logic.Classes (refl)
 import qualified Data.ByteString as BS
 
@@ -72,7 +71,7 @@ ot2Insecure :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
 ot2Insecure b1 b2 s = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
-  sr <- (explicitMember `introAnd` receiver, s) ~> sender @@ nobody
+  sr <- (receiver, (explicitMember, s)) ~> sender @@ nobody
   (sender, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> receiver @@ nobody
 
 -- Generate keys for OT, only one has a SK and the rest are fake
@@ -144,8 +143,8 @@ ot4Insecure b1 b2 b3 b4 s1 s2 = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
 
-  s1r <- (explicitMember `introAnd` receiver, s1) ~> sender @@ nobody
-  s2r <- (explicitMember `introAnd` receiver, s2) ~> sender @@ nobody
+  s1r <- (receiver, (explicitMember, s1)) ~> sender @@ nobody
+  s2r <- (receiver, (explicitMember, s2)) ~> sender @@ nobody
   (sender, \un -> return $ un explicitMember $ select4 (un explicitMember s1r) (un explicitMember s2r) b1 b2 b3 b4) ~~> receiver @@ nobody
 
 -- Generate keys for OT, only one has a SK and the rest are fake

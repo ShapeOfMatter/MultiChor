@@ -43,7 +43,7 @@ ringLeader r = loop r
     talkToRight :: Edge g -> Choreo g (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       ll <- left `_locally` get
-      labelLeft  <- (explicitMember `introAnd` left, ll) ~> right @@ nobody
+      labelLeft  <- (left, (explicitMember, ll)) ~> right @@ nobody
       labelRight <- right `_locally` get
 
       finished <- right `locally` \un ->

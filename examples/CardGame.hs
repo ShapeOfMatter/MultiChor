@@ -61,25 +61,25 @@ game = do
       dealer = explicitMember
   hand1 <- fanOut players \player -> do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
-      (dealer `introAnd` dealer, card1) ~> inSuper players player @@ nobody
+      (dealer, (dealer, card1)) ~> inSuper players player @@ nobody
   onTheTable <- fanIn players players \player -> do
-      (player `introAnd` inSuper players player, hand1) ~> players
+      (inSuper players player, (player, hand1)) ~> players
   wantsNextCard <- players `parallel` \player un -> do
       putNote $ "My first card is: " ++ show (un player hand1)
       putNote $ "Cards on the table: " ++ show (un player onTheTable)
       getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut players \player -> do
       let qAddress = inSuper players player
-      choice <- (player `introAnd` qAddress, wantsNextCard) ~> dealer @@ qAddress @@ nobody
+      choice <- (qAddress, (player, wantsNextCard)) ~> dealer @@ qAddress @@ nobody
       flatten (consSuper refl `introAnd` refl) <$>
         cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
             True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
-                       card2 <- (dealer `introAnd` dealer, cd2) ~> consSuper refl
+                       card2 <- (dealer, (dealer, cd2)) ~> consSuper refl
                        consSuper refl `congruently` (\un -> [un refl $ localize player hand1
                                                               ,un refl card2])
             False -> consSuper refl `congruently` (\un -> [un refl $ localize player hand1])
   tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
-  tableCard <- (dealer `introAnd` dealer, tblCrd) ~> players
+  tableCard <- (dealer, (dealer, tblCrd)) ~> players
   _ <- players `parallel` (\player un -> do
       let hand = un player tableCard : un player hand2
       putNote $ "My hand: " ++ show hand
