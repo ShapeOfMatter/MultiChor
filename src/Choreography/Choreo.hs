@@ -27,9 +27,11 @@ import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
 
 
+-- Note: The left is moved to the tuple. So elimAndR upstream for the first argument
+-- elimAndL for the 2nd argument
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     => (Proof (IsMember l ps), (Proof (IsMember l ls), w ls a))  -- ^ Tuple: Proof the sender knows the value and is present, the value.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
@@ -47,20 +49,22 @@ cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 
 
 -- | A variant of `~>` that sends the result of a local computation.
-(~~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
+(~~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
       => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
 (~~>) (l, m) ls' = do
   x <- l `locally` m
-  (explicitMember `introAnd` l, x) ~> ls'
+  (l, (explicitMember, x)) ~> ls'
 
 broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
            => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
-broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
+-- broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
+-- Hmm should I change broadcastCond too? I'm guessing we want to keep it.
+broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> refl
                                 b' <- cond (refl `introAnd` refl, a') c
                                 naked refl b'
 
