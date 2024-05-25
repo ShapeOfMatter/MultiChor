@@ -31,11 +31,11 @@ import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 -- elimAndL for the 2nd argument
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Proof (IsMember l ps), (Proof (IsMember l ls), w ls a))  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     => (Member l ps, (Member l ls, w ls a))  -- ^ Tuple: Proof the sender knows the value and is present, the value.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-(~>) = comm
+(l, a) ~> rs = comm l a rs
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
