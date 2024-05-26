@@ -84,14 +84,14 @@ secretShare parties p (ownership, value) = do
                                   return $ partyNames `zip` (lastShare : freeShares)
   parties `fanOut` \q -> do
     share <- (p @@ nobody) `congruently` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
-    (p, (explicitMember, share)) ~> inSuper parties q @@ nobody
+    (p, share) ~> inSuper parties q @@ nobody
   where partyNames = toLocs parties
 
 reveal :: (KnownSymbols ps)
        => Faceted ps Bool
        -> Choreo ps m Bool
 reveal shares = do
-  allShares <- fanIn refl refl \p -> (p, (explicitMember, localize p shares)) ~> refl
+  allShares <- fanIn refl refl \p -> (p, (p, shares)) ~> refl
   value <- refl `congruently` \un -> case un refl allShares of [] -> error "There's nobody who can hit this"
                                                                aS -> xor aS
   naked refl value

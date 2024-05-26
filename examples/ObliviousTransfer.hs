@@ -63,7 +63,8 @@ generateFakePK = do
 --------------------------------------------------
 -- 1-out-of-2 Oblivious transfer
 --------------------------------------------------
-ot2Insecure :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+ot2Insecure :: forall sender receiver m.
+  (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
   Located '[sender] Bool ->
   Located '[sender] Bool ->
   Located '[receiver] Bool ->
@@ -71,7 +72,7 @@ ot2Insecure :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
 ot2Insecure b1 b2 s = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
-  sr <- (receiver, (explicitMember, s)) ~> sender @@ nobody
+  sr <- (receiver, s) ~> sender @@ nobody
   (sender, \un -> return $ un explicitMember $ if (un explicitMember sr) then b1 else b2) ~~> receiver @@ nobody
 
 -- Generate keys for OT, only one has a SK and the rest are fake
@@ -131,7 +132,8 @@ select4 s1 s2 v1 v2 v3 v4 = case (s1, s2) of
   (False, True)  -> v3
   (False, False) -> v4
 
-ot4Insecure :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+ot4Insecure :: forall sender receiver m.
+  (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
   Located '[sender] Bool ->  -- sender
   Located '[sender] Bool ->  -- sender
   Located '[sender] Bool ->  -- sender
@@ -143,8 +145,8 @@ ot4Insecure b1 b2 b3 b4 s1 s2 = do
   let sender = explicitMember :: Member sender '[sender, receiver]
   let receiver = (inSuper (consSuper refl) explicitMember) :: Member receiver '[sender, receiver]
 
-  s1r <- (receiver, (explicitMember, s1)) ~> sender @@ nobody
-  s2r <- (receiver, (explicitMember, s2)) ~> sender @@ nobody
+  s1r <- (receiver, s1) ~> sender @@ nobody
+  s2r <- (receiver, s2) ~> sender @@ nobody
   (sender, \un -> return $ un explicitMember $ select4 (un explicitMember s1r) (un explicitMember s2r) b1 b2 b3 b4) ~~> receiver @@ nobody
 
 -- Generate keys for OT, only one has a SK and the rest are fake

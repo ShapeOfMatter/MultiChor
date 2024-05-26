@@ -26,16 +26,30 @@ import Logic.Classes (refl)
 import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
 
+--class CanSend loc val owners census struct | struct -> loc val owners census where
+  --normalSendArgs :: struct -> (Member loc census, Member loc owners, val)
+class (Wrapped w, KnownSymbol loc) => CanSend struct loc val owners census w | struct -> loc val owners census w where
+  presentToSend :: struct -> Member loc census
+  ownsMessagePayload :: struct -> Member loc owners
+  structMessagePayload :: struct -> w owners val
 
--- Note: The left is moved to the tuple. So elimAndR upstream for the first argument
--- elimAndL for the 2nd argument
+instance (Wrapped w, KnownSymbol l) => CanSend (Member l ps, (Member l ls, w ls a)) l a ls ps w where
+  presentToSend = fst
+  ownsMessagePayload = fst . snd
+  structMessagePayload = snd . snd
+
+instance (Wrapped w, KnownSymbol l, ExplicitMember l ls) => CanSend (Member l ps, w ls a) l a ls ps w where
+  presentToSend = fst
+  ownsMessagePayload = const explicitMember
+  structMessagePayload = snd
+
 -- | Communication between a sender and a receiver.
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Member l ps, (Member l ls, w ls a))  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps w)
+     => s  -- ^ Tuple: Proof the sender knows the value and is present, the value.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-(l, a) ~> rs = comm l a rs
+s ~> rs = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s) rs
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
@@ -56,7 +70,7 @@ cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 infix 4 ~~>
 (~~>) (l, m) ls' = do
   x <- l `locally` m
-  (l, (explicitMember, x)) ~> ls'
+  (l, x) ~> ls'
 
 broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
            => (Proof (IsMember l ls && IsMember l ps), w ls a)

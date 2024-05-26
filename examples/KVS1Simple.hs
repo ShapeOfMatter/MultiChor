@@ -79,13 +79,13 @@ kvs ::
   Choreo Participants IO (Located '["client"] Response)
 kvs request stateRef = do
   -- send the request to the server
-  request' <- (client, (client, request)) ~> server @@ nobody
+  request' <- (client, request) ~> server @@ nobody
   -- the server handles the response and creates a response
   response <-
     server `locally` \un ->
       handleRequest (un server request') (un server stateRef)
   -- send the response back to the client
-  (server, (server, response)) ~> client @@ nobody
+  (server, response) ~> client @@ nobody
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.

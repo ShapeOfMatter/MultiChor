@@ -45,6 +45,7 @@ common basic-config
       -Winvalid-haddock
     default-extensions: BlockArguments
                        ,DataKinds
+                       ,FunctionalDependencies
                        ,LambdaCase
 
 library choreography

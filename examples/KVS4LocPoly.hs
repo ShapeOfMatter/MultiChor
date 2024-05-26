@@ -107,7 +107,7 @@ doBackup ::
 doBackup locA locB request stateRef = do
   broadcastCond (explicitMember `introAnd` locA, request) \case
     Put _ _ -> do
-      request' <- (locA, (explicitMember, request)) ~> locB @@ nobody
+      request' <- (locA, request) ~> locB @@ nobody
       _ <- (locB, \un -> handleRequest (un explicitMember request') (un explicitMember stateRef))
         ~~> locA @@ nobody
       return ()
@@ -142,13 +142,13 @@ doubleBackupReplicationStrategy
 -- It uses the provided replication strategy to handle the request.
 kvs :: Located '["client"] Request -> a -> ReplicationStrategy a -> Choreo Participants IO (Located '["client"] Response)
 kvs request stateRefs replicationStrategy = do
-  request' <- (client, (client, request)) ~> primary @@ nobody
+  request' <- (client, request) ~> primary @@ nobody
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
 
   -- send response to client
-  (primary, (primary, response)) ~> client @@ nobody
+  (primary, response) ~> client @@ nobody
 
 -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
 nullReplicationChoreo :: Choreo Participants IO ()

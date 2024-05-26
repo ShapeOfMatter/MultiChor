@@ -73,7 +73,7 @@ kvs  = do
   handler <- flatten (refl `introAnd` refl) <$> enclave servers setup
   request <- (client, \_ -> getInput "Enter the `read`able Request:") ~~> primary @@ backup @@ nobody
   response <- primary @@ backup @@ nobody `congruently` \un -> un refl handler $ un refl request
-  response' <- (primary, (primary, response)) ~> client @@ nobody
+  response' <- (primary, response) ~> client @@ nobody
   client `locally_` \un -> putOutput "Recieved:" $ un client response'
 
 main :: IO ()

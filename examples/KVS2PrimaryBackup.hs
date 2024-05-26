@@ -81,17 +81,17 @@ kvs ::
   Choreo Participants IO (Located '["client"] Response)
 kvs request (primaryStateRef, backupStateRef) = do
   -- send request to the primary node
-  request' <- (client, (client, request)) ~> primary @@ nobody
+  request' <- (client, request) ~> primary @@ nobody
 
   -- branch on the request
   broadcastCond (primary `introAnd` primary, request') \case
     -- if the request is a `PUT`, forward the request to the backup node
     Put _ _ -> do
-      request'' <- (primary, (primary, request')) ~> backup @@ nobody
+      request'' <- (primary, request') ~> backup @@ nobody
       ack <-
         backup `locally` \un -> do
           handleRequest (un backup request'') (un backup backupStateRef)
-      _ <- (backup, (backup, ack)) ~> primary @@ nobody
+      _ <- (backup, ack) ~> primary @@ nobody
       return ()
     _ -> do
       return ()
@@ -102,7 +102,7 @@ kvs request (primaryStateRef, backupStateRef) = do
       handleRequest (un primary request') (un primary primaryStateRef)
 
   -- send response to client
-  (primary, (primary, response)) ~> client @@ nobody
+  (primary, response) ~> client @@ nobody
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.

@@ -116,7 +116,7 @@ naryReplicationStrategy primary backups =
                          response <- (primary @@ nobody) `congruently` \un ->
                            case nub . un refl $ responses of [r] -> r
                                                              rs -> Desynchronization rs
-                         ((primary, (explicitMember, response)) ~> refl) >>= naked refl
+                         ((primary, response) ~> refl) >>= naked refl
                      }
   where servers = primary @@ backups
 
@@ -139,7 +139,7 @@ naryHumans primary backups =
                            case nub $ un refl localResponse : un refl responses of
                              [r] -> r
                              rs -> Desynchronization rs
-                         ((primary, (explicitMember, response)) ~> refl) >>= naked refl
+                         ((primary, response) ~> refl) >>= naked refl
                      }
   where readResponse :: Request -> CLI m Response
         readResponse r = do line <- getstr $ show r ++ ": "

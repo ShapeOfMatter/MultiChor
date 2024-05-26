@@ -72,9 +72,9 @@ diffieHellman = do
     alice `locally` \_ -> do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
-  pb <- (alice, (alice, pa)) ~> bob @@ nobody
+  pb <- (alice, pa) ~> bob @@ nobody
   ga <- alice `locally` \un -> do randomRIO (10, un alice pa)
-  gb <- (alice, (alice, ga)) ~> bob @@ nobody
+  gb <- (alice, ga) ~> bob @@ nobody
 
   -- alice and bob select secrets
   a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
@@ -85,8 +85,8 @@ diffieHellman = do
   b' <- bob `locally` \un -> do return $ un bob gb ^ un bob b `mod` un bob pb
 
   -- exchange numbers
-  a'' <- (alice, (alice, a')) ~> bob @@ nobody
-  b'' <- (bob, (bob, b')) ~> alice @@ nobody
+  a'' <- (alice, a') ~> bob @@ nobody
+  b'' <- (bob, b') ~> alice @@ nobody
 
   -- compute shared key
   alice `locally_` \un ->
