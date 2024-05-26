@@ -22,7 +22,6 @@ import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
 import Logic.Proof (Proof)
-import Logic.Classes (refl)
 import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
 
@@ -43,9 +42,17 @@ instance (Wrapped w, KnownSymbol l, ExplicitMember l ls) => CanSend (Member l ps
   ownsMessagePayload = const explicitMember
   structMessagePayload = snd
 
+instance (Wrapped w, KnownSymbol l) => CanSend (Member l ls, Subset ls ps, w ls a) l a ls ps w where
+  presentToSend (m, s, _) = inSuper s m
+  ownsMessagePayload (m, _, _) = m
+  structMessagePayload (_, _, p) = p
+
 -- | Communication between a sender and a receiver.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps w)
-     => s  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     => s  -- ^ The message argument can take three forms:
+           --     `(Member sender census, wrapped owners a)` where the sender is explicitly listed in owners,
+           --     `(Member sender owners, Subset owners census, wrapped owners a)`, or
+           --     `(Member sender census, (Member sender owners, wrapped owners a)`.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
@@ -72,15 +79,16 @@ infix 4 ~~>
   x <- l `locally` m
   (l, x) ~> ls'
 
-broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
+broadcastCond :: forall l ls a b w ps m.
+              (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
            => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
 -- broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
 -- Hmm should I change broadcastCond too? I'm guessing we want to keep it.
-broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> refl
-                                b' <- cond (refl `introAnd` refl, a') c
-                                naked refl b'
+broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> allOf @ps
+                                b' <- cond (allOf `introAnd` allOf, a') c
+                                naked allOf b'
 
 -- | A variant of `cond` that conditonally executes choregraphies based on the
 -- result of a local computation.

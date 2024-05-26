@@ -63,7 +63,7 @@ game = do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
       (dealer, card1) ~> inSuper players player @@ nobody
   onTheTable <- fanIn players players \player -> do
-      (inSuper players player, (player, hand1)) ~> players
+      (player, players, hand1) ~> players
   wantsNextCard <- players `parallel` \player un -> do
       putNote $ "My first card is: " ++ show (un player hand1)
       putNote $ "Cards on the table: " ++ show (un player onTheTable)

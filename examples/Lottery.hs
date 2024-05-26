@@ -103,9 +103,9 @@ lottery clients servers analyst = do
 
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
   -- Where ₀ represents the opened variants that is Located at all servers rather than Faceted
-  ψ₀ <- fanIn servers servers ( \server -> (inSuper servers server, (server, ψ)) ~> servers)
+  ψ₀ <- fanIn servers servers ( \server -> (server, servers, ψ) ~> servers)
 
-  ρ₀ <- fanIn servers servers ( \server -> (inSuper servers server, (server, ρ)) ~> servers)
+  ρ₀ <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers)
 
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   _ <- parallel servers (\server un -> do

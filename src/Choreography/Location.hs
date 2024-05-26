@@ -3,13 +3,15 @@
 
 -- | This module defines locations and located values.
 module Choreography.Location (
-    mkLoc
+    allOf
+  , mkLoc
   , nobody
   , singleton
   , (@@)
 ) where
 
 import Language.Haskell.TH
+import Logic.Classes (refl)
 
 import Choreography.Core
 
@@ -17,6 +19,9 @@ import Choreography.Core
 -- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
 nobody = explicitSubset
+
+allOf :: forall ps. Subset ps ps
+allOf = refl
 
 -- | Use like `:` for subset proofs.
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
