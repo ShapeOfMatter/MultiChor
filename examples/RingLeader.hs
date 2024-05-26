@@ -51,7 +51,7 @@ ringLeader r = loop r
 
       broadcastCond (singleton `introAnd` right, finished) \case
         True  -> do
-          right `locally_` \_ -> lift $ putStrLn "I'm the leader"
+          right `_locally_` lift (putStrLn "I'm the leader")
           return True
         False -> do
           right `locally_` \un -> put (max (un singleton labelLeft) (un singleton labelRight))

@@ -122,7 +122,7 @@ computeWire trustedAnd parties circuit = case circuit of
   XorGate l r -> do
     lResult <- compute l
     rResult <- compute r
-    parties `parallel` \p un -> return (un p lResult /= un p rResult)
+    parties `parallel` \p un -> pure (un p lResult /= un p rResult)
   where compute = computeWire trustedAnd parties
         partyNames = toLocs parties
 
@@ -133,5 +133,5 @@ mpc circuit = do
   let parties = consSuper refl
   outputWire <- computeWire trusted3rdParty parties circuit
   result <- enclave parties $ reveal outputWire
-  void $ parties `parallel` \p un -> putOutput "The resulting bit:" $ un p result
+  parties `parallel_` \p un -> putOutput "The resulting bit:" $ un p result
 

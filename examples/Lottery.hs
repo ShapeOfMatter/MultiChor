@@ -70,7 +70,7 @@ lottery
   -- Subset '[analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
-  secret <- parallel clients (\_ _ -> getInput @Fp "secret:")
+  secret <- _parallel clients (getInput @Fp "secret:")
 
   -- A lookup table that maps Server to share to send
   clientShares <- clients `parallel` \client un -> do
@@ -93,10 +93,10 @@ lottery clients servers analyst = do
              )
 
   -- 1) Each server selects a random number within range [0,τ]
-  ρ <- parallel servers (\_ _ -> getInput $ "A random number from 0 to " ++ show τ ++ ":")
+  ρ <- _parallel servers (getInput $ "A random number from 0 to " ++ show τ ++ ":")
 
   -- Salt value
-  ψ <- parallel servers (\_ _ -> randomRIO (largeishValue, largeValue))
+  ψ <- _parallel servers (randomRIO (largeishValue, largeValue))
 
   -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
   α <- fanIn servers servers ( \server -> (inSuper servers server, \un -> pure $ hash (un server ψ) (un server ρ)) ~~> servers)
@@ -108,10 +108,8 @@ lottery clients servers analyst = do
   ρ₀ <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers)
 
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
-  _ <- parallel servers (\server un -> do
-                                unless (un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
-                                  (liftIO $ throwIO CommitmentCheckFailed)
-                            )
+  parallel_ servers (\server un -> unless (un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
+                                          (liftIO $ throwIO CommitmentCheckFailed))
 
   -- 5) If all the checks are successfull. Then sum shares.
   -- Where ω is an index on the shares

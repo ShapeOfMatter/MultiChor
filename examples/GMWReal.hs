@@ -112,7 +112,7 @@ fMult :: forall parties m.
       -> Choreo parties (CLI m) (Faceted parties Bool)
 fMult u_shares v_shares = do
   let party_names = toLocs @parties refl
-  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \_ _ -> genBools party_names
+  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `_parallel` genBools party_names
   b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
   ind_names :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
   new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
@@ -191,7 +191,7 @@ mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
 mpc circuit = do
   outputWire <- computeWire circuit
   result <- reveal outputWire
-  void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
+  void $ refl `_parallel` putOutput "The resulting bit:" result
 
 mpcmany :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties
