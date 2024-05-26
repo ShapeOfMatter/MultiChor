@@ -15,7 +15,6 @@ import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
-import Logic.Propositional (introAnd)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
@@ -85,17 +84,18 @@ secretShare parties p (ownership, value) = do
                                   return $ partyNames `zip` (lastShare : freeShares)
   parties `fanOut` \q -> do
     share <- (p @@ nobody) `congruently` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
-    (explicitMember `introAnd` p, share) ~> inSuper parties q @@ nobody
+    (p, share) ~> inSuper parties q @@ nobody
   where partyNames = toLocs parties
 
-reveal :: (KnownSymbols ps)
+reveal :: forall ps m. (KnownSymbols ps)
        => Faceted ps Bool
        -> Choreo ps m Bool
 reveal shares = do
-  allShares <- fanIn refl refl \p -> (explicitMember `introAnd` p, localize p shares) ~> refl
-  value <- refl `congruently` \un -> case un refl allShares of [] -> error "There's nobody who can hit this"
-                                                               aS -> xor aS
-  naked refl value
+  let ps = allOf @ps
+  allShares <- fanIn ps ps \p -> (p, (p, shares)) ~> ps
+  value <- ps `congruently` \un -> case un ps allShares of [] -> error "There's nobody who can hit this"
+                                                           aS -> xor aS
+  naked ps value
 
 computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, MonadIO m)
             => Member trustedAnd ps

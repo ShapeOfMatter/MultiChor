@@ -56,10 +56,10 @@ quicksort a b c lst = do
     False -> do
       smaller <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i <= x]) ~~> b @@ nobody
       smaller' <- quicksort b c a smaller
-      smaller'' <- (explicitMember `introAnd` b, smaller') ~> a @@ nobody
+      smaller'' <- (b, smaller') ~> a @@ nobody
       bigger <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
       bigger' <- quicksort c a b bigger
-      bigger'' <- (explicitMember `introAnd` c, bigger') ~> a @@ nobody
+      bigger'' <- (c, bigger') ~> a @@ nobody
       a `locally` \un -> pure $ un explicitMember smaller'' ++ [head (un explicitMember lst)] ++ un explicitMember bigger''
 
 mainChoreo :: Choreo Participants IO ()

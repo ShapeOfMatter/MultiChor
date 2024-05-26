@@ -22,18 +22,41 @@ import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
 import Logic.Proof (Proof)
-import Logic.Classes (refl)
 import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
 
 
+--class CanSend loc val owners census struct | struct -> loc val owners census where
+  --normalSendArgs :: struct -> (Member loc census, Member loc owners, val)
+class (Wrapped w, KnownSymbol loc) => CanSend struct loc val owners census w | struct -> loc val owners census w where
+  presentToSend :: struct -> Member loc census
+  ownsMessagePayload :: struct -> Member loc owners
+  structMessagePayload :: struct -> w owners val
+
+instance (Wrapped w, KnownSymbol l) => CanSend (Member l ps, (Member l ls, w ls a)) l a ls ps w where
+  presentToSend = fst
+  ownsMessagePayload = fst . snd
+  structMessagePayload = snd . snd
+
+instance (Wrapped w, KnownSymbol l, ExplicitMember l ls) => CanSend (Member l ps, w ls a) l a ls ps w where
+  presentToSend = fst
+  ownsMessagePayload = const explicitMember
+  structMessagePayload = snd
+
+instance (Wrapped w, KnownSymbol l) => CanSend (Member l ls, Subset ls ps, w ls a) l a ls ps w where
+  presentToSend (m, s, _) = inSuper s m
+  ownsMessagePayload (m, _, _) = m
+  structMessagePayload (_, _, p) = p
 
 -- | Communication between a sender and a receiver.
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps w)
+     => s  -- ^ The message argument can take three forms:
+           --     `(Member sender census, wrapped owners a)` where the sender is explicitly listed in owners,
+           --     `(Member sender owners, Subset owners census, wrapped owners a)`, or
+           --     `(Member sender census, (Member sender owners, wrapped owners a)`.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-(~>) = comm
+s ~> rs = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s) rs
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
@@ -47,22 +70,25 @@ cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 
 
 -- | A variant of `~>` that sends the result of a local computation.
-(~~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls')
+(~~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
       => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
 (~~>) (l, m) ls' = do
   x <- l `locally` m
-  (explicitMember `introAnd` l, x) ~> ls'
+  (l, x) ~> ls'
 
-broadcastCond :: (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
+broadcastCond :: forall l ls a b w ps m.
+              (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
            => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
-broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
-                                b' <- cond (refl `introAnd` refl, a') c
-                                naked refl b'
+-- broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
+-- Hmm should I change broadcastCond too? I'm guessing we want to keep it.
+broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> allOf @ps
+                                b' <- cond (allOf `introAnd` allOf, a') c
+                                naked allOf b'
 
 -- | A variant of `cond` that conditonally executes choregraphies based on the
 -- result of a local computation.
