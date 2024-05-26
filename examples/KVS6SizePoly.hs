@@ -96,7 +96,7 @@ nullReplicationStrategy primary =
                      , others = nobody
                      , setup = primary `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> (
-                           (primary, \un -> handleRequest (un explicitMember stateRef) (un pHas request)) ~~> refl
+                           (primary, \un -> handleRequest (un singleton stateRef) (un pHas request)) ~~> refl
                          ) >>= naked refl
                      }
 
@@ -132,7 +132,7 @@ naryHumans primary backups =
                      , handle = \stateRef pHas request -> do
                          request' <- (primary, (pHas, request)) ~> backups
                          backupResponse <- backups `parallel` \server un -> readResponse (un server request')
-                         localResponse <- primary `locally` \un -> handleRequest (un explicitMember stateRef) (un pHas request)
+                         localResponse <- primary `locally` \un -> handleRequest (un singleton stateRef) (un pHas request)
                          responses <- fanIn backups (primary @@ nobody) \server ->
                            (server, backups, backupResponse) ~> primary @@ nobody
                          response <- (primary @@ nobody) `congruently` \un ->
@@ -152,7 +152,7 @@ kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client p
 kvs ReplicationStrategy{setup, primary, handle} client = do
   rigging <- setup
   let go = do request <- (client, \_ -> readRequest) ~~> primary @@ nobody
-              response <- handle rigging explicitMember request
+              response <- handle rigging singleton request
               case response of
                 Stopped -> return ()
                 _ -> do client `_locally_` putOutput "Recieved:" response

@@ -8,6 +8,8 @@ module Choreography.Choreo (
     broadcastCond
   , cond
   , cond'
+  , enclaveTo
+  , enclaveToAll
   , locally
   , locally_
   , _locally
@@ -129,4 +131,21 @@ _locally l m = locally l $ const m
 _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 infix 4 `_locally_`
 _locally_ l m = void $ locally l (const m)
+
+-- | Lift a choreography of involving fewer parties into the larger party space.
+--   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
+enclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
+infix 4 `enclaveToAll`
+enclaveToAll = (`enclaveTo` (allOf @ls))
+
+-- | Lift a choreography of involving fewer parties into the larger party space.
+--   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
+enclaveTo :: forall ls a rs ps m.
+             (KnownSymbols ls)
+          => Subset ls ps
+          -> Subset rs ls
+          -> Choreo ls m (Located rs a)
+          -> Choreo ps m (Located rs a)
+infix 4 `enclaveTo`
+enclaveTo subcensus recipients ch = flatten (recipients `introAnd` (allOf @rs)) <$> (subcensus `enclave` ch)
 

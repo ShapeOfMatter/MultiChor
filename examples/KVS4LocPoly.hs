@@ -105,10 +105,10 @@ doBackup ::
   Located '[b] (IORef State) ->
   Choreo ps IO ()
 doBackup locA locB request stateRef = do
-  broadcastCond (explicitMember `introAnd` locA, request) \case
+  broadcastCond (singleton `introAnd` locA, request) \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB @@ nobody
-      _ <- (locB, \un -> handleRequest (un explicitMember request') (un explicitMember stateRef))
+      _ <- (locB, \un -> handleRequest (un singleton request') (un singleton stateRef))
         ~~> locA @@ nobody
       return ()
     _ -> do

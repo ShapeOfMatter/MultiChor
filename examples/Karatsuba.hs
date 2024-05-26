@@ -77,28 +77,28 @@ karatsuba ::
   Located '[a] Integer ->
   Choreo Participants IO (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
-  done <- a `locally` \un -> return $ un explicitMember n1 < 10 || un explicitMember n2 < 10
+  done <- a `locally` \un -> return $ un singleton n1 < 10 || un singleton n2 < 10
   broadcastCond
-    (explicitMember `introAnd` a, done)
+    (singleton `introAnd` a, done)
     \case
       True -> do
-        a `locally` \un -> return $ un explicitMember n1 * un explicitMember n2
+        a `locally` \un -> return $ un singleton n1 * un singleton n2
       False -> do
-        x <- a `locally` \un -> return $ f (un explicitMember n1) (un explicitMember n2)
-        l1' <- (a, \un -> return $ l1 (un explicitMember x)) ~~> b @@ nobody
-        l2' <- (a, \un -> return $ l2 (un explicitMember x)) ~~> b @@ nobody
-        h1' <- (a, \un -> return $ h1 (un explicitMember x)) ~~> c @@ nobody
-        h2' <- (a, \un -> return $ h2 (un explicitMember x)) ~~> c @@ nobody
+        x <- a `locally` \un -> return $ f (un singleton n1) (un singleton n2)
+        l1' <- (a, \un -> return $ l1 (un singleton x)) ~~> b @@ nobody
+        l2' <- (a, \un -> return $ l2 (un singleton x)) ~~> b @@ nobody
+        h1' <- (a, \un -> return $ h1 (un singleton x)) ~~> c @@ nobody
+        h2' <- (a, \un -> return $ h2 (un singleton x)) ~~> c @@ nobody
         z0' <- karatsuba b c a l1' l2'
         z0 <- (b, z0') ~> a @@ nobody
         z2' <- karatsuba c a b h1' h2'
         z2 <- (c, z2') ~> a @@ nobody
-        s1 <- a `locally` \un -> return $ l1 (un explicitMember x) + h1 (un explicitMember x)
-        s2 <- a `locally` \un -> return $ l2 (un explicitMember x) + h2 (un explicitMember x)
+        s1 <- a `locally` \un -> return $ l1 (un singleton x) + h1 (un singleton x)
+        s2 <- a `locally` \un -> return $ l2 (un singleton x) + h2 (un singleton x)
         z1' <- karatsuba a b c s1 s2
-        z1 <- a `locally` \un -> return $ un explicitMember z1' - un explicitMember z2 - un explicitMember z0
-        a `locally` \un -> return let s = splitter (un explicitMember x)
-                                  in (un explicitMember z2 * s * s) + (un explicitMember z1 * s) + un explicitMember z0
+        z1 <- a `locally` \un -> return $ un singleton z1' - un singleton z2 - un singleton z0
+        a `locally` \un -> return let s = splitter (un singleton x)
+                                  in (un singleton z2 * s * s) + (un singleton z1 * s) + un singleton z0
         where
           f n1' n2' = KaratsubaNums {splitter = splitter, h1 = h1, l1 = l1, h2 = h2, l2 = l2}
             where

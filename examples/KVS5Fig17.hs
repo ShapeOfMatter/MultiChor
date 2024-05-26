@@ -17,7 +17,6 @@ import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
 import Logic.Classes (refl)
-import Logic.Propositional (introAnd)
 import System.Environment
 import Test.QuickCheck (Arbitrary, arbitrary, elements)
 
@@ -70,7 +69,7 @@ setup = do handlerName <- (primary, \_ -> getstr "How should we mock `Get` Reque
 -- If the request is a `PUT`, it will forward the request to the backup node.
 kvs :: Choreo Participants (CLI m) ()
 kvs  = do
-  handler <- flatten (refl `introAnd` refl) <$> enclave servers setup
+  handler <- enclaveToAll servers setup
   request <- (client, \_ -> getInput "Enter the `read`able Request:") ~~> primary @@ backup @@ nobody
   response <- primary @@ backup @@ nobody `congruently` \un -> un refl handler $ un refl request
   response' <- (primary, response) ~> client @@ nobody

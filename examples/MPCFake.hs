@@ -83,7 +83,7 @@ secretShare parties p (ownership, value) = do
                                   let lastShare = xor (un ownership value : freeShares)  -- But freeShares could really be empty!
                                   return $ partyNames `zip` (lastShare : freeShares)
   parties `fanOut` \q -> do
-    share <- (p @@ nobody) `congruently` \un -> fromJust $ toLocTm q `lookup` un explicitSubset shares
+    share <- p `locally` \un -> return $ fromJust $ toLocTm q `lookup` un singleton shares
     (p, share) ~> inSuper parties q @@ nobody
   where partyNames = toLocs parties
 
@@ -105,7 +105,7 @@ computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, M
 computeWire trustedAnd parties circuit = case circuit of
   InputWire p -> do
     value <- inSuper parties p `_locally` getInput "Enter a secret input value:"
-    secretShare parties (inSuper parties p) (explicitMember, value)
+    secretShare parties (inSuper parties p) (singleton, value)
   LitWire b -> do
     let shares = partyNames `zip` (b : repeat False)
     parties `fanOut` \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
@@ -118,7 +118,7 @@ computeWire trustedAnd parties circuit = case circuit of
       let ovs = un refl inputShares
       in case ovs of [] -> error "make sure there's at least one party"
                      _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
-    secretShare parties trustedAnd (explicitMember, outputVal)
+    secretShare parties trustedAnd (singleton, outputVal)
   XorGate l r -> do
     lResult <- compute l
     rResult <- compute r

@@ -47,14 +47,14 @@ ringLeader r = loop r
       labelRight <- right `_locally` get
 
       finished <- right `locally` \un ->
-        return $ un explicitMember labelLeft == un explicitMember labelRight
+        return $ un singleton labelLeft == un singleton labelRight
 
-      broadcastCond (explicitMember `introAnd` right, finished) \case
+      broadcastCond (singleton `introAnd` right, finished) \case
         True  -> do
           right `locally_` \_ -> lift $ putStrLn "I'm the leader"
           return True
         False -> do
-          right `locally_` \un -> put (max (un explicitMember labelLeft) (un explicitMember labelRight))
+          right `locally_` \un -> put (max (un singleton labelLeft) (un singleton labelRight))
           return False
 
 

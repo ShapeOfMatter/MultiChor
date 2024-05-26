@@ -125,7 +125,7 @@ lottery clients servers analyst = do
                         ) ~~> analyst @@ nobody
                     )
 
-  analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un explicitMember allShares
+  analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un singleton allShares
 
  where
   serverNames = toLocs servers
