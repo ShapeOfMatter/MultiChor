@@ -40,7 +40,6 @@ import Choreography
 import Choreography.Network.Http
 import CLI
 import Control.Monad.Cont (MonadIO)
-import Logic.Propositional (introAnd)
 import System.Environment
 import System.Random
 
@@ -65,29 +64,29 @@ diffieHellman :: (MonadIO m) =>
                  Choreo Participants (CLI m) ()
 diffieHellman = do
   -- wait for alice to initiate the process
-  _ <- alice `locally` \_ -> getstr "enter to start key exchange..."
-  bob `locally_` \_ -> putNote "waiting for alice to initiate key exchange"
+  _ <- alice `_locally` getstr "enter to start key exchange..."
+  bob `_locally_` putNote "waiting for alice to initiate key exchange"
 
   -- alice picks p and g and sends them to bob
   pa <-
-    alice `locally` \_ -> do
+    alice `_locally` do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
-  pb <- (alice `introAnd` alice, pa) ~> bob @@ nobody
+  pb <- (alice, pa) ~> bob @@ nobody
   ga <- alice `locally` \un -> do randomRIO (10, un alice pa)
-  gb <- (alice `introAnd` alice, ga) ~> bob @@ nobody
+  gb <- (alice, ga) ~> bob @@ nobody
 
   -- alice and bob select secrets
-  a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
-  b <- bob `locally` \_ -> do randomRIO (200, 1000 :: Integer)
+  a <- alice `_locally` randomRIO (200, 1000 :: Integer)
+  b <- bob `_locally` randomRIO (200, 1000 :: Integer)
 
   -- alice and bob computes numbers that they exchange
   a' <- alice `locally` \un -> do return $ un alice ga ^ un alice a `mod` un alice pa
   b' <- bob `locally` \un -> do return $ un bob gb ^ un bob b `mod` un bob pb
 
   -- exchange numbers
-  a'' <- (alice `introAnd` alice, a') ~> bob @@ nobody
-  b'' <- (bob `introAnd` bob, b') ~> alice @@ nobody
+  a'' <- (alice, a') ~> bob @@ nobody
+  b'' <- (bob, b') ~> alice @@ nobody
 
   -- compute shared key
   alice `locally_` \un ->

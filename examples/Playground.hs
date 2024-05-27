@@ -22,7 +22,7 @@ type Participants = '["alice"]
 -- Step 2: Writing a choreography
 choreography :: Choreo Participants IO (Located '["alice"] ())
 choreography = do
-  alice `locally` \_ -> putStrLn "Hello, world!"
+  alice `_locally` putStrLn "Hello, world!"
 
 -- Step 3: Projecting and running the chreography
 main :: IO ()

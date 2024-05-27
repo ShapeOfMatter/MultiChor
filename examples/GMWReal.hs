@@ -17,7 +17,6 @@ import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
-import Logic.Propositional (introAnd)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
@@ -84,16 +83,16 @@ genShares parties x = do
 secretShare :: forall parties p m. (KnownSymbols parties, KnownSymbol p, MonadIO m)
             => Member p parties -> Located '[p] Bool -> Choreo parties m (Faceted parties Bool)
 secretShare p value = do
-  shares <- p `locally` \un -> genShares partyNames (un explicitMember value)
+  shares <- p `locally` \un -> genShares partyNames (un singleton value)
   refl `fanOut` \q ->
-    (p, \un -> return $ fromJust $ toLocTm q `lookup` un explicitMember shares) ~~> q @@ nobody
+    (p, \un -> return $ fromJust $ toLocTm q `lookup` un singleton shares) ~~> q @@ nobody
   where partyNames = toLocs @parties refl
 
 reveal :: (KnownSymbols ps)
        => Faceted ps Bool
        -> Choreo ps m Bool
 reveal shares = do
-  allShares <- fanIn refl refl \p -> (explicitMember `introAnd` p, localize p shares) ~> refl
+  allShares <- fanIn refl refl \p -> (p, (p, shares)) ~> refl
   value <- refl `congruently` \un -> case un refl allShares of [] -> error "There's nobody who can hit this"
                                                                aS -> xor aS
   naked refl value
@@ -110,7 +109,7 @@ fMult :: forall parties m.
       -> Choreo parties (CLI m) (Faceted parties Bool)
 fMult u_shares v_shares = do
   let party_names = toLocs @parties refl
-  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `parallel` \_ _ -> genBools party_names
+  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `_parallel` genBools party_names
   b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
   ind_names :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
   new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
@@ -136,7 +135,7 @@ fMultOne :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m
          -> Choreo parties (CLI m) (Located '[p_j] Bool)
 fMultOne a_ij_s u_shares v_shares p_j = do
   b_jis :: Located '[p_j] [Bool] <- fanIn refl (p_j @@ nobody) (fMultBij a_ij_s u_shares v_shares p_j)
-  sumShares :: Located '[p_j] Bool <- p_j `locally` \un -> return $ xor $ un explicitMember b_jis
+  sumShares :: Located '[p_j] Bool <- p_j `locally` \un -> return $ xor $ un singleton b_jis
   return sumShares
 
 -- use OT to do multiplication, for party p_i and p_j
@@ -155,11 +154,10 @@ fMultBij a_ij_s u_shares v_shares p_j p_i = do
     False -> do
       a_ij :: Located '[p_i] Bool <- p_i `locally` \un -> return $ fromJust $ lookup p_j_name (un p_i a_ij_s)
       u_i :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
-      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un explicitMember u_i) /= (un explicitMember a_ij)
-      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un explicitMember a_ij
+      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un singleton u_i) /= (un singleton a_ij)
+      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un singleton a_ij
       select_bit :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
-      b_ij_w :: Located '[p_i, p_j] (Located '[p_j] Bool) <- (p_i @@ p_j @@ nobody) `enclave` (ot2 b1 b2 select_bit)
-      let b_ij :: Located '[p_j] Bool = (consSet `introAnd` refl) `flatten` b_ij_w
+      b_ij :: Located '[p_j] Bool <- enclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 b1 b2 select_bit)
       return b_ij
 
 
@@ -183,7 +181,7 @@ mpc :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
 mpc circuit = do
   outputWire <- gmw circuit
   result <- reveal outputWire
-  void $ refl `parallel` \_ _ -> putOutput "The resulting bit:" $ result
+  void $ refl `_parallel` putOutput "The resulting bit:" result
 
 mpcmany :: (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties

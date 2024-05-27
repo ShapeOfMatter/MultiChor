@@ -17,7 +17,6 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
-import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf, frequency)
 import Text.Read (readMaybe)
 
@@ -97,7 +96,7 @@ nullReplicationStrategy primary =
                      , others = nobody
                      , setup = primary `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> (
-                           (primary, \un -> handleRequest (un explicitMember stateRef) (un pHas request)) ~~> refl
+                           (primary, \un -> handleRequest (un singleton stateRef) (un pHas request)) ~~> refl
                          ) >>= naked refl
                      }
 
@@ -110,14 +109,14 @@ naryReplicationStrategy primary backups =
                      , others = backups
                      , setup = servers `fanOut` \server -> inSuper servers server `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> do
-                         request' <- (pHas `introAnd` primary, request) ~> servers
+                         request' <- (primary, (pHas, request)) ~> servers
                          localResponse <- servers `parallel` \server un -> handleRequest (un server stateRef) (un server request')
                          responses <- fanIn servers (primary @@ nobody) \server ->
-                                        (server `introAnd` inSuper servers server, localResponse) ~> primary @@ nobody
+                                        (server, servers, localResponse) ~> primary @@ nobody
                          response <- (primary @@ nobody) `congruently` \un ->
                            case nub . un refl $ responses of [r] -> r
                                                              rs -> Desynchronization rs
-                         ((explicitMember `introAnd` primary, response) ~> refl) >>= naked refl
+                         ((primary, response) ~> refl) >>= naked refl
                      }
   where servers = primary @@ backups
 
@@ -131,16 +130,16 @@ naryHumans primary backups =
                      , others = backups
                      , setup = primary `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> do
-                         request' <- (pHas `introAnd` primary, request) ~> backups
+                         request' <- (primary, (pHas, request)) ~> backups
                          backupResponse <- backups `parallel` \server un -> readResponse (un server request')
-                         localResponse <- primary `locally` \un -> handleRequest (un explicitMember stateRef) (un pHas request)
+                         localResponse <- primary `locally` \un -> handleRequest (un singleton stateRef) (un pHas request)
                          responses <- fanIn backups (primary @@ nobody) \server ->
-                           (server `introAnd` inSuper backups server, backupResponse) ~> primary @@ nobody
+                           (server, backups, backupResponse) ~> primary @@ nobody
                          response <- (primary @@ nobody) `congruently` \un ->
                            case nub $ un refl localResponse : un refl responses of
                              [r] -> r
                              rs -> Desynchronization rs
-                         ((explicitMember `introAnd` primary, response) ~> refl) >>= naked refl
+                         ((primary, response) ~> refl) >>= naked refl
                      }
   where readResponse :: Request -> CLI m Response
         readResponse r = do line <- getstr $ show r ++ ": "
@@ -152,8 +151,8 @@ naryHumans primary backups =
 kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
 kvs ReplicationStrategy{setup, primary, handle} client = do
   rigging <- setup
-  let go = do request <- (client, \_ -> readRequest) ~~> primary @@ nobody
-              response <- handle rigging explicitMember request
+  let go = do request <- (client, readRequest) -~> primary @@ nobody
+              response <- handle rigging singleton request
               case response of
                 Stopped -> return ()
                 _ -> do client `_locally_` putOutput "Recieved:" response

@@ -49,22 +49,22 @@ quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps) =>
              Member a ps -> Member b ps -> Member c ps
              -> Located '[a] [Int] -> Choreo ps IO (Located '[a] [Int])
 quicksort a b c lst = do
-  isEmpty <- a `locally` \un -> pure (null (un explicitMember lst))
-  broadcastCond (explicitMember `introAnd` a, isEmpty) \case
+  isEmpty <- a `locally` \un -> pure (null (un singleton lst))
+  broadcastCond (singleton `introAnd` a, isEmpty) \case
     True -> do
-      a `locally` \_ -> pure []
+      a `_locally` pure []
     False -> do
-      smaller <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i <= x]) ~~> b @@ nobody
+      smaller <- (a, \un -> let x : xs = un singleton lst in pure [i | i <- xs, i <= x]) ~~> b @@ nobody
       smaller' <- quicksort b c a smaller
-      smaller'' <- (explicitMember `introAnd` b, smaller') ~> a @@ nobody
-      bigger <- (a, \un -> let x : xs = un explicitMember lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
+      smaller'' <- (b, smaller') ~> a @@ nobody
+      bigger <- (a, \un -> let x : xs = un singleton lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
       bigger' <- quicksort c a b bigger
-      bigger'' <- (explicitMember `introAnd` c, bigger') ~> a @@ nobody
-      a `locally` \un -> pure $ un explicitMember smaller'' ++ [head (un explicitMember lst)] ++ un explicitMember bigger''
+      bigger'' <- (c, bigger') ~> a @@ nobody
+      a `locally` \un -> pure $ un singleton smaller'' ++ [head (un singleton lst)] ++ un singleton bigger''
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
+  lst <- primary `_locally` return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- quicksort primary worker1 worker2 lst
   primary `locally_` \un -> do
     print (un primary sorted)

@@ -43,18 +43,18 @@ ringLeader r = loop r
     talkToRight :: Edge g -> Choreo g (StateT Label IO) Bool
     talkToRight (Edge left right) = do
       ll <- left `_locally` get
-      labelLeft  <- (explicitMember `introAnd` left, ll) ~> right @@ nobody
+      labelLeft  <- (left, ll) ~> right @@ nobody
       labelRight <- right `_locally` get
 
       finished <- right `locally` \un ->
-        return $ un explicitMember labelLeft == un explicitMember labelRight
+        return $ un singleton labelLeft == un singleton labelRight
 
-      broadcastCond (explicitMember `introAnd` right, finished) \case
+      broadcastCond (singleton `introAnd` right, finished) \case
         True  -> do
-          right `locally_` \_ -> lift $ putStrLn "I'm the leader"
+          right `_locally_` lift (putStrLn "I'm the leader")
           return True
         False -> do
-          right `locally_` \un -> put (max (un explicitMember labelLeft) (un explicitMember labelRight))
+          right `locally_` \un -> put (max (un singleton labelLeft) (un singleton labelRight))
           return False
 
 

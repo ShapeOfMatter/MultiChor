@@ -146,7 +146,7 @@ tests' = [
     property = \args@BooksellerArgs{books, choice, budget} -> ioProperty do
                   let situation = [ ("seller", [show books])
                                   , ("buyer", [show budget, choice])]
-                  let buyer :: Member "buyer" '["buyer"] = explicitMember
+                  let buyer :: Member "buyer" '["buyer"] = singleton
                   config <- mkLocalConfig [l | (l, _) <- situation]
                   [ ([], ()), (delivery, ())] <-
                     mapConcurrently (

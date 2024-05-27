@@ -45,6 +45,7 @@ common basic-config
       -Winvalid-haddock
     default-extensions: BlockArguments
                        ,DataKinds
+                       ,FunctionalDependencies
                        ,LambdaCase
 
 library choreography
@@ -92,6 +93,7 @@ library examples
         , CardGame
         , DelegationFig20
         , DiffieHellman
+        , GMWReal
         , Karatsuba
         , KVS1Simple
         , KVS2PrimaryBackup
@@ -102,6 +104,7 @@ library examples
         , Lottery
         , MergeSort
         , MPCFake
+        , ObliviousTransfer
         , Playground
         , QuickSort
         , RingLeader
@@ -140,23 +143,21 @@ Test-Suite testExamples
                  , CardGame
                  , DelegationFig20
                  , DiffieHellman
+                 , GMWReal
                  , Karatsuba
                  , KVS1Simple
                  , KVS2PrimaryBackup
                  , KVS3HigherOrder
                  , KVS4LocPoly
                  , KVS5Fig17
-                 , Lottery
                  , KVS6SizePoly
+                 , Lottery
                  , MergeSort
                  , MPCFake
+                 , ObliviousTransfer
                  , Playground
                  , QuickSort
                  , RingLeader
-                 , GMWReal
-                 , ObliviousTransfer
-    build-depends:
-      cryptonite
 
 executable bank-2pc
     import: example
@@ -201,6 +202,14 @@ executable diffiehellman
     ghc-options:
       -main-is DiffieHellman
 
+executable gmw-real
+    import: example
+    main-is:          GMWReal.hs
+    ghc-options:
+      -main-is GMWReal
+    other-modules:
+      ObliviousTransfer
+
 executable karatsuba
     import: example
     main-is:          Karatsuba.hs
@@ -237,6 +246,12 @@ executable mergesort
     ghc-options:
       -main-is MergeSort
 
+executable oblivious-transfer
+    import: example
+    main-is:          ObliviousTransfer.hs
+    ghc-options:
+      -main-is ObliviousTransfer
+
 executable playground
     import: example
     main-is:          Playground.hs
@@ -248,24 +263,6 @@ executable quicksort
     main-is:          QuickSort.hs
     ghc-options:
       -main-is QuickSort
-
-executable oblivious-transfer
-    import: example
-    main-is:          ObliviousTransfer.hs
-    ghc-options:
-      -main-is ObliviousTransfer
-    build-depends:
-      cryptonite
-
-executable gmw-real
-    import: example
-    main-is:          GMWReal.hs
-    ghc-options:
-      -main-is GMWReal
-    build-depends:
-      cryptonite
-    other-modules:
-      ObliviousTransfer
 
 executable ring-leader
     import: example

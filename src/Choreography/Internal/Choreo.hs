@@ -11,8 +11,6 @@ import Data.List (delete)
 import Data.Maybe (catMaybes)
 import GHC.TypeLits
 import Logic.Classes (refl)
-import Logic.Proof (Proof)
-import Logic.Propositional (type (&&), elimAndL, elimAndR)
 
 import Choreography.Internal.Location
 import Choreography.Internal.Network
@@ -36,8 +34,8 @@ data ChoreoSig (ps :: [LocTy]) m a where
         -> ChoreoSig ps m (Located ls a)
 
   Comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-       => Proof (IsMember l ls && IsMember l ps)     -- from
-       -> w ls a     -- value
+       => Member l ps     -- from
+       -> (Member l ls, w ls a)     -- value
        -> Subset ls' ps    -- to
        -> ChoreoSig ps m (Located ls' a)
 
@@ -76,7 +74,7 @@ runChoreo = interpFreer handler
     handler (Congruent ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
-    handler (Comm l a _) = return $ (wrap . unwrap' (elimAndL l)) a
+    handler (Comm _ (p, a) _) = return $ (wrap . unwrap' p) a
     handler (Enclave _ c) = wrap <$> runChoreo c
     handler (Naked proof a) = return $ unwrap proof a
     handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) =
@@ -103,13 +101,13 @@ epp c l' = interpFreer handler c
     handler (Congruent ls f)
       | l' `elem` toLocs ls = return . wrap . f $ unwrap
       | otherwise = return Empty
-    handler (Comm s a rs) = do
-      let sender = toLocTm $ elimAndR s
+    handler (Comm s (l, a) rs) = do
+      let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs rs
-      when (sender == l') $ send (unwrap' (elimAndL s) a) otherRecipients
+      when (sender == l') $ send (unwrap' l a) otherRecipients
       case () of  -- Is there a better way to write this?
         _ | l' `elem` otherRecipients -> wrap <$> recv sender
-          | l' == sender              -> return . wrap . unwrap' (elimAndL s) $ a
+          | l' == sender              -> return . wrap . unwrap' l $ a
           | otherwise                 -> return Empty
     handler (Enclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
@@ -146,14 +144,14 @@ congruently :: (KnownSymbols ls)
               -> Choreo ps m (Located ls a)
 infix 4 `congruently`
 congruently ls f = toFreer (Congruent ls f)
-
 -- | Communication between a sender and a receiver.
 comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => (Proof (IsMember l ls && IsMember l ps), w ls a)  -- ^ Tuple: Proof the sender knows the value and is present, the value.
+     => Member l ps-- ^ Proof the sender is present
+     -> (Member l ls, w ls a)  -- ^ Proof the sender knows the value, the value.
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 `comm`
-comm (l, a) l' = toFreer (Comm l a l')
+comm l a l' = toFreer (Comm l a l')
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --Adds a `Located ls` layer to the return type.

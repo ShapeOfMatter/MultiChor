@@ -3,13 +3,16 @@
 
 -- | This module defines locations and located values.
 module Choreography.Location (
-    mkLoc
+    allOf
+  , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
+  , mkLoc
   , nobody
   , singleton
   , (@@)
 ) where
 
 import Language.Haskell.TH
+import Logic.Classes (refl)
 
 import Choreography.Core
 
@@ -18,14 +21,36 @@ import Choreography.Core
 nobody :: Subset '[] ys
 nobody = explicitSubset
 
+allOf :: forall ps. Subset ps ps
+allOf = refl
+
 -- | Use like `:` for subset proofs.
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
 (@@) = flip consSub
 
 
-singleton :: forall p. (forall ps. (ExplicitMember p ps) => Member p ps) -> Member p (p ': '[])
-singleton proof = proof  -- IKD why I can't just use id.
+singleton :: forall p. Member p (p ': '[])
+singleton = listedFirst  -- IKD why I can't just use id.
+
+
+listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
+listedFirst = explicitMember
+
+listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
+listedSecond = inSuper (consSuper refl) listedFirst
+
+listedThird :: forall p3 p2 p1 ps. Member p3 (p1 ': p2 ': p3 ': ps)
+listedThird = inSuper (consSuper refl) listedSecond
+
+listedForth :: forall p4 p3 p2 p1 ps. Member p4 (p1 ': p2 ': p3 ': p4 ': ps)
+listedForth = inSuper (consSuper refl) listedThird
+
+listedFifth :: forall p5 p4 p3 p2 p1 ps. Member p5 (p1 ': p2 ': p3 ': p4 ': p5 ': ps)
+listedFifth = inSuper (consSuper refl) listedForth
+
+listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p5 ': p6 ': ps)
+listedSixth = inSuper (consSuper refl) listedFifth
 
 
 

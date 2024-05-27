@@ -37,15 +37,15 @@ bookseller someBuyer = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   buyer_budget <- theBuyer `_locally` getInput "Enter your total budget:"
   -- the buyer reads the title of the book and sends it to the seller
-  title <- (theBuyer, \_ -> getstr "Enter the title of the book to buy") ~~> seller @@ nobody
+  title <- (theBuyer, getstr "Enter the title of the book to buy") -~> seller @@ nobody
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
-  cond' (theBuyer, \un -> return $ un explicitMember price <= un explicitMember buyer_budget) \case
+  cond' (theBuyer, \un -> return $ un singleton price <= un singleton buyer_budget) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
-      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un explicitMember deliveryDate
+      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un singleton deliveryDate
 
     False -> do
       theBuyer `_locally_` putNote "The book's price is out of the budget"
@@ -60,7 +60,7 @@ main = do
     _ -> error "unknown party"
   return ()
   where
-    choreo = bookseller $ singleton buyer
+    choreo = bookseller $ singleton @"buyer"
 
     cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
                        , ("seller", ("localhost", 4343))

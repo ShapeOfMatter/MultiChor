@@ -53,15 +53,15 @@ sort :: (KnownSymbol a
   Located '[a] [Int] ->
   Choreo ps IO (Located '[a] [Int])
 sort a b c lst = do
-  condition <- a `locally` \un -> do return $ length (un explicitMember lst) > 1
-  broadcastCond (explicitMember `introAnd` a, condition) \case
+  condition <- a `locally` \un -> do return $ length (un singleton lst) > 1
+  broadcastCond (singleton `introAnd` a, condition) \case
     True -> do
-      _ <- a `locally` \un -> do return $ length (un explicitMember lst) `div` 2
-      divided <- a `locally` \un -> do return $ divide (un explicitMember lst)
-      l <- a `locally` \un -> do return $ fst (un explicitMember divided)
-      r <- a `locally` \un -> do return $ snd (un explicitMember divided)
-      l' <- (explicitMember `introAnd` a, l) ~> b @@ nobody
-      r' <- (explicitMember `introAnd` a, r) ~> c @@ nobody
+      _ <- a `locally` \un -> do return $ length (un singleton lst) `div` 2
+      divided <- a `locally` \un -> do return $ divide (un singleton lst)
+      l <- a `locally` \un -> do return $ fst (un singleton divided)
+      r <- a `locally` \un -> do return $ snd (un singleton divided)
+      l' <- (a, l) ~> b @@ nobody
+      r' <- (a, r) ~> c @@ nobody
       ls' <- sort b c a l'
       rs' <- sort c a b r'
       merge a b c ls' rs'
@@ -80,38 +80,38 @@ merge :: (KnownSymbol a
   Located '[c] [Int] ->
   Choreo ps IO (Located '[a] [Int])
 merge a b c lhs rhs = do
-  lhsHasElements <- b `locally` \un -> do return $ not (null (un explicitMember lhs))
-  broadcastCond (explicitMember `introAnd` b, lhsHasElements) \case
+  lhsHasElements <- b `locally` \un -> do return $ not (null (un singleton lhs))
+  broadcastCond (singleton `introAnd` b, lhsHasElements) \case
     True -> do
-      rhsHasElements <- c `locally` \un -> do return $ not (null (un explicitMember rhs))
-      broadcastCond (explicitMember `introAnd` c, rhsHasElements) \case
+      rhsHasElements <- c `locally` \un -> do return $ not (null (un singleton rhs))
+      broadcastCond (singleton `introAnd` c, rhsHasElements) \case
         True -> do
-          rhsHeadAtC <- c `locally` \un -> do return $ head (un explicitMember rhs)
-          rhsHeadAtB <- (explicitMember `introAnd` c, rhsHeadAtC) ~> b @@ nobody
-          takeLhs <- b `locally` \un -> do return $ head (un explicitMember lhs) <= un explicitMember rhsHeadAtB
-          broadcastCond (explicitMember `introAnd` b, takeLhs) \case
+          rhsHeadAtC <- c `locally` \un -> do return $ head (un singleton rhs)
+          rhsHeadAtB <- (c, rhsHeadAtC) ~> b @@ nobody
+          takeLhs <- b `locally` \un -> do return $ head (un singleton lhs) <= un singleton rhsHeadAtB
+          broadcastCond (singleton `introAnd` b, takeLhs) \case
             True -> do
               -- take (head lhs) and merge the rest
-              lhs' <- b `locally` \un -> do return $ tail (un explicitMember lhs)
+              lhs' <- b `locally` \un -> do return $ tail (un singleton lhs)
               merged <- merge a b c lhs' rhs
-              lhsHeadAtB <- b `locally` \un -> do return $ head (un explicitMember lhs)
-              lhsHeadAtA <- (explicitMember `introAnd` b, lhsHeadAtB) ~> a @@ nobody
-              a `locally` \un -> do return $ un explicitMember lhsHeadAtA : un explicitMember merged
+              lhsHeadAtB <- b `locally` \un -> do return $ head (un singleton lhs)
+              lhsHeadAtA <- (b, lhsHeadAtB) ~> a @@ nobody
+              a `locally` \un -> do return $ un singleton lhsHeadAtA : un singleton merged
             False -> do
               -- take (head rhs) and merge the rest
-              rhs' <- c `locally` \un -> do return $ tail (un explicitMember rhs)
+              rhs' <- c `locally` \un -> do return $ tail (un singleton rhs)
               merged <- merge a b c lhs rhs'
-              rhsHeadAtC' <- c `locally` \un -> do return $ head (un explicitMember rhs)
-              rhsHeadAtA <- (explicitMember `introAnd` c, rhsHeadAtC') ~> a @@ nobody
-              a `locally` \un -> do return $ un explicitMember rhsHeadAtA : un explicitMember merged
+              rhsHeadAtC' <- c `locally` \un -> do return $ head (un singleton rhs)
+              rhsHeadAtA <- (c, rhsHeadAtC') ~> a @@ nobody
+              a `locally` \un -> do return $ un singleton rhsHeadAtA : un singleton merged
         False -> do
-          (explicitMember `introAnd` b, lhs) ~> a @@ nobody
+          (b, lhs) ~> a @@ nobody
     False -> do
-      (explicitMember `introAnd` c, rhs) ~> a @@ nobody
+      (c, rhs) ~> a @@ nobody
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
+  lst <- primary `_locally` return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- sort primary worker1 worker2 lst
   _ <- primary `locally` \un -> do
     print (un primary sorted)

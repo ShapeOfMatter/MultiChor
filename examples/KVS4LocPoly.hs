@@ -105,10 +105,10 @@ doBackup ::
   Located '[b] (IORef State) ->
   Choreo ps IO ()
 doBackup locA locB request stateRef = do
-  broadcastCond (explicitMember `introAnd` locA, request) \case
+  broadcastCond (singleton `introAnd` locA, request) \case
     Put _ _ -> do
-      request' <- (explicitMember `introAnd` locA, request) ~> locB @@ nobody
-      _ <- (locB, \un -> handleRequest (un explicitMember request') (un explicitMember stateRef))
+      request' <- (locA, request) ~> locB @@ nobody
+      _ <- (locB, \un -> handleRequest (un singleton request') (un singleton stateRef))
         ~~> locA @@ nobody
       return ()
     _ -> do
@@ -142,18 +142,18 @@ doubleBackupReplicationStrategy
 -- It uses the provided replication strategy to handle the request.
 kvs :: Located '["client"] Request -> a -> ReplicationStrategy a -> Choreo Participants IO (Located '["client"] Response)
 kvs request stateRefs replicationStrategy = do
-  request' <- (client `introAnd` client, request) ~> primary @@ nobody
+  request' <- (client, request) ~> primary @@ nobody
 
   -- call the provided replication strategy
   response <- replicationStrategy request' stateRefs
 
   -- send response to client
-  (primary `introAnd` primary, response) ~> client @@ nobody
+  (primary, response) ~> client @@ nobody
 
 -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
 nullReplicationChoreo :: Choreo Participants IO ()
 nullReplicationChoreo = do
-  stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
+  stateRef <- primary `_locally` newIORef (Map.empty :: State)
   loop stateRef
   where
     loop :: Located '["primary"] (IORef State) -> Choreo Participants IO ()
@@ -166,8 +166,8 @@ nullReplicationChoreo = do
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
 primaryBackupChoreo :: Choreo Participants IO ()
 primaryBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backupStateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backupStateRef <- backup1 `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup1"] (IORef State)) -> Choreo Participants IO ()
@@ -180,9 +180,9 @@ primaryBackupChoreo = do
 -- | `doubleBackupChoreo` is a choreography that uses `doubleBackupReplicationStrategy`.
 doubleBackupChoreo :: Choreo Participants IO ()
 doubleBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backup1StateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
-  backup2StateRef <- backup2 `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backup1StateRef <- backup1 `_locally` newIORef (Map.empty :: State)
+  backup2StateRef <- backup2 `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backup1StateRef, backup2StateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup1"] (IORef State), Located '["backup2"] (IORef State)) -> Choreo Participants IO ()
