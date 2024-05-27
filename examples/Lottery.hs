@@ -67,7 +67,6 @@ lottery
   => Subset clients census -- A proof that clients are part of the census
   -> Subset servers census -- A proof that servers are part of the census
   -> Member analyst census -- A proof that the analyst is part of the census
-  -- Subset '[analyst] census -> -- A proof the the analyst is part of the census
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
   secret <- _parallel clients (getInput @Fp "secret:")
