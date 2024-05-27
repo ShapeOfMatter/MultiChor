@@ -114,8 +114,8 @@ karatsuba a b c n1 n2 = do
 
 mainChoreo :: Integer -> Integer -> Choreo Participants IO ()
 mainChoreo n1' n2' = do
-  n1 <- primary `locally` \_ -> return n1'
-  n2 <- primary `locally` \_ -> return n2'
+  n1 <- primary `_locally` pure n1'
+  n2 <- primary `_locally` pure n2'
   result <- karatsuba primary worker1 worker2 n1 n2
   primary `locally_` \un -> do
     print (un primary result)

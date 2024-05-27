@@ -145,8 +145,8 @@ handleTransaction (aliceBalance, bobBalance) tx = do
 -- | `bank` loops forever and handles transactions.
 bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
-  tx <- (client, \_ -> parse <$> getstr "Command? (alice|bob {amount};)+"
-        ) ~~> coordinator @@ nobody
+  tx <- (client, parse <$> getstr "Command? (alice|bob {amount};)+"
+        ) -~> coordinator @@ nobody
   (committed, state') <- handleTransaction state tx
   committed' <- (coordinator, committed) ~> client @@ nobody
   client `locally_` \un -> putOutput "Committed?" (un client committed')

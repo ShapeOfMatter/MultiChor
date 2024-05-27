@@ -151,7 +151,7 @@ naryHumans primary backups =
 kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
 kvs ReplicationStrategy{setup, primary, handle} client = do
   rigging <- setup
-  let go = do request <- (client, \_ -> readRequest) ~~> primary @@ nobody
+  let go = do request <- (client, readRequest) -~> primary @@ nobody
               response <- handle rigging singleton request
               case response of
                 Stopped -> return ()

@@ -73,7 +73,7 @@ bookseller :: (Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '[
               -> Choreo Participants (CLI m) ()
 bookseller mkDecision = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
-  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> seller @@ nobody
+  title <- (buyer, getstr "Enter the title of the book to buy:") -~> seller @@ nobody
 
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> buyer @@ nobody
@@ -88,7 +88,7 @@ bookseller mkDecision = do
       buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
 
     False -> do
-      buyer `locally_` \_ -> putNote "The book's price is out of the budget"
+      buyer `_locally_` putNote "The book's price is out of the budget"
 
 -- | `mkDecision1` checks if buyer's budget is greater than the price of the book
 mkDecision1 :: Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool)
@@ -101,7 +101,7 @@ mkDecision1 price = do
 mkDecision2 :: Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool)
 mkDecision2 price = do
   contrib1 <- buyer `_locally` getInput "What are you willing to pay?"
-  contrib2 <- (buyer2, \_ -> getInput "How much you're willing to contribute?") ~~> buyer @@ nobody
+  contrib2 <- (buyer2, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
   buyer `locally` \un -> return $ un buyer price - un buyer contrib2 <= un buyer contrib1
 
 main :: IO ()

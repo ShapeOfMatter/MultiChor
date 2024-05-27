@@ -64,12 +64,12 @@ diffieHellman :: (MonadIO m) =>
                  Choreo Participants (CLI m) ()
 diffieHellman = do
   -- wait for alice to initiate the process
-  _ <- alice `locally` \_ -> getstr "enter to start key exchange..."
-  bob `locally_` \_ -> putNote "waiting for alice to initiate key exchange"
+  _ <- alice `_locally` getstr "enter to start key exchange..."
+  bob `_locally_` putNote "waiting for alice to initiate key exchange"
 
   -- alice picks p and g and sends them to bob
   pa <-
-    alice `locally` \_ -> do
+    alice `_locally` do
       x <- randomRIO (200, 1000 :: Int)
       return $ primeNums !! x
   pb <- (alice, pa) ~> bob @@ nobody
@@ -77,8 +77,8 @@ diffieHellman = do
   gb <- (alice, ga) ~> bob @@ nobody
 
   -- alice and bob select secrets
-  a <- alice `locally` \_ -> do randomRIO (200, 1000 :: Integer)
-  b <- bob `locally` \_ -> do randomRIO (200, 1000 :: Integer)
+  a <- alice `_locally` randomRIO (200, 1000 :: Integer)
+  b <- bob `_locally` randomRIO (200, 1000 :: Integer)
 
   -- alice and bob computes numbers that they exchange
   a' <- alice `locally` \un -> do return $ un alice ga ^ un alice a `mod` un alice pa

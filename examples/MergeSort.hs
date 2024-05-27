@@ -111,7 +111,7 @@ merge a b c lhs rhs = do
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  lst <- primary `locally` \_ -> do return [1, 6, 5, 3, 4, 2, 7, 8]
+  lst <- primary `_locally` return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- sort primary worker1 worker2 lst
   _ <- primary `locally` \un -> do
     print (un primary sorted)

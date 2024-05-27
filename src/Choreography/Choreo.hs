@@ -18,6 +18,7 @@ module Choreography.Choreo (
   , _parallel
   , (~>)
   , (~~>)
+  , (-~>)
 ) where
 
 import Control.Monad (void)
@@ -81,6 +82,16 @@ cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
 infix 4 ~~>
 (~~>) (l, m) ls' = do
   x <- l `locally` m
+  (l, x) ~> ls'
+
+-- | A variant of `~>` that sends the result of a local action that doesn't use existing bound variables.
+(-~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
+      => (Member l ps, m a) -- ^ A pair of a sender's location and a local computation.
+      -> Subset ls' ps                   -- ^ A receiver's location.
+      -> Choreo ps m (Located ls' a)
+infix 4 -~>
+(-~>) (l, m) ls' = do
+  x <- l `_locally` m
   (l, x) ~> ls'
 
 broadcastCond :: forall l ls a b w ps m.

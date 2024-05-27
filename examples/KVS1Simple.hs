@@ -92,7 +92,7 @@ kvs request stateRef = do
 -- HIII :> (*>_*)
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  stateRef <- server `locally` \_ -> newIORef (Map.empty :: State)
+  stateRef <- server `_locally` newIORef (Map.empty :: State)
   loop stateRef
   where
     loop :: Located '["server"] (IORef State) -> Choreo Participants IO ()

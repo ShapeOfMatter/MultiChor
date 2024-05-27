@@ -127,7 +127,7 @@ kvs request stateRefs replicationStrategy = do
 -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
 nullReplicationChoreo :: Choreo Participants IO ()
 nullReplicationChoreo = do
-  stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
+  stateRef <- primary `_locally` newIORef (Map.empty :: State)
   loop stateRef
   where
     loop :: Located '["primary"] (IORef State) -> Choreo Participants IO ()
@@ -140,8 +140,8 @@ nullReplicationChoreo = do
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
 primaryBackupChoreo :: Choreo Participants IO ()
 primaryBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backupStateRef <- backup `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup"] (IORef State)) -> Choreo Participants IO ()

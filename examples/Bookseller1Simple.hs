@@ -104,7 +104,7 @@ bookseller' :: Choreo Participants (CLI m) ()
 bookseller' = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   buyer_budget <- buyer `_locally` getInput "Enter your total budget:"
-  title <- (buyer, \_ -> getstr "Enter the title of the book to buy:") ~~> seller @@ nobody
+  title <- (buyer, getstr "Enter the title of the book to buy:") -~> seller @@ nobody
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> buyer @@ nobody
 
   cond' (buyer, \un -> return $ un buyer price <= un buyer buyer_budget) \case

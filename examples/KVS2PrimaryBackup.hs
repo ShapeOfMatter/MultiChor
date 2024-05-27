@@ -108,8 +108,8 @@ kvs request (primaryStateRef, backupStateRef) = do
 -- It initializes the state and loops forever.
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backupStateRef <- backup `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backupStateRef <- backup `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup"] (IORef State)) -> Choreo Participants IO ()

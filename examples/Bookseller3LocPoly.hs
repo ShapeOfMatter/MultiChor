@@ -37,7 +37,7 @@ bookseller someBuyer = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   buyer_budget <- theBuyer `_locally` getInput "Enter your total budget:"
   -- the buyer reads the title of the book and sends it to the seller
-  title <- (theBuyer, \_ -> getstr "Enter the title of the book to buy") ~~> seller @@ nobody
+  title <- (theBuyer, getstr "Enter the title of the book to buy") -~> seller @@ nobody
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 

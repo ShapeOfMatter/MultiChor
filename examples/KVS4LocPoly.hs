@@ -153,7 +153,7 @@ kvs request stateRefs replicationStrategy = do
 -- | `nullReplicationChoreo` is a choreography that uses `nullReplicationStrategy`.
 nullReplicationChoreo :: Choreo Participants IO ()
 nullReplicationChoreo = do
-  stateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
+  stateRef <- primary `_locally` newIORef (Map.empty :: State)
   loop stateRef
   where
     loop :: Located '["primary"] (IORef State) -> Choreo Participants IO ()
@@ -166,8 +166,8 @@ nullReplicationChoreo = do
 -- | `primaryBackupChoreo` is a choreography that uses `primaryBackupReplicationStrategy`.
 primaryBackupChoreo :: Choreo Participants IO ()
 primaryBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backupStateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backupStateRef <- backup1 `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backupStateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup1"] (IORef State)) -> Choreo Participants IO ()
@@ -180,9 +180,9 @@ primaryBackupChoreo = do
 -- | `doubleBackupChoreo` is a choreography that uses `doubleBackupReplicationStrategy`.
 doubleBackupChoreo :: Choreo Participants IO ()
 doubleBackupChoreo = do
-  primaryStateRef <- primary `locally` \_ -> newIORef (Map.empty :: State)
-  backup1StateRef <- backup1 `locally` \_ -> newIORef (Map.empty :: State)
-  backup2StateRef <- backup2 `locally` \_ -> newIORef (Map.empty :: State)
+  primaryStateRef <- primary `_locally` newIORef (Map.empty :: State)
+  backup1StateRef <- backup1 `_locally` newIORef (Map.empty :: State)
+  backup2StateRef <- backup2 `_locally` newIORef (Map.empty :: State)
   loop (primaryStateRef, backup1StateRef, backup2StateRef)
   where
     loop :: (Located '["primary"] (IORef State), Located '["backup1"] (IORef State), Located '["backup2"] (IORef State)) -> Choreo Participants IO ()

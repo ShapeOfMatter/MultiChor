@@ -8,7 +8,7 @@ module MPCFake where
 
 import Choreography
 import CLI
-import Control.Monad (replicateM, void)
+import Control.Monad (replicateM)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data (TestArgs, reference)
 import Data.Kind (Type)
