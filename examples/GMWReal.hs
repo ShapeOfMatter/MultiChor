@@ -102,75 +102,69 @@ genBools names = mapM genBool names
   where genBool n = do r <- randomRIO (0, 1 :: Int); return $ (n, r == 0)
 
 -- use OT to do multiplication
-fMult :: forall parties m.
-  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
-      => Faceted parties Bool
-      -> Faceted parties Bool
-      -> Choreo parties (CLI m) (Faceted parties Bool)
-fMult u_shares v_shares = do
+fAnd :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+     => Faceted parties Bool -> Faceted parties Bool -> Choreo parties (CLI m) (Faceted parties Bool)
+fAnd u_shares v_shares = do
   let party_names = toLocs @parties refl
-  a_ij_s :: Faceted parties [(LocTm, Bool)] <- refl `_parallel` genBools party_names
-  b_ij_s :: Faceted parties Bool <- refl `fanOut` (fMultOne a_ij_s u_shares v_shares)
-  ind_names :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
-  new_shares :: Faceted parties Bool <- refl `parallel` \p_i un -> return (computeShare
-                                                                           (un p_i ind_names)
-                                                                           (un p_i u_shares)
-                                                                           (un p_i v_shares)
-                                                                           (un p_i a_ij_s)
-                                                                           (un p_i b_ij_s))
-  return new_shares
+  a_ij_s  :: Faceted parties [(LocTm, Bool)] <- refl `_parallel` genBools party_names
+  b_ij_s  :: Faceted parties Bool  <- refl `fanOut` (fAndAij a_ij_s u_shares v_shares)
+  names   :: Faceted parties LocTm <- refl `fanOut` \p_i -> p_i `_locally` return (toLocTm p_i)
+  shares' :: Faceted parties Bool  <- refl `parallel` (computeShare names u_shares v_shares a_ij_s b_ij_s)
+  return shares'
 
-computeShare :: LocTm -> Bool -> Bool
-             -> [(LocTm, Bool)]
-             -> Bool -> Bool
-computeShare p_i u_i v_i a_ij b = xor $ [u_i && v_i, b] ++ (map snd $ filter ok a_ij)
-  where ok (p_j, _) = p_j /= p_i
+fAndAij :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
+        => Faceted parties [(LocTm, Bool)] -> Faceted parties Bool -> Faceted parties Bool
+        -> Member p_j parties -> Choreo parties (CLI m) (Located '[p_j] Bool)
+fAndAij a_ij_s u_shares v_shares p_j = do
+  b_jis :: Located '[p_j] [Bool] <- fanIn refl (p_j @@ nobody) (fAndBij a_ij_s u_shares v_shares p_j)
+  sum   :: Located '[p_j] Bool   <- p_j `locally` \un -> return $ xor $ un singleton b_jis
+  return sum
 
--- use OT to do multiplication, for party p_j
-fMultOne :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
-         => Faceted parties [(LocTm, Bool)]
-         -> Faceted parties Bool
-         -> Faceted parties Bool
-         -> Member p_j parties
-         -> Choreo parties (CLI m) (Located '[p_j] Bool)
-fMultOne a_ij_s u_shares v_shares p_j = do
-  b_jis :: Located '[p_j] [Bool] <- fanIn refl (p_j @@ nobody) (fMultBij a_ij_s u_shares v_shares p_j)
-  sumShares :: Located '[p_j] Bool <- p_j `locally` \un -> return $ xor $ un singleton b_jis
-  return sumShares
-
--- use OT to do multiplication, for party p_i and p_j
-fMultBij :: (KnownSymbols parties, KnownSymbol p_i, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
-         => Faceted parties [(LocTm, Bool)]
-         -> Faceted parties Bool
-         -> Faceted parties Bool
-         -> Member p_j parties
-         -> Member p_i parties
-         -> Choreo parties (CLI m) (Located '[p_j] Bool)
-fMultBij a_ij_s u_shares v_shares p_j p_i = do
+fAndBij :: (KnownSymbols parties, KnownSymbol p_i, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
+        => Faceted parties [(LocTm, Bool)] -> Faceted parties Bool -> Faceted parties Bool
+        -> Member p_j parties -> Member p_i parties -> Choreo parties (CLI m) (Located '[p_j] Bool)
+fAndBij a_ij_s u_shares v_shares p_j p_i = do
   let p_i_name = toLocTm p_i
       p_j_name = toLocTm p_j
   case p_i_name == p_j_name of
     True  -> p_j `_locally` return False
     False -> do
       a_ij :: Located '[p_i] Bool <- p_i `locally` \un -> return $ fromJust $ lookup p_j_name (un p_i a_ij_s)
-      u_i :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
-      b1 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ (un singleton u_i) /= (un singleton a_ij)
-      b2 :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un singleton a_ij
-      select_bit :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
-      b_ij :: Located '[p_j] Bool <- enclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 b1 b2 select_bit)
+      u_i  :: Located '[p_i] Bool <- p_i `locally` \un -> return (un p_i u_shares)
+      b1   :: Located '[p_i] Bool <- p_i `locally` \un -> return $ xor [(un singleton u_i), (un singleton a_ij)]
+      b2   :: Located '[p_i] Bool <- p_i `locally` \un -> return $ un singleton a_ij
+      s    :: Located '[p_j] Bool <- p_j `locally` \un -> return (un p_j v_shares)
+      b_ij :: Located '[p_j] Bool <- enclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 b1 b2 s)
       return b_ij
+
+computeShare :: (MonadIO m)
+             => Faceted parties LocTm -> Faceted parties Bool -> Faceted parties Bool
+             -> Faceted parties [(LocTm, Bool)] -> Faceted parties Bool -> Member p parties
+             -> Unwrap p -> m Bool
+computeShare ind_names u_shares v_shares a_ij_s b_ij_s p_i un =
+  return (computeShareL
+           (un p_i ind_names)
+           (un p_i u_shares)
+           (un p_i v_shares)
+           (un p_i a_ij_s)
+           (un p_i b_ij_s))
+  where computeShareL p_i u_i v_i a_ij b = xor $ [u_i && v_i, b] ++ (map snd $ filter (ok p_i) a_ij)
+        ok p_i (p_j, _) = p_j /= p_i
 
 
 gmw :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties -> Choreo parties (CLI m) (Faceted parties Bool)
 gmw circuit = case circuit of
-  InputWire p -> do
+  InputWire p -> do        -- process a secret input value from party p
     value :: Located '[p] Bool <- p `_locally` getInput "Enter a secret input value:"
     secretShare p value
-  LitWire b -> let shares = partyNames `zip` (b : repeat False) in
+  LitWire b ->             -- process a publicly-known literal value
+    let shares = partyNames `zip` (b : repeat False) in
     refl `fanOut` \p -> p `_locally` return (fromJust $ toLocTm p `lookup` shares)
-  AndGate l r -> do lResult <- gmw l; rResult <- gmw r; fMult lResult rResult
-  XorGate l r -> do
+  AndGate l r -> do        -- process an AND gate
+    lResult <- gmw l; rResult <- gmw r;
+    fAnd lResult rResult
+  XorGate l r -> do        -- process an XOR gate
     lResult <- gmw l; rResult <- gmw r
     refl `parallel` \p un -> return $ xor [un p lResult, un p rResult]
   where partyNames = toLocs @parties refl
