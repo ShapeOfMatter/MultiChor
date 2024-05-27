@@ -98,12 +98,12 @@ ot2 b1 b2 s = do
 
   keys <- receiver `locally` \un -> (liftIO $ genKeys $ un singleton s)
   pks <- (receiver, \un -> let (pk1, pk2, _) = (un singleton keys) in return (pk1, pk2)) ~~> sender @@ nobody
-  encrypted <- (sender, \un -> liftIO $ enc2 (un singleton pks)
-                                             (un singleton b1)
-                                             (un singleton b2)) ~~> receiver @@ nobody
-  decrypted <- receiver `locally` \un -> liftIO $ dec2 (un singleton keys)
-                                                       (un singleton s)
-                                                       (un singleton encrypted)
+  encrypted <- (sender, \un -> liftIO $ encryptS (un singleton pks)
+                                                 (un singleton b1)
+                                                 (un singleton b2)) ~~> receiver @@ nobody
+  decrypted <- receiver `locally` \un -> liftIO $ decryptS (un singleton keys)
+                                                           (un singleton s)
+                                                           (un singleton encrypted)
   return decrypted
 
 --------------------------------------------------
