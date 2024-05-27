@@ -71,7 +71,7 @@ game = do
   hand2 <- fanOut players \player -> do
       let qAddress = inSuper players player
       choice <- (qAddress, (player, wantsNextCard)) ~> dealer @@ qAddress @@ nobody
-      flatten (consSuper refl `introAnd` refl) <$>
+      flatten (consSuper refl) refl <$>
         cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
             True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
                        card2 <- (dealer, cd2) ~> consSuper refl

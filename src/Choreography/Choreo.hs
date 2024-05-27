@@ -170,5 +170,5 @@ enclaveTo :: forall ls a rs ps m.
           -> Choreo ls m (Located rs a)
           -> Choreo ps m (Located rs a)
 infix 4 `enclaveTo`
-enclaveTo subcensus recipients ch = flatten (recipients `introAnd` (allOf @rs)) <$> (subcensus `enclave` ch)
+enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> (subcensus `enclave` ch)
 

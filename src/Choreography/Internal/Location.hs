@@ -8,7 +8,6 @@ import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 import Logic.Proof (Proof, axiom)
-import Logic.Propositional (type (&&))
 import Logic.Classes (Reflexive, refl, Transitive, transitive)
 
 -- | Term-level locations.
@@ -106,11 +105,11 @@ toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls p
 toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
 
 -- | Un-nest located values.
-flatten :: Proof (IsSubset ls ms && IsSubset ls ns) -> Located ms (Located ns a) -> Located ls a
+flatten :: Subset ls ms -> Subset ls ns -> Located ms (Located ns a) -> Located ls a
 infix 3 `flatten`
-flatten _ Empty = Empty
-flatten _ (Wrap Empty) = Empty
-flatten _ (Wrap (Wrap a)) = Wrap a
+flatten _ _ Empty = Empty
+flatten _ _ (Wrap Empty) = Empty
+flatten _ _ (Wrap (Wrap a)) = Wrap a
 
 -- | Get the singlely-`Located` value of a `Faceted` at a given location.
 localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
