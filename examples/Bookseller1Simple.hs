@@ -107,7 +107,8 @@ bookseller' = do
   title <- (buyer, getstr "Enter the title of the book to buy:") -~> seller @@ nobody
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> buyer @@ nobody
 
-  cond' (buyer, \un -> return $ un buyer price <= un buyer buyer_budget) \case
+  inBuyerBudget <- buyer `locally` (\un -> return $ un buyer price <= un buyer buyer_budget)
+  broadcastCond (explicitMember `introAnd` buyer, inBuyerBudget) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
       buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un buyer deliveryDate

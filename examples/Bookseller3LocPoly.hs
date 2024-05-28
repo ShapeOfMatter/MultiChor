@@ -24,6 +24,7 @@ import CLI
 import Data (deliveryDateOf, priceOf)
 import GHC.TypeLits
 import System.Environment
+import GDP (introAnd)
 
 $(mkLoc "buyer")
 $(mkLoc "seller")
@@ -41,7 +42,8 @@ bookseller someBuyer = do
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
-  cond' (theBuyer, \un -> return $ un singleton price <= un singleton buyer_budget) \case
+  inBuyerBudget <- theBuyer `locally` (\un -> return $ un singleton price <= un singleton buyer_budget)
+  broadcastCond (explicitMember `introAnd` theBuyer, inBuyerBudget) \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
