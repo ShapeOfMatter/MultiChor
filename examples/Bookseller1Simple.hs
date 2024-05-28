@@ -116,7 +116,6 @@ bookseller' = do
       buyer `_locally_` putNote "The book's price is out of the budget"
 
 
-
 main :: IO ()
 main = do
   [loc] <- getArgs

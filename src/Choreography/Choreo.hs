@@ -7,7 +7,6 @@
 module Choreography.Choreo (
     broadcastCond
   , cond
-  , cond'
   , enclaveTo
   , enclaveToAll
   , locally
@@ -99,8 +98,6 @@ broadcastCond :: forall l ls a b w ps m.
            => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
--- broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
--- Hmm should I change broadcastCond too? I'm guessing we want to keep it.
 broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> allOf @ps
                                 b' <- cond (allOf `introAnd` allOf, a') c
                                 naked allOf b'
