@@ -88,7 +88,6 @@ runNetworkHttp cfg self prog = do
             [] -> return ()
             errors -> putStrLn $ "Errors : " ++ show errors
         handler (Recv l)   = liftIO $ read <$> readChan (chans ! l)
-        handler (BCast a)  = mapM_ handler $ fmap (Send a) [locs cfg]
 
     api :: Proxy API
     api = Proxy
