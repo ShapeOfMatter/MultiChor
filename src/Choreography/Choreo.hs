@@ -7,7 +7,6 @@
 module Choreography.Choreo (
     broadcastCond
   , cond
-  , cond'
   , enclaveTo
   , enclaveToAll
   , locally
@@ -99,24 +98,9 @@ broadcastCond :: forall l ls a b w ps m.
            => (Proof (IsMember l ls && IsMember l ps), w ls a)
            -> (a -> Choreo ps m b)
            -> Choreo ps m b
--- broadcastCond (proof, a) c = do a' <- (proof, a) ~> refl
--- Hmm should I change broadcastCond too? I'm guessing we want to keep it.
 broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> allOf @ps
                                 b' <- cond (allOf `introAnd` allOf, a') c
                                 naked allOf b'
-
--- | A variant of `cond` that conditonally executes choregraphies based on the
--- result of a local computation.
-cond' :: (Show a, Read a, KnownSymbol l, KnownSymbols ps)
-      => (Member l ps, Unwrap l -> m a) -- ^ A pair of a location and a local
-                                    -- computation.
-      -> (a -> Choreo ps m b)          -- ^ A function that describes the follow-up
-                                    -- choreographies based on the result of the
-                                    -- local computation.
-      -> Choreo ps m b
-cond' (l, m) c = do
-  x <- l `locally` m
-  broadcastCond (explicitMember `introAnd` l, x) c
 
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)

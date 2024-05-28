@@ -152,7 +152,8 @@ bank state = do
   client `locally_` \un -> putOutput "Committed?" (un client committed')
   alice `locally_` \un -> putOutput "Alice's balance:" (un alice (fst state'))
   bob `locally_` \un -> putOutput "Bob's balance:" (un bob (snd state'))
-  cond' (coordinator, \un -> return $ null $ un coordinator tx) (`unless` bank state') -- repeat
+  c <- coordinator `locally` (\un -> return $ null $ un coordinator tx)
+  broadcastCond (explicitMember `introAnd` coordinator, c) (`unless` bank state') -- repeat
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
 startBank :: Choreo Participants (CLI m) ()
