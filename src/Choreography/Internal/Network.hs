@@ -25,10 +25,6 @@ data NetworkSig m a where
   Recv :: Read a
        => LocTm
        -> NetworkSig m a
-  -- | Broadcasting.
-  BCast :: Show a
-        => a
-        -> NetworkSig m ()
 
 -- | Monad that represents network programs.
 type Network m = Freer (NetworkSig m)
@@ -46,10 +42,6 @@ send a ls = toFreer $ Send a ls
 -- | Receive a message from a sender.
 recv :: Read a => LocTm -> Network m a
 recv l = toFreer $ Recv l
-
--- | Broadcast a message to all participants.
-broadcast :: Show a => a -> Network m ()
-broadcast a = toFreer $ BCast a
 
 -- * Message transport backends
 

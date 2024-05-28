@@ -44,7 +44,6 @@ runNetworkLocal cfg self = interpFreer handler
     handler (Run m)    = m
     handler (Send a ls) = liftIO $ mapM_ (\l -> writeChan ((locToBuf cfg ! l) ! self) (show a)) ls
     handler (Recv l)   = liftIO $ read <$> readChan ((locToBuf cfg ! self) ! l)
-    handler(BCast a)   = mapM_ handler $ fmap (Send a) [locs cfg]
 
 instance Backend LocalConfig where
   runNetwork = runNetworkLocal
