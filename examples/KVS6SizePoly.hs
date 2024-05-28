@@ -74,18 +74,13 @@ handleRequest stateRef (Put key value) = mlookup key <$> modifyIORef stateRef (M
 handleRequest stateRef (Get key) = mlookup key <$> readIORef stateRef
 handleRequest _         Stop = return Stopped
 
-data ReplicationStrategy ps m = forall primary others rigging. (KnownSymbol primary) =>
+data ReplicationStrategy ps m = forall primary rigging. (KnownSymbol primary) =>
   ReplicationStrategy { primary :: Member primary ps
-                      , others :: Subset others ps
                       , setup :: Choreo ps m rigging
-                      , handle :: forall starts w.
-                                     (Wrapped w)
-                                  => rigging
-                                  -> Member primary starts
-                                  -> w starts Request
-                                  -> Choreo ps m Response
+                      , handle :: forall starts w. (Wrapped w)
+                               => rigging -> Member primary starts -> w starts Request
+                               -> Choreo ps m Response
                       }
-
 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy :: (KnownSymbol primary, KnownSymbols ps, MonadIO m)
@@ -93,7 +88,6 @@ nullReplicationStrategy :: (KnownSymbol primary, KnownSymbols ps, MonadIO m)
                         -> ReplicationStrategy ps m
 nullReplicationStrategy primary =
   ReplicationStrategy{ primary
-                     , others = nobody
                      , setup = primary `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> (
                            (primary, \un -> handleRequest (un singleton stateRef) (un pHas request)) ~~> refl
@@ -101,23 +95,22 @@ nullReplicationStrategy primary =
                      }
 
 naryReplicationStrategy :: (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m)
-                        => Member primary ps
-                        -> Subset backups ps
-                        -> ReplicationStrategy ps m
-naryReplicationStrategy primary backups =
-  ReplicationStrategy{ primary
-                     , others = backups
-                     , setup = servers `fanOut` \server -> inSuper servers server `_locally` newIORef (Map.empty :: State)
-                     , handle = \stateRef pHas request -> do
-                         request' <- (primary, (pHas, request)) ~> servers
-                         localResponse <- servers `parallel` \server un -> handleRequest (un server stateRef) (un server request')
-                         responses <- fanIn servers (primary @@ nobody) \server ->
-                                        (server, servers, localResponse) ~> primary @@ nobody
-                         response <- (primary @@ nobody) `congruently` \un ->
-                           case nub . un refl $ responses of [r] -> r
-                                                             rs -> Desynchronization rs
-                         ((primary, response) ~> refl) >>= naked refl
-                     }
+                        => Member primary ps -> Subset backups ps -> ReplicationStrategy ps m
+naryReplicationStrategy primary backups = ReplicationStrategy{
+      primary
+    , setup = servers `fanOut` \server ->
+                inSuper servers server `_locally` newIORef (Map.empty :: State)
+    , handle = \stateRef pHas request -> do
+        request' <- (primary, (pHas, request)) ~> servers
+        localResponse <- servers `parallel` \server un ->
+            handleRequest (un server stateRef) (un server request')
+        responses <- fanIn servers (primary @@ nobody) \server ->
+            (server, servers, localResponse) ~> primary @@ nobody
+        response <- (primary @@ nobody) `congruently` \un ->
+            case nub (un refl responses) of [r] -> r
+                                            rs -> Desynchronization rs
+        (primary, response) ~> refl >>= naked refl
+    }
   where servers = primary @@ backups
 
 
@@ -127,7 +120,6 @@ naryHumans :: (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, Monad
                         -> ReplicationStrategy ps (CLI m)
 naryHumans primary backups =
   ReplicationStrategy{ primary
-                     , others = backups
                      , setup = primary `_locally` newIORef (Map.empty :: State)
                      , handle = \stateRef pHas request -> do
                          request' <- (primary, (pHas, request)) ~> backups

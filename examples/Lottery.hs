@@ -11,6 +11,7 @@ import Control.Monad ( replicateM, unless )
 import Crypto.Hash (Digest)
 import qualified Crypto.Hash as Crypto
 import Control.Monad.Cont (MonadIO, liftIO)
+import Data.Bifunctor (first)
 import qualified Data.Binary as Binary
 import Data.ByteString (toStrict)
 import Data.FiniteField (primeField)
@@ -18,7 +19,7 @@ import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
 import Logic.Classes (refl)
 import System.Environment (getArgs)
-import System.Random (randomRIO)
+import System.Random (Random, random, randomR, randomIO, randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryBoundedEnum)
 
 import Choreography
@@ -29,6 +30,10 @@ import Data (TestArgs, reference)
 -- | Arbitrary "large" prime
 newtype Fp = Fp $(primeField 999983)                           -- AFAICT the hint warning needs a newer version of hlint to go away:
            deriving (Bounded, Enum, Eq, Ord, Num, Read, Show)  -- https://github.com/ndmitchell/hlint/issues/1226
+
+instance Random Fp where
+  random g = toEnum `first` randomR (fromEnum @Fp minBound, fromEnum @Fp maxBound) g
+  randomR (l, h) g = toEnum `first` randomR (fromEnum l, fromEnum h) g
 
 instance Arbitrary Fp where
   arbitrary = arbitraryBoundedEnum
@@ -57,83 +62,50 @@ instance Arbitrary Args where
 -- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
 lottery
   :: forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail
-   . ( KnownSymbols clients
-     , KnownSymbols servers
-     , (_serv1 ': _serv2 ': _servTail) ~ servers -- There should at least be two servers
-     , (_client1 ': _client2 ': _clientTail) ~ clients -- There should at least be two clients
-     , MonadIO m
-     , KnownSymbol analyst
+   . ( KnownSymbols clients, KnownSymbols servers, KnownSymbol analyst, MonadIO m
+     , (_serv1 ': _serv2 ': _servTail) ~ servers -- There must be at least be two servers
+     , (_client1 ': _client2 ': _clientTail) ~ clients -- There must be at least be two clients
      )
-  => Subset clients census -- A proof that clients are part of the census
-  -> Subset servers census -- A proof that servers are part of the census
-  -> Member analyst census -- A proof that the analyst is part of the census
+  => Subset clients census -> Subset servers census -> Member analyst census
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
   secret <- _parallel clients (getInput @Fp "secret:")
-
-  -- A lookup table that maps Server to share to send
   clientShares <- clients `parallel` \client un -> do
-      freeShares :: [Fp] <- case serverNames of
-        [] -> return [] -- This can't actually happen/get used...
-        _ : others -> liftIO $ replicateM (length others) $ toEnum <$> randomRIO (fromEnum @Fp minBound, fromEnum @Fp maxBound)
-      let lastShare = un client secret - sum freeShares -- But freeShares could really be empty!
-      return $ serverNames `zip` (lastShare : freeShares)
-
-  serverShares <- servers `fanOut` ( \server ->
-                  fanIn clients (inSuper servers server @@ nobody)
-                    ( \client ->
-                        ( inSuper clients client
-                        , \un ->
-                            let serverName = toLocTm server
-                                share = fromJust $ lookup serverName $ un client clientShares
-                             in return share
-                      ) ~~> inSuper servers server @@ nobody
-                  )
-             )
-
-  -- 1) Each server selects a random number within range [0,τ]
-  ρ <- _parallel servers (getInput $ "A random number from 0 to " ++ show τ ++ ":")
-
+      freeShares <- liftIO $ replicateM (length serverNames - 1) $ randomIO @Fp
+      return $ serverNames `zip` (un client secret - sum freeShares : freeShares)
+  serverShares <- fanOut servers (\server ->
+      fanIn clients (inSuper servers server @@ nobody) (\client -> do
+          serverShare <- inSuper clients client `locally` \un ->
+                           pure $ fromJust $ lookup (toLocTm server) $ un client clientShares
+          (inSuper clients client, serverShare) ~> inSuper servers server @@ nobody
+        )
+    )
+  -- 1) Each server selects a random number; τ is some multiple of the number of clients.
+  ρ <- _parallel servers (getInput "A random number from 1 to τ:")
   -- Salt value
-  ψ <- _parallel servers (randomRIO (largeishValue, largeValue))
-
+  ψ <- _parallel servers (randomRIO (2^(18::Int), 2^(20::Int)))
   -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
-  α <- fanIn servers servers ( \server -> (inSuper servers server, \un -> pure $ hash (un server ψ) (un server ρ)) ~~> servers)
-
+  α_ <- parallel servers \server un -> pure $ hash (un server ψ) (un server ρ)
+  α <- fanIn servers servers ( \server -> (server, servers, α_) ~> servers )
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
-  -- Where ₀ represents the opened variants that is Located at all servers rather than Faceted
-  ψ₀ <- fanIn servers servers ( \server -> (server, servers, ψ) ~> servers)
-
-  ρ₀ <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers)
-
+  ψ' <- fanIn servers servers ( \server -> (server, servers, ψ) ~> servers )
+  ρ' <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers )
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
-  parallel_ servers (\server un -> unless (un server α == (uncurry hash <$> zip (un server ψ₀) (un server ρ₀)))
-                                          (liftIO $ throwIO CommitmentCheckFailed))
-
-  -- 5) If all the checks are successfull. Then sum shares.
-  -- Where ω is an index on the shares
-  ω <- servers `congruently` (\un -> sum (un refl ρ₀) `mod` n)
-
-  -- Servers each forward share to an analyist s_R^j we end up with a Located but only for a single analyst
-  allShares <- fanIn servers (analyst @@ nobody)
-                    ( \server ->
-                        ( inSuper servers server
-                        , \un -> pure (un server serverShares !! un server ω)
-                        ) ~~> analyst @@ nobody
-                    )
-
+  parallel_ servers (\server un ->
+      unless (un server α == zipWith hash (un server ψ') (un server ρ'))
+             (liftIO $ throwIO CommitmentCheckFailed)
+    )
+  -- 5) If all the checks are successful, then sum random values to get the random index.
+  ω <- servers `congruently` (\un -> sum (un refl ρ') `mod` length (toLocs clients))
+  chosenShares <- servers `parallel` (\server un -> pure $ un server serverShares !! un server ω)
+  -- Servers forward shares to an analyist.
+  allShares <- fanIn servers (analyst @@ nobody) (\server ->
+      (server, servers, chosenShares) ~> analyst @@ nobody
+    )
   analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un singleton allShares
-
- where
-  serverNames = toLocs servers
-  n = length $ toLocs clients
-  τ :: Int
-  τ = 3 * n  -- This is "some multiple" of n.
-  largeValue :: Int
-  largeValue = 2 ^ (20 :: Int)
-  largeishValue = 2 ^ (18 :: Int)
-  hash :: Int -> Int -> Digest Crypto.SHA256
-  hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
+ where serverNames = toLocs servers
+       hash :: Int -> Int -> Digest Crypto.SHA256
+       hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
 main = do
