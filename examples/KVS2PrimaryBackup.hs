@@ -32,7 +32,6 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Logic.Propositional (introAnd)
 import System.Environment
 
 $(mkLoc "client")
@@ -84,7 +83,7 @@ kvs request (primaryStateRef, backupStateRef) = do
   request' <- (client, request) ~> primary @@ nobody
 
   -- branch on the request
-  broadcastCond (primary `introAnd` primary, request') \case
+  broadcast (primary, request') >>= \case
     -- if the request is a `PUT`, forward the request to the backup node
     Put _ _ -> do
       request'' <- (primary, request') ~> backup @@ nobody

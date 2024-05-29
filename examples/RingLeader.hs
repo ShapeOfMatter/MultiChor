@@ -16,7 +16,6 @@ import Choreography.Network.Http
 import GHC.TypeLits (KnownSymbol)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
-import Logic.Propositional (introAnd)
 import System.Environment
 
 -- an edge of the ring is represented as a tuple of two locaitons l and l' where
@@ -49,7 +48,7 @@ ringLeader r = loop r
       finished <- right `locally` \un ->
         return $ un singleton labelLeft == un singleton labelRight
 
-      broadcastCond (singleton `introAnd` right, finished) \case
+      broadcast (right, finished) >>= \case
         True  -> do
           right `_locally_` lift (putStrLn "I'm the leader")
           return True

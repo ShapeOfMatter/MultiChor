@@ -30,7 +30,6 @@ import Choreography
 import Choreography.Network.Local
 import Control.Concurrent.Async (mapConcurrently_)
 import GHC.TypeLits (KnownSymbol)
-import Logic.Propositional (introAnd)
 import System.Environment
 
 reference :: Integer -> Integer -> Integer
@@ -78,8 +77,7 @@ karatsuba ::
   Choreo Participants IO (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \un -> return $ un singleton n1 < 10 || un singleton n2 < 10
-  broadcastCond
-    (singleton `introAnd` a, done)
+  broadcast (a, done) >>=
     \case
       True -> do
         a `locally` \un -> return $ un singleton n1 * un singleton n2

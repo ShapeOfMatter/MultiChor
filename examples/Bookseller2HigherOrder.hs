@@ -56,7 +56,6 @@ module Bookseller2HigherOrder where
 import Choreography
 import Choreography.Network.Http
 import System.Environment
-import Logic.Propositional (introAnd)
 
 import CLI
 import Data (deliveryDateOf, priceOf)
@@ -82,7 +81,7 @@ bookseller mkDecision = do
   decision <- mkDecision price
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  broadcastCond (buyer `introAnd` buyer, decision) \case
+  broadcast (buyer, decision) >>= \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
       buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
