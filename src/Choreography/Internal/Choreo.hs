@@ -6,9 +6,11 @@
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Internal.Choreo where
 
-import Control.Monad (when)
+import Data.Bifunctor (Bifunctor, bimap)
+import Data.Functor.Classes (Read2, Show2)
 import Data.List (delete)
 import Data.Maybe (catMaybes)
+import Control.Monad (when, void)
 import GHC.TypeLits
 import Logic.Classes (refl)
 
@@ -33,11 +35,11 @@ data ChoreoSig (ps :: [LocTy]) m a where
         -> (Unwraps ls -> a)
         -> ChoreoSig ps m (Located ls a)
 
-  Comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
+  CommBF :: (Read2 f, Show2 f, Bifunctor f, KnownSymbol l, KnownSymbols ls', Wrapped wf, Wrapped wa, Wrapped wb)
        => Member l ps     -- from
-       -> (Member l ls, w ls a)     -- value
+       -> (Member l ls, wf ls (f (wa la a) (wb lb b)))     -- value
        -> Subset ls' ps    -- to
-       -> ChoreoSig ps m (Located ls' a)
+       -> ChoreoSig ps m (Located ls' (f (wa la a) (wb lb b)))
 
   Enclave :: (KnownSymbols ls)
        => Subset ls ps
@@ -74,7 +76,7 @@ runChoreo = interpFreer handler
     handler (Congruent ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
-    handler (Comm _ (p, a) _) = return $ (wrap . unwrap' p) a
+    handler (CommBF _ (p, a) _) = return $ (wrap . unwrap' p) a
     handler (Enclave _ c) = wrap <$> runChoreo c
     handler (Naked proof a) = return $ unwrap proof a
     handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) =
@@ -101,13 +103,14 @@ epp c l' = interpFreer handler c
     handler (Congruent ls f)
       | l' `elem` toLocs ls = return . wrap . f $ unwrap
       | otherwise = return Empty
-    handler (Comm s (l, a) rs) = do
+    handler (CommBF s (owns, a) rs) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs rs
-      when (sender == l') $ send (unwrap' l a) otherRecipients
+      when (sender == l') $ send (bimap (const ()) (const ()) (unwrap' owns a))
+                                 otherRecipients --
       case () of  -- Is there a better way to write this?
-        _ | l' `elem` otherRecipients -> wrap <$> recv sender
-          | l' == sender              -> return . wrap . unwrap' l $ a
+        _ | l' `elem` otherRecipients -> wrap . bimap (const Empty) (const Empty) <$> recv sender -- This doesn't work because the recipients may be members of the inner owners lists!
+          | l' == sender              -> return . wrap . unwrap' owns $ a
           | otherwise                 -> return Empty
     handler (Enclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
@@ -151,7 +154,7 @@ comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 `comm`
-comm l a l' = toFreer (Comm l a l')
+comm l a l' = toFreer (CommBF l a l')
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --Adds a `Located ls` layer to the return type.
