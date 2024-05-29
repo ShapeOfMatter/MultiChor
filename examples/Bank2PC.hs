@@ -54,7 +54,6 @@ import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
 import Data.Proxy (Proxy(Proxy))
 import GHC.TypeLits (KnownSymbol, symbolVal)
-import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
 
@@ -134,7 +133,7 @@ handleTransaction (aliceBalance, bobBalance) tx = do
   canCommit <- coordinator `locally` \un -> do return $ un coordinator voteAlice && un coordinator voteBob
 
   -- Commit Phase
-  broadcastCond (coordinator `introAnd` coordinator, canCommit) \case
+  broadcast (coordinator, canCommit) >>= \case
     True -> do
       aliceBalance' <- alice `locally` \un -> do return $ snd $ validate "alice" (un alice aliceBalance) (un alice txa)
       bobBalance' <- bob `locally` \un -> do return $ snd $ validate "bob" (un bob bobBalance) (un bob txb)
@@ -153,7 +152,7 @@ bank state = do
   alice `locally_` \un -> putOutput "Alice's balance:" (un alice (fst state'))
   bob `locally_` \un -> putOutput "Bob's balance:" (un bob (snd state'))
   c <- coordinator `locally` (\un -> return $ null $ un coordinator tx)
-  broadcastCond (explicitMember `introAnd` coordinator, c) (`unless` bank state') -- repeat
+  broadcast (coordinator, c) >>= (`unless` bank state') -- repeat
 
 -- | `startBank` is a choreography that initializes the states and starts the bank application.
 startBank :: Choreo Participants (CLI m) ()

@@ -29,7 +29,6 @@ module MergeSort where
 import Choreography
 import Choreography.Network.Http
 import GHC.TypeLits (KnownSymbol)
-import Logic.Propositional (introAnd)
 import System.Environment
 
 divide :: [a] -> ([a], [a])
@@ -54,7 +53,7 @@ sort :: (KnownSymbol a
   Choreo ps IO (Located '[a] [Int])
 sort a b c lst = do
   condition <- a `locally` \un -> do return $ length (un singleton lst) > 1
-  broadcastCond (singleton `introAnd` a, condition) \case
+  broadcast (a, condition) >>= \case
     True -> do
       _ <- a `locally` \un -> do return $ length (un singleton lst) `div` 2
       divided <- a `locally` \un -> do return $ divide (un singleton lst)
@@ -81,15 +80,15 @@ merge :: (KnownSymbol a
   Choreo ps IO (Located '[a] [Int])
 merge a b c lhs rhs = do
   lhsHasElements <- b `locally` \un -> do return $ not (null (un singleton lhs))
-  broadcastCond (singleton `introAnd` b, lhsHasElements) \case
+  broadcast (b, lhsHasElements) >>= \case
     True -> do
       rhsHasElements <- c `locally` \un -> do return $ not (null (un singleton rhs))
-      broadcastCond (singleton `introAnd` c, rhsHasElements) \case
+      broadcast (c, rhsHasElements) >>= \case
         True -> do
           rhsHeadAtC <- c `locally` \un -> do return $ head (un singleton rhs)
           rhsHeadAtB <- (c, rhsHeadAtC) ~> b @@ nobody
           takeLhs <- b `locally` \un -> do return $ head (un singleton lhs) <= un singleton rhsHeadAtB
-          broadcastCond (singleton `introAnd` b, takeLhs) \case
+          broadcast (b, takeLhs) >>= \case
             True -> do
               -- take (head lhs) and merge the rest
               lhs' <- b `locally` \un -> do return $ tail (un singleton lhs)

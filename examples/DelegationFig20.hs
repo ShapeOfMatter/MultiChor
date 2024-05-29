@@ -23,7 +23,6 @@ import CLI
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
-import Logic.Propositional (introAnd)
 import Logic.Classes (refl)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryPrintableChar, elements, listOf1)
 
@@ -64,14 +63,14 @@ mainCho :: Choreo Participants (CLI m) ()
 mainCho = do
   choice <- (alice, getInput "Alice's choice:") -~> alice @@ bob @@ nobody
   query <- flatten (alice @@ nobody) (alice @@ nobody) <$>
-    cond (refl `introAnd` explicitSubset, choice) \case
+    cond (explicitSubset, (refl, choice)) \case
       False -> (bob, getstr "Bob's query:") -~> alice @@ nobody
       True  -> alice `_locally` getstr "Alice's query:"
   answerer <- carroll `_locally` do handlerName <- getstr "Carrol's function (reverse or alphabetize):"
                                     return $ fromMaybe carrollsDefault $ handlerName `lookup` carrollsFunctions
   query' <- (alice, query) ~> carroll @@ nobody
   response <- (carroll, \un -> return $ un carroll answerer (un carroll query')) ~~> alice @@ bob @@ nobody
-  (_ :: Located '["alice", "bob"] ()) <- cond (refl `introAnd` explicitSubset, choice) \case
+  (_ :: Located '["alice", "bob"] ()) <- cond (explicitSubset, (refl, choice)) \case
     False -> bob `locally_` \un -> putstr "Recieved:" (un bob response)
     True -> alice `locally_` \un -> putstr "Recieved:" (un alice response)
   return ()

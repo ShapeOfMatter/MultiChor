@@ -34,7 +34,6 @@ import Choreography.Network.Http
 import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Logic.Propositional (introAnd)
 import System.Environment
 
 $(mkLoc "client")
@@ -91,7 +90,7 @@ primaryBackupReplicationStrategy ::
   ReplicationStrategy (Located '["primary"] (IORef State), Located '["backup"] (IORef State))
 primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   -- relay request to backup if it is mutating (= PUT)
-  broadcastCond (primary `introAnd` primary, request) \case
+  broadcast (primary, request) >>= \case
     Put _ _ -> do
       request' <- (primary, request) ~> backup @@ nobody
       _ <- (backup,

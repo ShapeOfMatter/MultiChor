@@ -37,7 +37,6 @@ import Data.IORef
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.TypeLits (KnownSymbol)
-import Logic.Propositional (introAnd)
 import System.Environment
 
 $(mkLoc "client")
@@ -105,7 +104,7 @@ doBackup ::
   Located '[b] (IORef State) ->
   Choreo ps IO ()
 doBackup locA locB request stateRef = do
-  broadcastCond (singleton `introAnd` locA, request) \case
+  broadcast (locA, request) >>= \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB @@ nobody
       _ <- (locB, \un -> handleRequest (un singleton request') (un singleton stateRef))

@@ -5,7 +5,7 @@
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo (
-    broadcastCond
+    broadcast
   , cond
   , enclaveTo
   , enclaveToAll
@@ -26,7 +26,7 @@ import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
 import Logic.Proof (Proof)
-import Logic.Propositional (type (&&), elimAndL, elimAndR, introAnd)
+import Logic.Propositional (type (&&), elimAndL, elimAndR)
 
 
 --class CanSend loc val owners census struct | struct -> loc val owners census where
@@ -64,11 +64,11 @@ s ~> rs = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s) 
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
-     => (Proof (IsSubset ls qs && IsSubset ls ps), Located qs a)  -- ^ Tuple: Proof all the parties involved know the branch-guard
+     => (Subset ls ps, (Subset ls qs, Located qs a))  -- ^ Tuple: Proof all the parties involved know the branch-guard
                                                                   --and are present, the branch guard
      -> (a -> Choreo ls m b) -- ^ The body of the conditional as a function from the unwrapped value.
      -> Choreo ps m (Located ls b)
-cond (l, a) c = enclave (elimAndR l) $ naked (elimAndL l) a >>= c
+cond (ls, (owns, a)) c = enclave ls $ naked owns a >>= c
 
 
 
@@ -93,14 +93,12 @@ infix 4 -~>
   x <- l `_locally` m
   (l, x) ~> ls'
 
-broadcastCond :: forall l ls a b w ps m.
-              (Show a, Read a, KnownSymbol l, KnownSymbols ps, Wrapped w)
-           => (Proof (IsMember l ls && IsMember l ps), w ls a)
-           -> (a -> Choreo ps m b)
-           -> Choreo ps m b
-broadcastCond (proof, a) c = do a' <- (elimAndR proof, (elimAndL proof, a)) ~> allOf @ps
-                                b' <- cond (allOf `introAnd` allOf, a') c
-                                naked allOf b'
+
+broadcast :: forall l a ps ls w m s.
+             (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps w)
+          => s
+          -> Choreo ps m a
+broadcast s = (s ~> allOf @ps) >>= naked (allOf @ps)
 
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)

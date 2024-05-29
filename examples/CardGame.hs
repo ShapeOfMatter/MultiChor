@@ -10,7 +10,6 @@ import Choreography
 import CLI
 import Data (TestArgs, reference)
 import Logic.Classes (refl)
-import Logic.Propositional (introAnd)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 
@@ -72,7 +71,7 @@ game = do
       let qAddress = inSuper players player
       choice <- (qAddress, (player, wantsNextCard)) ~> dealer @@ qAddress @@ nobody
       flatten (consSuper refl) refl <$>
-        cond (refl `introAnd` (dealer @@ qAddress @@ nobody), choice) \case
+        cond (dealer @@ qAddress @@ nobody, (refl, choice)) \case
             True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
                        card2 <- (dealer, cd2) ~> consSuper refl
                        consSuper refl `congruently` (\un -> [un refl $ localize player hand1

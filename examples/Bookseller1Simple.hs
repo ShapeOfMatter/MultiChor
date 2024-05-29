@@ -66,7 +66,6 @@ Homotopy Type Theory
 
 module Bookseller1Simple where
 
-import Logic.Propositional (introAnd)
 
 import Choreography
 import Choreography.Network.Http
@@ -91,7 +90,7 @@ bookseller = do
   price' <- (seller, price) ~> buyer @@ nobody
   decision <- buyer `locally` \un -> return $ un buyer price' <= un buyer buyer_budget
 
-  broadcastCond (buyer `introAnd` buyer, decision) \case
+  broadcast (buyer, decision) >>= \case
     True  -> do
       deliveryDate  <- seller `locally` \un -> return $ deliveryDateOf (un seller database) (un seller title')
       deliveryDate' <- (seller, deliveryDate) ~> buyer @@ nobody
@@ -108,7 +107,7 @@ bookseller' = do
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> buyer @@ nobody
 
   inBuyerBudget <- buyer `locally` (\un -> return $ un buyer price <= un buyer buyer_budget)
-  broadcastCond (explicitMember `introAnd` buyer, inBuyerBudget) \case
+  broadcast (buyer, inBuyerBudget) >>= \case
     True  -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
       buyer `locally_` \un -> putOutput "The book will be delivered on:" $ un buyer deliveryDate
