@@ -144,6 +144,7 @@ congruently :: (KnownSymbols ls)
               -> Choreo ps m (Located ls a)
 infix 4 `congruently`
 congruently ls f = toFreer (Congruent ls f)
+
 -- | Communication between a sender and a receiver.
 comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
      => Member l ps-- ^ Proof the sender is present

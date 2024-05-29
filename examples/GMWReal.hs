@@ -117,8 +117,8 @@ fAndAij :: (KnownSymbols parties, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
         -> Member p_j parties -> Choreo parties (CLI m) (Located '[p_j] Bool)
 fAndAij a_ij_s u_shares v_shares p_j = do
   b_jis :: Located '[p_j] [Bool] <- fanIn refl (p_j @@ nobody) (fAndBij a_ij_s u_shares v_shares p_j)
-  sum   :: Located '[p_j] Bool   <- p_j `locally` \un -> return $ xor $ un singleton b_jis
-  return sum
+  b_sum :: Located '[p_j] Bool   <- p_j `locally` \un -> return $ xor $ un singleton b_jis
+  return b_sum
 
 fAndBij :: (KnownSymbols parties, KnownSymbol p_i, KnownSymbol p_j, MonadIO m, CRT.MonadRandom m)
         => Faceted parties [(LocTm, Bool)] -> Faceted parties Bool -> Faceted parties Bool
@@ -141,15 +141,15 @@ computeShare :: (MonadIO m)
              => Faceted parties LocTm -> Faceted parties Bool -> Faceted parties Bool
              -> Faceted parties [(LocTm, Bool)] -> Faceted parties Bool -> Member p parties
              -> Unwrap p -> m Bool
-computeShare ind_names u_shares v_shares a_ij_s b_ij_s p_i un =
+computeShare ind_names u_shares v_shares a_ij_s b_ij_s p un =
   return (computeShareL
-           (un p_i ind_names)
-           (un p_i u_shares)
-           (un p_i v_shares)
-           (un p_i a_ij_s)
-           (un p_i b_ij_s))
-  where computeShareL p_i u_i v_i a_ij b = xor $ [u_i && v_i, b] ++ (map snd $ filter (ok p_i) a_ij)
-        ok p_i (p_j, _) = p_j /= p_i
+           (un p ind_names)
+           (un p u_shares)
+           (un p v_shares)
+           (un p a_ij_s)
+           (un p b_ij_s))
+  where computeShareL name u_i v_i a_ij b = xor $ [u_i && v_i, b] ++ [snd a | a <- a_ij, ok name a]
+        ok partyName (p_j, _) = p_j /= partyName
 
 
 gmw :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)

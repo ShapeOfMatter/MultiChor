@@ -25,8 +25,6 @@ import Control.Monad (void)
 import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
-import Logic.Proof (Proof)
-import Logic.Propositional (type (&&), elimAndL, elimAndR)
 
 
 --class CanSend loc val owners census struct | struct -> loc val owners census where
