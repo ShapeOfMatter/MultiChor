@@ -90,21 +90,20 @@ decryptS (_, _, sk) s (c1, c2) = if s then decryptRSA sk c1 else decryptRSA sk c
 
 -- One out of two OT
 ot2 :: (KnownSymbol sender, KnownSymbol receiver, MonadIO m, CRT.MonadRandom m) =>
-  Located '[sender] Bool -> Located '[sender] Bool -> Located '[receiver] Bool
+  Located '[sender] (Bool, Bool) -> Located '[receiver] Bool
   -> Choreo '[sender, receiver] (CLI m) (Located '[receiver] Bool)
-ot2 b1 b2 s = do
+ot2 bb s = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
 
-  keys <- receiver `locally` \un -> (liftIO $ genKeys $ un singleton s)
-  pks <- (receiver, \un -> let (pk1, pk2, _) = (un singleton keys) in return (pk1, pk2)) ~~> sender @@ nobody
-  encrypted <- (sender, \un -> liftIO $ encryptS (un singleton pks)
-                                                 (un singleton b1)
-                                                 (un singleton b2)) ~~> receiver @@ nobody
-  decrypted <- receiver `locally` \un -> liftIO $ decryptS (un singleton keys)
+  keys <- receiver `locally` \un -> liftIO $ genKeys $ un singleton s
+  pks <- (receiver, \un -> let (pk1, pk2, _) = un singleton keys
+                           in return (pk1, pk2)) ~~> sender @@ nobody
+  encrypted <- (sender, \un -> let (b1, b2) = un singleton bb
+                               in liftIO $ encryptS (un singleton pks) b1 b2) ~~> receiver @@ nobody
+  receiver `locally` \un -> liftIO $ decryptS (un singleton keys)
                                                            (un singleton s)
                                                            (un singleton encrypted)
-  return decrypted
 
 --------------------------------------------------
 -- 1-out-of-4 Oblivious transfer
@@ -202,12 +201,13 @@ otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m, CRT.MonadRandom m) => Chor
 otTest = do
   let p1 = listedFirst :: Member p1 '[p1, p2]
   let p2 = listedSecond :: Member p2 '[p1, p2]
-  b1 <- p1 `_locally` return False
-  b2 <- p1 `_locally` return True
+  bb <- p1 `_locally` return (False, True)
+  b1 <- p1 `locally` \un -> pure . fst $ un singleton bb
+  b2 <- p1 `locally` \un -> pure . snd $ un singleton bb
   s <- p2 `_locally` return False
   otResultI <- ot2Insecure b1 b2 s
   p2 `locally_` \un -> putOutput "OT2 insecure output:" $ un singleton otResultI
-  otResult <- ot2 b1 b2 s
+  otResult <- ot2 bb s
   p2 `locally_` \un -> putOutput "OT2 output:" $ un singleton otResult
 
   b3 <- p1 `_locally` return False
