@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 
@@ -9,7 +8,6 @@ module CardGame where
 import Choreography
 import CLI
 import Data (TestArgs, reference)
-import Logic.Classes (refl)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 
@@ -54,10 +52,8 @@ instance Arbitrary Args where
  -}
 game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) (CLI m) ()
 game = do
-  let players :: Subset players ("dealer" ': players)
-      players = consSuper refl
-      dealer :: forall ps. (ExplicitMember "dealer" ps) => Member "dealer" ps
-      dealer = explicitMember
+  let players = consSuper (allOf @players)
+      dealer = listedFirst @"dealer"
   hand1 <- fanOut players \player -> do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
       (dealer, card1) ~> inSuper players player @@ nobody
@@ -67,22 +63,18 @@ game = do
       putNote $ "My first card is: " ++ show (un player hand1)
       putNote $ "Cards on the table: " ++ show (un player onTheTable)
       getInput "I'll ask for another? [True/False]"
-  hand2 <- fanOut players \player -> do
-      let qAddress = inSuper players player
-      choice <- (qAddress, (player, wantsNextCard)) ~> dealer @@ qAddress @@ nobody
-      flatten (consSuper refl) refl <$>
-        cond (dealer @@ qAddress @@ nobody, (refl, choice)) \case
-            True -> do cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
-                       card2 <- (dealer, cd2) ~> consSuper refl
-                       consSuper refl `congruently` (\un -> [un refl $ localize player hand1
-                                                              ,un refl card2])
-            False -> consSuper refl `congruently` (\un -> [un refl $ localize player hand1])
+  hand2 <- fanOut players \(player :: Member player players) -> do
+      (dealer @@ inSuper players player @@ nobody `enclaveTo` listedSecond @@ nobody) do
+        choice <- broadcast (listedSecond @player, (player, wantsNextCard))
+        if choice then do
+            cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
+            card2 <- (dealer, cd2) ~> listedSecond @@ nobody
+            listedSecond `locally` \un -> pure [un player hand1, un singleton card2]
+          else listedSecond `locally` \un -> pure [un player hand1]
   tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
   tableCard <- (dealer, tblCrd) ~> players
-  _ <- players `parallel` (\player un -> do
+  players `parallel_` \player un -> do
       let hand = un player tableCard : un player hand2
       putNote $ "My hand: " ++ show hand
       putOutput "My win result:" $ sum hand > card 19
-    )
-  pure ()
 

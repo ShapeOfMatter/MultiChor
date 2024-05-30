@@ -35,18 +35,55 @@ newIORef = liftIO <$> IORef.newIORef
 -- $(mkLoc "backup2")
 -- type Participants = ["client", "primary", "backup1", "backup2"]
 
+kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
+kvs ReplicationStrategy{setup, primary, handle} client = do
+  rigging <- setup
+  let go = do request <- (client, readRequest) -~> primary @@ nobody
+              response <- handle rigging singleton request
+              case response of Stopped -> return ()
+                               _ -> do client `_locally_` putOutput "Recieved:" response
+                                       go
+  go
+
+naryReplicationStrategy :: (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m)
+                        => Member primary ps -> Subset backups ps -> ReplicationStrategy ps m
+naryReplicationStrategy primary backups = ReplicationStrategy{
+      primary
+    , setup = servers `_parallel` newIORef (Map.empty :: State)
+    , handle = \stateRef pHas request -> do
+          request' <- (primary, (pHas, request)) ~> servers
+          localResponse <- servers `parallel` \server un ->
+              handleRequest (un server stateRef) (un server request')
+          responses <- fanIn servers (primary @@ nobody) \server ->
+              (server, servers, localResponse) ~> primary @@ nobody
+          response <- (primary @@ nobody) `congruently` \un ->
+              case nub (un refl responses) of [r] -> r
+                                              rs -> Desynchronization rs
+          broadcast (primary, response)   }
+  where servers = primary @@ backups
+
+data ReplicationStrategy ps m = forall primary rigging. (KnownSymbol primary) =>
+  ReplicationStrategy { primary :: Member primary ps
+                      , setup :: Choreo ps m rigging
+                      , handle :: forall starts w. (Wrapped w)
+                               => rigging -> Member primary starts -> w starts Request
+                               -> Choreo ps m Response  }
+
+data Request = Put String String  | Get String  | Stop  deriving (Eq, Ord, Read, Show)
+
+data Response = Found String  | NotFound  | Stopped  | Desynchronization [Response]
+                deriving (Eq, Ord, Read, Show)
+
+-- | PUT returns the old stored value; GET returns whatever was stored.
+handleRequest :: (MonadIO m) => IORef State -> Request -> m Response
+handleRequest stateRef (Put key value) = mlookup key <$> modifyIORef stateRef (Map.insert key value)
+handleRequest stateRef (Get key) = mlookup key <$> readIORef stateRef
+handleRequest _         Stop = return Stopped
+
+mlookup :: String -> State -> Response
+mlookup key = maybe NotFound Found . Map.lookup key
+
 type State = Map String String
-
-data Request = Put String String
-             | Get String
-             | Stop
-             deriving (Eq, Ord, Read, Show)
-
-data Response = Found String
-              | NotFound
-              | Stopped
-              | Desynchronization [Response]
-              deriving (Eq, Ord, Read, Show)
 
 newtype Args = Args [Request] deriving (Eq, Ord, Read, Show)
 instance Arbitrary Args where
@@ -57,9 +94,6 @@ instance Arbitrary Args where
                                    ]
 
 
-mlookup :: String -> State -> Response
-mlookup key = maybe NotFound Found . Map.lookup key
-
 readRequest :: CLI m Request
 readRequest = do line <- getstr "Command?"
                  case line of
@@ -67,20 +101,6 @@ readRequest = do line <- getstr "Command?"
                    _ -> case readMaybe line of
                      Just t -> return t
                      Nothing -> putNote "Invalid command" >> readRequest
-
--- | PUT returns the old stored value; GET returns whatever was stored.
-handleRequest :: (MonadIO m) => IORef State -> Request -> m Response
-handleRequest stateRef (Put key value) = mlookup key <$> modifyIORef stateRef (Map.insert key value)
-handleRequest stateRef (Get key) = mlookup key <$> readIORef stateRef
-handleRequest _         Stop = return Stopped
-
-data ReplicationStrategy ps m = forall primary rigging. (KnownSymbol primary) =>
-  ReplicationStrategy { primary :: Member primary ps
-                      , setup :: Choreo ps m rigging
-                      , handle :: forall starts w. (Wrapped w)
-                               => rigging -> Member primary starts -> w starts Request
-                               -> Choreo ps m Response
-                      }
 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy :: (KnownSymbol primary, KnownSymbols ps, MonadIO m)
@@ -93,25 +113,6 @@ nullReplicationStrategy primary =
                            (primary, \un -> handleRequest (un singleton stateRef) (un pHas request)) ~~> refl
                          ) >>= naked refl
                      }
-
-naryReplicationStrategy :: (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m)
-                        => Member primary ps -> Subset backups ps -> ReplicationStrategy ps m
-naryReplicationStrategy primary backups = ReplicationStrategy{
-      primary
-    , setup = servers `fanOut` \server ->
-                inSuper servers server `_locally` newIORef (Map.empty :: State)
-    , handle = \stateRef pHas request -> do
-        request' <- (primary, (pHas, request)) ~> servers
-        localResponse <- servers `parallel` \server un ->
-            handleRequest (un server stateRef) (un server request')
-        responses <- fanIn servers (primary @@ nobody) \server ->
-            (server, servers, localResponse) ~> primary @@ nobody
-        response <- (primary @@ nobody) `congruently` \un ->
-            case nub (un refl responses) of [r] -> r
-                                            rs -> Desynchronization rs
-        (primary, response) ~> refl >>= naked refl
-    }
-  where servers = primary @@ backups
 
 
 naryHumans :: (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m)
@@ -139,17 +140,6 @@ naryHumans primary backups =
                               [] -> return NotFound
                               _ -> return $ Found line
 
-
-kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
-kvs ReplicationStrategy{setup, primary, handle} client = do
-  rigging <- setup
-  let go = do request <- (client, readRequest) -~> primary @@ nobody
-              response <- handle rigging singleton request
-              case response of
-                Stopped -> return ()
-                _ -> do client `_locally_` putOutput "Recieved:" response
-                        go
-  go
 
 {-main :: IO ()
 main = do
