@@ -44,12 +44,9 @@ instance TestArgs Args (Bool, Bool, Bool) where
 instance Arbitrary Args where
   arbitrary = Args <$> listOf1 arbitrary <*> arbitrary
 
-{- The game is very simple, a bit like black-jack.
- - The dealer gives everyone a card, face up.
- - Each player asks for another card, or not.
- - Then the dealer reveals one more card that applies to everyone.
- - Each player individually wins or looses; they win if the sum of their cards (modulo 21) is greater than 19.
- -}
+{- A simple black-jack-style game. The dealer gives everyone a card, face up. Each player may
+ - request a second card. Then the dealer reveals one more card that applies to everyone. Each
+ - player individually wins if the sum of their cards (modulo 21) is greater than 19.  -}
 game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) (CLI m) ()
 game = do
   let players = consSuper (allOf @players)
