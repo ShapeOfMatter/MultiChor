@@ -93,6 +93,7 @@ library examples
         , CardGame
         , DelegationFig20
         , DiffieHellman
+        , ExampleChor
         , GMWReal
         , Karatsuba
         , KVS1Simple
