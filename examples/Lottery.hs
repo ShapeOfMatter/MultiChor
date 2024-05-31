@@ -85,14 +85,14 @@ lottery clients servers analyst = do
   -- Salt value
   ψ <- _parallel servers (randomRIO (2^(18::Int), 2^(20::Int)))
   -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
-  α_ <- parallel servers \server un -> pure $ hash (un server ψ) (un server ρ)
-  α <- fanIn servers servers ( \server -> (server, servers, α_) ~> servers )
+  α <- parallel servers \server un -> pure $ hash (un server ψ) (un server ρ)
+  α' <- fanIn servers servers ( \server -> (server, servers, α) ~> servers )
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
   ψ' <- fanIn servers servers ( \server -> (server, servers, ψ) ~> servers )
   ρ' <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers )
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   parallel_ servers (\server un ->
-      unless (un server α == zipWith hash (un server ψ') (un server ρ'))
+      unless (un server α' == zipWith hash (un server ψ') (un server ρ'))
              (liftIO $ throwIO CommitmentCheckFailed)
     )
   -- 5) If all the checks are successful, then sum random values to get the random index.
