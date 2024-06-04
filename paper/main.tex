@@ -187,23 +187,26 @@ and by statically ensuring deadlock freedom and preventing other errors
 specific to concurrent settings.
 Despite decades of evolving and advancing theory,
 implementations of choreographic programming \textit{per se} are relatively young.
+
 One limitation on the use of choreographies has been that they encode exactly who is doing what,
 while protocols used in the real world are often
 parameterized by their participants.
 Location-polymorphism~\cite{graversen2023polychor} addressed part of this limitation
-by letting rolls in a choreography be filled by different participants in different cases,
+by letting roles in a choreography be filled by different participants in different cases,
 but did not enable a choreography to work for different \emph{numbers of} participants.
+This lack of polymorphism over the number of participants in previous approaches makes it impossible to write general implementations of many important classes of practical protocols, including approaches for federated machine learning~\cite{bonawitz2019towards, wu2020safa, li2021model} and secure computation~\cite{keller2020mp, corrigan2017prio, bonawitz2017practical, dprio2023, goldreich2019play}.
 
 Choreographic programming was introduced to the Haskell ecosystem
-in 2023 in the form of the \HasChor library;
+in 2023 in the form of the \HasChor library~\cite{haschor};
 \HasChor's techniques for \emph{implementing} choreographic systems have proven effective
 and adaptable (\textit{e.g.} the comparable implementation of ChoRus~\cite{chorus}),
-but the semantics offered fell short of the pre-existing JVM system Choral~\cite{choral}
-in certain ways.
-We present \MultiChor, a new library for writing choreographies in Haskell.
+but the communication efficiency of these approaches can sometimes be worse than previous standalone systems (e.g. Choral~\cite{choral}).
 
-\subsection{Contributions}\label{sec:contributions}
-\begin{itemize}
+We present \MultiChor, a new library for writing choreographies in Haskell. \MultiChor enables efficient communication via \emph{multiply located values} and supports \emph{census polymorphism} to allow variable numbers of participants. Our case studies demonstrate the use of \MultiChor to implement general versions of variable-participant protocols, including two for secure computation.
+
+\paragraph{Contributions}\label{sec:contributions}
+In summary, our contributions are:
+\begin{itemize}[leftmargin=12pt]
     \item A working implementation of the multi\-/local\-/\&\-/multicast choreographic paradigm
     in Haskell.
     Compared to prior implementations, this system allows better communication efficiency
@@ -213,9 +216,9 @@ We present \MultiChor, a new library for writing choreographies in Haskell.
     These allow \MultiChor to express complicated protocols with variable numbers of participants.
     \item Examples demonstrating how these language features, and \MultiChor specifically,
     can concisely and correctly implement complex choreographies,
-    including a complete implementation of the GMW protocol for SMPC.
+    including the GMW protocol for secure computation~\cite{goldreich2019play}.
 \end{itemize}
-
+\newpage
 \section{Choreographic Programming}\label{sec:background}
 
 
