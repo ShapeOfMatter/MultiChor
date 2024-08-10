@@ -1,5 +1,5 @@
 %\documentclass[sigplan,screen,review]{acmart}
-\documentclass[sigplan,screen,review,anonymous]{acmart}
+\documentclass[sigplan,screen]{acmart}
 
 %% TODO
 \setcopyright{acmlicensed}
@@ -32,9 +32,9 @@
 \usepackage[shortcuts]{extdash} % https://stackoverflow.com/a/8649145/10135377
 \usepackage{mathtools}
 \usepackage{mdframed}
-%\usepackage[frozencache=true,cachedir=minted-cache]{minted}
+\usepackage[frozencache=true,cachedir=minted-cache]{minted}
 %\usepackage[finalizecache,cachedir=minted-cache]{minted}
-\usepackage{minted}
+%\usepackage{minted}
 \usepackage{newunicodechar}
 \usepackage{phoenician}
 \usepackage{textgreek}
@@ -218,7 +218,7 @@ In summary, our contributions are:
     can concisely and correctly implement complex choreographies,
     including the GMW protocol for secure computation~\cite{goldreich2019play}.
 \end{itemize}
-\newpage
+
 \section{Choreographic Programming}\label{sec:background}
 
 
@@ -300,7 +300,7 @@ Our work aims to fill two gaps in existing work on choreographic programming:
 The rest of this section describes related work in the context of these limitations; Section~\ref{sec:library} introduces \MultiChor, our library-based approach for choreographic programming that addresses both limitations.
 
 \paragraph{Census}\label{sec:census}
-It is common for a choreographies to be associated with the list of parties who participate in them;
+It is common for a choreography to be associated with the list of parties who participate in it;
 we call such a list a "\textbf{census}".
 When considering a choreography whose census is known, one may \emph{safely pretend} that
 the census is an exhaustive list of all parties in existence.
@@ -558,7 +558,7 @@ In all cases, these are proofs that the identified party is a member of some set
 or that the identified set is a subset of some other set.
 The suite of operations for building such proofs is founded on four uses of
 \inlinecode[text]{gdp}'s \inlinecode{Logic.Proof.axiom}
-and instances of \inlinecode{Subset} for \inlinecode{Logic.Classes.Reflexive}
+and instances for \inlinecode{Subset} of \inlinecode{Logic.Classes.Reflexive}
 (which affords the proof \inlinecode{refl})
 and \inlinecode{Transitive} (which affords the proof \inlinecode{transitive})~\cite{gdp_hackage}.
 In situations where the census and all identities are known explicitly,
@@ -576,7 +576,7 @@ than can be used analogously to the empty-list and list-cons constructors:
 \begin{minted}[xleftmargin=10pt,fontsize=\small]{haskell}
 nobody :: Subset '[] ys
 (@@) :: Member x ys -> Subset xs ys
-      ->Subset (x ': xs) ys
+     -> Subset (x ': xs) ys
 \end{minted}
 %
 For example, in Figure~\ref{fig:card-game} line~18, the first argument to the
@@ -1059,7 +1059,7 @@ lottery clients servers analyst = do
 
 \subsection{Federated lottery}
 DPrio~\cite{dprio2023} is a recent variation on a secure-aggregation
-protocol called Prio~\cite{prio2017}.
+protocol called Prio~\cite{corrigan2017prio}.
 DPrio supports all of the same security guarantees as Prio and adds a layer of
 differential privacy (DP)
 so that client inputs cannot be inferred by the receiving analyst.

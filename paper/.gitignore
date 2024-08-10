@@ -1,0 +1,14 @@
+MultiChor.pdf
+Multichor_appendix.pdf
+MultiChor_authored.pdf
+MultiChor_body.pdf
+*.cut
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pyg
+minted-cache
+arxiv-multichor.zip
+
