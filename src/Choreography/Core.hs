@@ -16,29 +16,21 @@ module Choreography.Core (
   , explicitMember
   , ExplicitSubset
   , explicitSubset
-  , Faceted()
-  , fanIn
-  , fanOut
   , flatten
-  , fracture
   , inSuper
   , type IsMember
   , type IsSubset
   , KnownSymbols()
-  , localize
   , LocTm
   , LocTy
   , Located()
+  , locally
   , Member
-  , naked
-  , parallel
   , runChoreo
   , Subset
   , toLocTm
   , toLocs
   , Unwrap
-  , Unwraps
-  , Wrapped()
 ) where
 
 import Choreography.Internal.Choreo

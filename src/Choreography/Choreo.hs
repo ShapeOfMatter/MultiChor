@@ -9,12 +9,12 @@ module Choreography.Choreo (
   , cond
   , enclaveTo
   , enclaveToAll
-  , locally
+  --, locally
   , locally_
   , _locally
   , _locally_
-  , parallel_
-  , _parallel
+  --, parallel_
+  --, _parallel
   , (~>)
   , (~~>)
   , (-~>)
@@ -29,28 +29,28 @@ import GHC.TypeLits
 
 --class CanSend loc val owners census struct | struct -> loc val owners census where
   --normalSendArgs :: struct -> (Member loc census, Member loc owners, val)
-class (Wrapped w, KnownSymbol loc) => CanSend struct loc val owners census w | struct -> loc val owners census w where
+class (KnownSymbol loc) => CanSend struct loc val owners census | struct -> loc val owners census where
   presentToSend :: struct -> Member loc census
   ownsMessagePayload :: struct -> Member loc owners
-  structMessagePayload :: struct -> w owners val
+  structMessagePayload :: struct -> Located owners val
 
-instance (Wrapped w, KnownSymbol l) => CanSend (Member l ps, (Member l ls, w ls a)) l a ls ps w where
+instance (KnownSymbol l) => CanSend (Member l ps, (Member l ls, Located ls a)) l a ls ps where
   presentToSend = fst
   ownsMessagePayload = fst . snd
   structMessagePayload = snd . snd
 
-instance (Wrapped w, KnownSymbol l, ExplicitMember l ls) => CanSend (Member l ps, w ls a) l a ls ps w where
+instance (KnownSymbol l, ExplicitMember l ls) => CanSend (Member l ps, Located ls a) l a ls ps where
   presentToSend = fst
   ownsMessagePayload = const explicitMember
   structMessagePayload = snd
 
-instance (Wrapped w, KnownSymbol l) => CanSend (Member l ls, Subset ls ps, w ls a) l a ls ps w where
+instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l a ls ps where
   presentToSend (m, s, _) = inSuper s m
   ownsMessagePayload (m, _, _) = m
   structMessagePayload (_, _, p) = p
 
 -- | Communication between a sender and a receiver.
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps w)
+(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps)
      => s  -- ^ The message argument can take three forms:
            --     `(Member sender census, wrapped owners a)` where the sender is explicitly listed in owners,
            --     `(Member sender owners, Subset owners census, wrapped owners a)`, or
@@ -58,7 +58,8 @@ instance (Wrapped w, KnownSymbol l) => CanSend (Member l ls, Subset ls ps, w ls 
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-s ~> rs = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s) rs
+s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ comm listedFirst (ownsMessagePayload s, structMessagePayload s)
+             enclave rs $ congruently (\un -> un consSet x)
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
@@ -68,17 +69,21 @@ cond :: (KnownSymbols ls)
      -> Choreo ps m (Located ls b)
 cond (ls, (owns, a)) c = enclave ls $ naked owns a >>= c
 
-
+naked :: (KnownSymbols ps)
+      => Subset ps qs
+      -> Located qs a
+      -> Choreo ps m a
+naked ownership a = congruently (\un -> un ownership a)
 
 
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-      => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
+      => (Member l ps, Unwrap '[l] -> m a) -- ^ A pair of a sender's location and a local computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
 (~~>) (l, m) ls' = do
-  x <- l `locally` m
+  x <- enclave (l @@ nobody) $ locally m
   (l, x) ~> ls'
 
 -- | A variant of `~>` that sends the result of a local action that doesn't use existing bound variables.
@@ -92,12 +97,13 @@ infix 4 -~>
   (l, x) ~> ls'
 
 
-broadcast :: forall l a ps ls w m s.
-             (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps w)
+broadcast :: forall l a ps ls m s.
+             (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps)
           => s
           -> Choreo ps m a
-broadcast s = (s ~> allOf @ps) >>= naked (allOf @ps)
+broadcast s = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
 
+{-
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)
           => Subset ls ps
@@ -116,24 +122,24 @@ locally :: (KnownSymbol (l :: LocTy))
         -> Choreo ps m (Located '[l] a)
 infix 4 `locally`
 locally l m = localize singleton <$> parallel (l @@ nobody) (\l' un -> m (\lLS -> un (inSuper (consSub nobody lLS) l')))
-
+-}
 locally_ :: (KnownSymbol l)
         => Member l ps
-        -> (Unwrap l -> m ())
+        -> (Unwrap '[l] -> m ())
         -> Choreo ps m ()
 infix 4 `locally_`
-locally_ l m = void $ locally l m
+locally_ l m = void $ enclave (l @@ nobody) $ locally m
 
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
         -> Choreo ps m (Located '[l] a)
 infix 4 `_locally`
-_locally l m = locally l $ const m
+_locally l m = enclave (l @@ nobody) $ locally $ const m
 
 _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 infix 4 `_locally_`
-_locally_ l m = void $ locally l (const m)
+_locally_ l m = void $ enclave (l @@ nobody) $ locally (const m)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   This version, where the returned value is Located at the entire enclave, does not add a Located layer.

@@ -4,7 +4,7 @@
 -- | This module defines locations and located values.
 module Choreography.Internal.Location where
 
-import Data.Maybe (fromMaybe)
+--import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 import Logic.Proof (Proof, axiom)
@@ -26,21 +26,17 @@ data Located (ls :: [LocTy]) a
 wrap :: a -> Located l a
 wrap = Wrap
 
+-- | Unwraps values known to the specified party or parties.
+type Unwrap (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
+
 -- | Unwrap a `Located` value.
 --Unwrapping a empty located value will throw an exception!
-unwrap :: Subset qs ls -> Located ls a -> a
+unwrap :: Unwrap ls
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
--- | A unified representation of possibly-distinct homogeneous values owned by many parties.
-newtype Faceted (ls :: [LocTy]) a = Faceted [(LocTm, a)]
-
--- | Unwrap a `Faceted` value.
---Unwrapping an empty faceted value will throw an exception!
-mine :: (KnownSymbol l) => Member l ls -> Faceted ls a -> a
-mine l (Faceted facets) = fromMaybe (error "Faceted: This should never happen for a well-typed choreography.")
-                                    $ toLocTm l `lookup` facets
-
+unwrap' :: forall q ls a. Member q ls -> Located ls a -> a
+unwrap' p = unwrap (consSub (explicitSubset @'[]) p)
 
 -- GDP has its own list logic, but IDK how to use it...
 data IsMember (x :: k) (xs :: [k]) where {}
@@ -111,21 +107,3 @@ flatten _ _ Empty = Empty
 flatten _ _ (Wrap Empty) = Empty
 flatten _ _ (Wrap (Wrap a)) = Wrap a
 
--- | Get the singlely-`Located` value of a `Faceted` at a given location.
-localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
-localize l (Faceted facets) = maybe Empty Wrap $ toLocTm l `lookup` facets
-
--- | Use a `Located` as a `Faceted`.
-fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
-fracture Empty = Faceted []
-fracture (Wrap a) = Faceted $ (, a) <$> toLocs (refl :: Subset ls ls)
-
-class Wrapped w where
-  -- | Unwrap a `Located` or a `Faceted`. Can error if misused.
-  unwrap' :: (KnownSymbol l) => Member l ls -> w ls a -> a
-
-instance Wrapped Located where
-  unwrap' = unwrap . (consSub @'[]) explicitSubset
-
-instance Wrapped Faceted where
-  unwrap' = mine
