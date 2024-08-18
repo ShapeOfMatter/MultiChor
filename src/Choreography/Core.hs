@@ -21,6 +21,7 @@ module Choreography.Core (
   , Located()
   , locally
   , Member
+  , nobody
   , refl
   , runChoreo
   , Subset

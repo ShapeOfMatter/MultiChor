@@ -4,6 +4,10 @@
 -- | This module defines locations and located values.
 module Choreography.Location (
     allOf
+  , ExplicitMember
+  , explicitMember
+  , ExplicitSubset
+  , explicitSubset
   , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
   , mkLoc
   , nobody
@@ -15,10 +19,6 @@ import Language.Haskell.TH
 
 import Choreography.Core
 
-
--- | The `[]` case of subset proofs.
-nobody :: Subset '[] ys
-nobody = \case {}  -- might be a nicer way to write that...
 
 allOf :: forall ps. Subset ps ps
 allOf = refl
@@ -52,7 +52,7 @@ listedSixth = inSuper (consSuper refl) listedFifth
 class ExplicitMember (x :: k) (xs :: [k]) where
   explicitMember :: Member x xs
 instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
-  explicitMember = consSet explicitMember
+  explicitMember = inSuper consSet explicitMember
 instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
   explicitMember = listedFirst
 

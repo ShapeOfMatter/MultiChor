@@ -107,7 +107,7 @@ forLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]) m.
 forLocs f ls = case tyUnCons @ls of
                  TyCons ->  -- If I put this in do-notation it won't typecheck and I have no idea why.
                      f First >>= (\b ->
-                       forLocs (f . inSuper Later) (transitive Later ls)
+                       forLocs (f . Later) (transitive consSet ls)
                        >>= (\fTail ->
                          return \(z :: Member l'' ls) -> case z of
                            First -> b

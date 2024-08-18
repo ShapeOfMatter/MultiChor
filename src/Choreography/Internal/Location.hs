@@ -36,7 +36,7 @@ unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
 unwrap' :: forall q ls a. Member q ls -> Located ls a -> a
-unwrap' p = unwrap (consSub @'[] (\case {}) p)
+unwrap' p = unwrap (consSub @'[] (Subset \case {}) p)
 
 -- GDP has its own list logic, but IDK how to use it...
 data Member (x :: k) (xs :: [k]) where
@@ -44,13 +44,13 @@ data Member (x :: k) (xs :: [k]) where
   Later :: Member x xs -> Member x (y ': xs)
 --data IsMember (x :: k) (xs :: [k]) where {}
 --type Member x xs = Proof (IsMember x xs)
-type Subset xs ys = forall x. Member x xs -> Member x ys
+newtype Subset xs ys = Subset { memberships :: forall x. Member x xs -> Member x ys }
 --data IsSubset (xs :: [k]) (ys :: [k]) where {}
 --type Subset xs ys = Proof (IsSubset xs ys)
 refl :: Subset xs xs
-refl = id
+refl = Subset id
 transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
-transitive sxy syz = syz . sxy -- why can't this just be flip (.)?
+transitive sxy syz = Subset $ memberships syz . memberships sxy
 --instance Reflexive IsSubset where {}
 --instance Transitive IsSubset where {}
 
@@ -64,19 +64,24 @@ instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
 listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
 listedFirst = First
 
+-- | The `[]` case of subset proofs.
+nobody :: Subset '[] ys
+nobody = Subset \case {}  -- might be a nicer way to write that...
+
 consSet :: Subset xs (x ': xs)
-consSet = Later
+consSet = Subset Later
 
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
-consSub _sxy mxy First = mxy
-consSub sxy _mxy (Later mxxs) = sxy mxxs
+consSub sxy mxy = Subset \case
+  First -> mxy
+  Later mxxs -> memberships sxy mxxs
 --consSub = const $ const axiom
 
 inSuper :: Subset xs ys -> Member x xs -> Member x ys
-inSuper sxy = sxy -- Why can't this just be id?
+inSuper (Subset sxy) = sxy -- Why can't this just be id?
 
 {-class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
@@ -108,7 +113,7 @@ instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
 -- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
 mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]). KnownSymbols ls => (forall l. (KnownSymbol l) => Member l ls -> b) -> Subset ls ps -> [b]
 mapLocs f ls = case tyUnCons @ls of
-                 TyCons -> f First : (f . inSuper Later) `mapLocs` transitive Later ls
+                 TyCons -> f First : (f . Later) `mapLocs` transitive consSet ls
                  TyNil -> []
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
