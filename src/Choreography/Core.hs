@@ -4,7 +4,8 @@ This is the membrane between internal and external code; only here and /src/Netw
 and everything they export should be safe for users to use.
 -}
 module Choreography.Core (
-    Choreo
+    alone
+  , Choreo
   , comm
   , congruently
   , consSet
@@ -19,7 +20,6 @@ module Choreography.Core (
   , LocTm
   , LocTy
   , Located()
-  , locally
   , Member
   , nobody
   , refl

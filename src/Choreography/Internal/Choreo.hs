@@ -19,7 +19,7 @@ import Control.Monad.Freer
 
 
 data ChoreoSig (ps :: [LocTy]) m a where
-  Locally :: (KnownSymbol l)
+  Alone :: (KnownSymbol l)
         => (Unwrap '[l] -> m a)
         -> ChoreoSig '[l] m a
 
@@ -45,7 +45,7 @@ runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
 runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig ps m a -> m a
-    handler (Locally m) = m unwrap
+    handler (Alone m) = m unwrap
     handler (Congruent f) = return . f $ unwrap -- Technically doesn't protect against empty census...
     handler (Comm _ (p, a)) = return $ unwrap' p a
     handler (Enclave _ c) = wrap <$> runChoreo c
@@ -55,7 +55,7 @@ epp :: forall ps b m. (Monad m, KnownSymbols ps) => Choreo ps m b -> LocTm -> Ne
 epp c l' = interpFreer handler c
   where
     handler :: ChoreoSig ps m a -> Network m a
-    handler (Locally m) = run $ m unwrap
+    handler (Alone m) = run $ m unwrap
     handler (Congruent f) = return . f $ unwrap
     handler (Comm s (l, a)) = do
       let sender = toLocTm s
@@ -69,10 +69,10 @@ epp c l' = interpFreer handler c
       | otherwise       = return Empty
 
 -- | Access to the inner "local" monad. The parties are not guarenteed to take the same actions, and may use `Faceted`s.
-locally :: (KnownSymbol l)
-         => (Unwrap '[l] -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
-         -> Choreo '[l] m a
-locally m = toFreer (Locally m)
+alone :: (KnownSymbol l)
+      => (Unwrap '[l] -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
+      -> Choreo '[l] m a
+alone m = toFreer (Alone m)
 
 -- | Perform the exact same computation in replicate at multiple locations.
 --"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.

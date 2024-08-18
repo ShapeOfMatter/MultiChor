@@ -9,7 +9,7 @@ module Choreography.Choreo (
   , cond
   , enclaveTo
   , enclaveToAll
-  --, locally
+  , locally
   , locally_
   , _locally
   , _locally_
@@ -83,7 +83,7 @@ naked ownership a = congruently (\un -> un ownership a)
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
 (~~>) (l, m) ls' = do
-  x <- enclave (l @@ nobody) $ locally m
+  x <- locally l m
   (l, x) ~> ls'
 
 -- | A variant of `~>` that sends the result of a local action that doesn't use existing bound variables.
@@ -113,33 +113,33 @@ parallel_ ls m = void $ parallel ls m
 
 _parallel :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> m a -> Choreo ps m (Faceted ls a)
 _parallel ls m = parallel ls \_ _ -> m
+-}
 
 -- | Perform a local computation at a given location.
 locally :: (KnownSymbol (l :: LocTy))
         => Member l ps           -- ^ Location performing the local computation.
-        -> (Unwrap l -> m a) -- ^ The local computation given a constrained
+        -> (Unwrap '[l] -> m a) -- ^ The local computation given a constrained
                              -- unwrap funciton.
         -> Choreo ps m (Located '[l] a)
 infix 4 `locally`
-locally l m = localize singleton <$> parallel (l @@ nobody) (\l' un -> m (\lLS -> un (inSuper (consSub nobody lLS) l')))
--}
+locally l m = enclave (l @@ nobody) $ alone m
 locally_ :: (KnownSymbol l)
         => Member l ps
         -> (Unwrap '[l] -> m ())
         -> Choreo ps m ()
 infix 4 `locally_`
-locally_ l m = void $ enclave (l @@ nobody) $ locally m
+locally_ l m = void $ locally l m
 
 _locally :: (KnownSymbol l)
         => Member l ps
         -> m a
         -> Choreo ps m (Located '[l] a)
 infix 4 `_locally`
-_locally l m = enclave (l @@ nobody) $ locally $ const m
+_locally l m = locally l $ const m
 
 _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 infix 4 `_locally_`
-_locally_ l m = void $ enclave (l @@ nobody) $ locally (const m)
+_locally_ l m = void $ locally l (const m)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
