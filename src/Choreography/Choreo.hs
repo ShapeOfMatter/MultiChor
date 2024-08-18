@@ -78,7 +78,7 @@ naked ownership a = congruently (\un -> un ownership a)
 
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-      => (Member l ps, Unwrap '[l] -> m a) -- ^ A pair of a sender's location and a local computation.
+      => (Member l ps, Unwrap l -> m a) -- ^ A pair of a sender's location and a local computation.
       -> Subset ls' ps                   -- ^ A receiver's location.
       -> Choreo ps m (Located ls' a)
 infix 4 ~~>
@@ -118,14 +118,14 @@ _parallel ls m = parallel ls \_ _ -> m
 -- | Perform a local computation at a given location.
 locally :: (KnownSymbol (l :: LocTy))
         => Member l ps           -- ^ Location performing the local computation.
-        -> (Unwrap '[l] -> m a) -- ^ The local computation given a constrained
+        -> (Unwrap l -> m a) -- ^ The local computation given a constrained
                              -- unwrap funciton.
         -> Choreo ps m (Located '[l] a)
 infix 4 `locally`
 locally l m = enclave (l @@ nobody) $ alone m
 locally_ :: (KnownSymbol l)
         => Member l ps
-        -> (Unwrap '[l] -> m ())
+        -> (Unwrap l-> m ())
         -> Choreo ps m ()
 infix 4 `locally_`
 locally_ l m = void $ locally l m

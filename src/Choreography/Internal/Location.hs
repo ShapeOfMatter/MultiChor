@@ -27,16 +27,19 @@ wrap :: a -> Located l a
 wrap = Wrap
 
 -- | Unwraps values known to the specified party or parties.
-type Unwrap (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
+type Unwrap (q :: LocTy) = forall ls a. Member q ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
+type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
 
 -- | Unwrap a `Located` value.
 --Unwrapping a empty located value will throw an exception!
-unwrap :: Unwrap ls
+unwrap :: Unwrap q
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
+--unwraps :: Unwraps ls
+--unwrap qs la = 
+--unwraps _ (Wrap a) = a
+--unwraps _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
-unwrap' :: forall q ls a. Member q ls -> Located ls a -> a
-unwrap' p = unwrap (consSub @'[] (Subset \case {}) p)
 
 -- GDP has its own list logic, but IDK how to use it...
 data Member (x :: k) (xs :: [k]) where
