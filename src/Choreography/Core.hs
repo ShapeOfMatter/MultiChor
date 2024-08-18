@@ -12,24 +12,21 @@ module Choreography.Core (
   , consSuper
   , enclave
   , epp
-  , ExplicitMember
-  , explicitMember
-  , ExplicitSubset
-  , explicitSubset
   , flatten
   , inSuper
-  , type IsMember
-  , type IsSubset
   , KnownSymbols()
+  , listedFirst
   , LocTm
   , LocTy
   , Located()
   , locally
   , Member
+  , refl
   , runChoreo
   , Subset
   , toLocTm
   , toLocs
+  , transitive
   , Unwrap
 ) where
 

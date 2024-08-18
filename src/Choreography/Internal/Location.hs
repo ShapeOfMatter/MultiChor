@@ -7,8 +7,8 @@ module Choreography.Internal.Location where
 --import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
-import Logic.Proof (Proof, axiom)
-import Logic.Classes (Reflexive, refl, Transitive, transitive)
+--import Logic.Proof (Proof, axiom)
+--import Logic.Classes (Reflexive, refl, Transitive, transitive)
 
 -- | Term-level locations.
 type LocTm = String
@@ -27,7 +27,7 @@ wrap :: a -> Located l a
 wrap = Wrap
 
 -- | Unwraps values known to the specified party or parties.
-type Unwrap (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
+type Unwrap (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
 
 -- | Unwrap a `Located` value.
 --Unwrapping a empty located value will throw an exception!
@@ -36,65 +36,80 @@ unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
 unwrap' :: forall q ls a. Member q ls -> Located ls a -> a
-unwrap' p = unwrap (consSub (explicitSubset @'[]) p)
+unwrap' p = unwrap (consSub @'[] (\case {}) p)
 
 -- GDP has its own list logic, but IDK how to use it...
-data IsMember (x :: k) (xs :: [k]) where {}
-type Member x xs = Proof (IsMember x xs)
-data IsSubset (xs :: [k]) (ys :: [k]) where {}
-type Subset xs ys = Proof (IsSubset xs ys)
-instance Reflexive IsSubset where {}
-instance Transitive IsSubset where {}
+data Member (x :: k) (xs :: [k]) where
+  First :: Member x (x ': xs)
+  Later :: Member x xs -> Member x (y ': xs)
+--data IsMember (x :: k) (xs :: [k]) where {}
+--type Member x xs = Proof (IsMember x xs)
+type Subset xs ys = forall x. Member x xs -> Member x ys
+--data IsSubset (xs :: [k]) (ys :: [k]) where {}
+--type Subset xs ys = Proof (IsSubset xs ys)
+refl :: Subset xs xs
+refl = id
+transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
+transitive sxy syz = syz . sxy -- why can't this just be flip (.)?
+--instance Reflexive IsSubset where {}
+--instance Transitive IsSubset where {}
 
-class ExplicitMember (x :: k) (xs :: [k]) where
+{-class ExplicitMember (x :: k) (xs :: [k]) where
   explicitMember :: Member x xs
 instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
   explicitMember = inSuper consSet explicitMember
 instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
-  explicitMember = axiom
+  explicitMember = axiom-}
+
+listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
+listedFirst = First
 
 consSet :: Subset xs (x ': xs)
-consSet = consSuper refl  -- these are circular, is that bad?
+consSet = Later
 
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
-consSub = const $ const axiom
+consSub _sxy mxy First = mxy
+consSub sxy _mxy (Later mxxs) = sxy mxxs
+--consSub = const $ const axiom
 
 inSuper :: Subset xs ys -> Member x xs -> Member x ys
-inSuper _ _ = axiom
+inSuper sxy = sxy -- Why can't this just be id?
 
-class ExplicitSubset xs ys where
+{-class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
 
 instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
   explicitSubset = consSub explicitSubset explicitMember
 instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
-  explicitSubset = axiom
+  explicitSubset = axiom-}
 
 
 -- | Convert a proof-level location to a term-level location.
 toLocTm :: forall (l :: LocTy) (ps :: [LocTy]). KnownSymbol l => Member l ps -> LocTm
 toLocTm _ = symbolVal (Proxy @l)
 
-data TyUnCons ps = forall h ts. (KnownSymbol h, KnownSymbols ts) => TyCons (Member h ps) (Subset ts ps)
-                 | TyNil (Subset ps '[])
+data TyUnCons ps where
+    TyCons :: (KnownSymbol h, KnownSymbols ts) => TyUnCons (h ': ts)
+    TyNil :: TyUnCons '[]
 
 class KnownSymbols ls where
   tyUnCons :: TyUnCons ls
 
 instance KnownSymbols '[] where
-  tyUnCons = TyNil explicitSubset
+  tyUnCons = TyNil
 
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
-  tyUnCons = TyCons (explicitMember @Symbol @l @(l ': ls)) $ consSuper refl
+  tyUnCons = TyCons
+  --tyUnCons = TyCons (explicitMember @Symbol @l @(l ': ls)) $ consSuper refl
 
 -- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
 mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]). KnownSymbols ls => (forall l. (KnownSymbol l) => Member l ls -> b) -> Subset ls ps -> [b]
 mapLocs f ls = case tyUnCons @ls of
-                 TyCons h ts -> f h :  (f . inSuper ts) `mapLocs` transitive ts ls
-                 TyNil _ -> []
+                 TyCons -> f First : (f . inSuper Later) `mapLocs` transitive Later ls
+                 TyNil -> []
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]

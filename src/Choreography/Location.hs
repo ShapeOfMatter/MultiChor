@@ -12,14 +12,13 @@ module Choreography.Location (
 ) where
 
 import Language.Haskell.TH
-import Logic.Classes (refl)
 
 import Choreography.Core
 
 
 -- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
-nobody = explicitSubset
+nobody = \case {}  -- might be a nicer way to write that...
 
 allOf :: forall ps. Subset ps ps
 allOf = refl
@@ -27,15 +26,12 @@ allOf = refl
 -- | Use like `:` for subset proofs.
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
-(@@) = flip consSub
+a @@ bs = bs `consSub` a  -- SHould be able to use flip?
 
 
 singleton :: forall p. Member p (p ': '[])
 singleton = listedFirst  -- IKD why I can't just use id.
 
-
-listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
-listedFirst = explicitMember
 
 listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
 listedSecond = inSuper (consSuper refl) listedFirst
@@ -51,6 +47,21 @@ listedFifth = inSuper (consSuper refl) listedForth
 
 listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p5 ': p6 ': ps)
 listedSixth = inSuper (consSuper refl) listedFifth
+
+
+class ExplicitMember (x :: k) (xs :: [k]) where
+  explicitMember :: Member x xs
+instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
+  explicitMember = consSet explicitMember
+instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
+  explicitMember = listedFirst
+
+class ExplicitSubset xs ys where
+  explicitSubset :: Subset xs ys
+instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
+  explicitSubset = consSub explicitSubset explicitMember
+instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
+  explicitSubset = nobody
 
 
 

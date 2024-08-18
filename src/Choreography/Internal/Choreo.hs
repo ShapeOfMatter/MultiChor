@@ -2,6 +2,7 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Internal.Choreo where
@@ -10,7 +11,7 @@ import Control.Monad (when)
 import Data.List (delete)
 --import Data.Maybe (catMaybes)
 import GHC.TypeLits
-import Logic.Classes (refl)
+--import Logic.Classes (refl, transitive)
 
 import Choreography.Internal.Location
 import Choreography.Internal.Network
@@ -96,3 +97,21 @@ enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Lo
 infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch
 
+
+
+forLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]) m.
+           (KnownSymbols ls)
+        => (forall l. () => Member l ls -> Choreo ps m (b l))
+        -> Subset ls ps -- Maybe this can be more general?
+        -> Choreo ps m (forall l'. () => Member l' ls -> b l')
+forLocs f ls = case tyUnCons @ls of
+                 TyCons ->  -- If I put this in do-notation it won't typecheck and I have no idea why.
+                     f First >>= (\b ->
+                       forLocs (f . inSuper Later) (transitive Later ls)
+                       >>= (\fTail ->
+                         return \(z :: Member l'' ls) -> case z of
+                           First -> b
+                           Later lllll -> fTail lllll
+                           ))
+                 --f h :  (f . inSuper ts) `mapLocs` transitive ts ls
+                 TyNil -> return \case {}
