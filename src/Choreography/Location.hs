@@ -8,6 +8,8 @@ module Choreography.Location (
   , explicitMember
   , ExplicitSubset
   , explicitSubset
+  , Facet(..)
+  , Faceted
   , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
   , mkLoc
   , nobody
@@ -79,4 +81,7 @@ mkLoc loc = do
        , ValD (VarP locName) (NormalB (VarE em)) []
        ]
 
+newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
+
+type Faceted parties common a = forall p. Member p parties -> Facet a common p
 

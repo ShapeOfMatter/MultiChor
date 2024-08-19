@@ -14,6 +14,7 @@ module Choreography.Core (
   , enclave
   , epp
   , flatten
+  , forLocs
   , inSuper
   , KnownSymbols()
   , listedFirst
@@ -21,6 +22,7 @@ module Choreography.Core (
   , LocTy
   , Located()
   , Member
+  , memberships
   , nobody
   , refl
   , runChoreo

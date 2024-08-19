@@ -4,7 +4,6 @@ import Control.Concurrent.Async (mapConcurrently)
 import Data.Maybe (maybeToList)
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
-import Logic.Classes (refl)
 import Test.QuickCheck ( (===)
                        , ioProperty
                        , getPositive

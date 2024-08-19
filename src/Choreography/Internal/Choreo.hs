@@ -62,7 +62,7 @@ epp c l' = interpFreer handler c
     handler (Alone m) = run $ m unwrap
     handler (Congruent f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
                                 unwraps = case tyUnCons @ps of
-                                  TyNil -> undefined -- you can totally hit this, but maybe it's your own fault?
+                                  TyNil -> error "Undefined projection: the census is empty."
                                   TyCons -> unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
                             in return . f $ unwraps
     handler (Comm s (l, a)) = do
@@ -107,9 +107,9 @@ enclave proof ch = toFreer $ Enclave proof ch
 
 
 
-forLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]) m.
+forLocs :: forall b (ls :: [LocTy]) (ps :: [LocTy]) m.
            (KnownSymbols ls)
-        => (forall l. () => Member l ls -> Choreo ps m (b l))
+        => (forall l. (KnownSymbol l) => Member l ls -> Choreo ps m (b l))
         -> Subset ls ps -- Maybe this can be more general?
         -> Choreo ps m (forall l'. () => Member l' ls -> b l')
 forLocs f ls = case tyUnCons @ls of

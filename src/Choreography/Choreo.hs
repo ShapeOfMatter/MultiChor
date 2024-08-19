@@ -2,6 +2,7 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
 
 -- | This module defines `Choreo`, the monad for writing choreographies.
 module Choreography.Choreo (
@@ -13,8 +14,9 @@ module Choreography.Choreo (
   , locally_
   , _locally
   , _locally_
-  --, parallel_
-  --, _parallel
+  , parallel
+  , parallel_
+  , _parallel
   , (~>)
   , (~~>)
   , (-~>)
@@ -103,17 +105,25 @@ broadcast :: forall l a ps ls m s.
           -> Choreo ps m a
 broadcast s = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
 
-{-
+parallel :: forall ls a ps m.
+            (KnownSymbols ls)
+         => Subset ls ps
+         -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)
+         -> Choreo ps m (Faceted ls '[] a)
+parallel ls m = forLocs @(Facet a '[]) body ls
+  where body :: (KnownSymbol l) => Member l ls -> Choreo ps m (Facet a '[] l)
+        body mls = Facet <$> locally (memberships ls mls) (m mls)
+
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)
           => Subset ls ps
-          -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l ->m ())
+          -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m ())
           -> Choreo ps m ()
-parallel_ ls m = void $ parallel ls m
+parallel_ ls m = parallel ls m >>= (\(_ :: forall p. Member p ls -> Facet () '[] p) ->
+                    return ())   -- WHY CAN"T I JUST USE VOID???!!
 
-_parallel :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> m a -> Choreo ps m (Faceted ls a)
+_parallel :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> m a -> Choreo ps m (Faceted ls '[] a)
 _parallel ls m = parallel ls \_ _ -> m
--}
 
 -- | Perform a local computation at a given location.
 locally :: (KnownSymbol (l :: LocTy))
