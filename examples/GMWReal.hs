@@ -80,25 +80,25 @@ genShares partyNames x = do
   return $ zip partyNames $ xor (x : freeShares) : freeShares        -- make the sum equal to x
 
 secretShare :: forall parties p m. (KnownSymbols parties, KnownSymbol p, MonadIO m)
-            => Member p parties -> Located '[p] Bool -> Choreo parties m (Faceted parties Bool)
+            => Member p parties -> Located '[p] Bool -> Choreo parties m (Faceted parties '[] Bool)
 secretShare p value = do
   shares <- p `locally` \un -> genShares (toLocs $ allOf @parties) (un singleton value)
   allOf @parties `fanOut` \q ->
     (p, \un -> return $ fromJust $ toLocTm q `lookup` un singleton shares) ~~> q @@ nobody
 
-reveal :: forall ps m. (KnownSymbols ps) => Faceted ps Bool -> Choreo ps m Bool
+reveal :: forall ps m. (KnownSymbols ps) => Faceted ps '[] Bool -> Choreo ps m Bool
 reveal shares = let ps = allOf @ps
                 in xor <$> ((fanIn ps ps \p -> (p, (p, shares)) ~> ps) >>= naked ps)
 
 
 -- use OT to do multiplication
 fAnd :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
-     => Faceted parties Bool -> Faceted parties Bool -> Choreo parties (CLI m) (Faceted parties Bool)
+     => Faceted parties '[] Bool -> Faceted parties '[] Bool -> Choreo parties (CLI m) (Faceted parties '[] Bool)
 fAnd uShares vShares = do
   let partyNames = toLocs (allOf @parties)
       genBools = mapM (\name -> (name,) <$> randomIO)
-  a_j_s :: Faceted parties [(LocTm, Bool)] <- allOf @parties `_parallel` genBools partyNames
-  bs :: Faceted parties Bool  <- allOf @parties `fanOut` \p_j -> do
+  a_j_s :: Faceted parties '[] [(LocTm, Bool)] <- allOf @parties `_parallel` genBools partyNames
+  bs :: Faceted parties '[] Bool  <- allOf @parties `fanOut` \p_j -> do
       let p_j_name = toLocTm p_j
       b_i_s <- fanIn (allOf @parties) (p_j @@ nobody) \p_i ->
         if toLocTm p_i == p_j_name
@@ -116,7 +116,7 @@ fAnd uShares vShares = do
     in pure $ computeShare (un p_i uShares) (un p_i vShares) (un p_i a_j_s) (un p_i bs)
 
 gmw :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
-    => Circuit parties -> Choreo parties (CLI m) (Faceted parties Bool)
+    => Circuit parties -> Choreo parties (CLI m) (Faceted parties '[] Bool)
 gmw circuit = case circuit of
   InputWire p -> do        -- process a secret input value from party p
     value :: Located '[p] Bool <- p `_locally` getInput "Enter a secret input value:"

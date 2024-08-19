@@ -70,11 +70,11 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
           answer = recurse circuit
 
 
-secretShare :: (KnownSymbols parties, KnownSymbol p, Wrapped w, MonadIO m)
+secretShare :: (KnownSymbols parties, KnownSymbol p, MonadIO m)
             => Subset parties ps
             -> Member p ps
-            -> (Member p owners, w owners Bool)
-            -> Choreo ps m (Faceted parties Bool)
+            -> (Member p owners, Located owners Bool)
+            -> Choreo ps m (Faceted parties '[] Bool)
 secretShare parties p (ownership, value) = do
   shares <- p `locally` \un -> do (freeShares :: [Bool]) <- case partyNames of
                                                               [] -> return [] -- This can't actually happen/get used...
@@ -87,7 +87,7 @@ secretShare parties p (ownership, value) = do
   where partyNames = toLocs parties
 
 reveal :: forall ps m. (KnownSymbols ps)
-       => Faceted ps Bool
+       => Faceted ps '[] Bool
        -> Choreo ps m Bool
 reveal shares = do
   let ps = allOf @ps
@@ -100,7 +100,7 @@ computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, M
             => Member trustedAnd ps
             -> Subset parties ps
             -> Circuit parties
-            -> Choreo ps (CLI m) (Faceted parties Bool)
+            -> Choreo ps (CLI m) (Faceted parties '[] Bool)
 computeWire trustedAnd parties circuit = case circuit of
   InputWire p -> do
     value <- inSuper parties p `_locally` getInput "Enter a secret input value:"

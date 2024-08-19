@@ -64,8 +64,8 @@ naryReplicationStrategy primary backups = ReplicationStrategy{
 data ReplicationStrategy ps m = forall primary rigging. (KnownSymbol primary) =>
   ReplicationStrategy { primary :: Member primary ps
                       , setup :: Choreo ps m rigging
-                      , handle :: forall starts w. (Wrapped w)
-                               => rigging -> Member primary starts -> w starts Request
+                      , handle :: forall starts.
+                                  rigging -> Member primary starts -> Located starts Request
                                -> Choreo ps m Response  }
 
 data Request = Put String String  | Get String  | Stop  deriving (Eq, Ord, Read, Show)

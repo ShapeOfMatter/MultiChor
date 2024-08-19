@@ -8,12 +8,15 @@
 module Choreography.Choreo (
     broadcast
   , cond
+  , congruently
   , enclaveTo
   , enclaveToAll
+  , fanOut
   , locally
   , locally_
   , _locally
   , _locally_
+  , naked
   , parallel
   , parallel_
   , _parallel
@@ -110,6 +113,7 @@ congruently :: forall ls a ps m.
             => Subset ls ps
             -> (Unwraps ls -> a)
             -> Choreo ps m (Located ls a)
+infix 4 `congruently`
 congruently ls a = enclave ls $ purely a
 
 parallel :: forall ls a ps m.
@@ -175,3 +179,18 @@ enclaveTo :: forall ls a rs ps m.
 infix 4 `enclaveTo`
 enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> (subcensus `enclave` ch)
 
+
+-- | Perform a given choreography for each of several parties, giving each of them a return value that form a new `Faceted`.
+fanOut :: (KnownSymbols qs)
+       => Subset qs ps  -- ^ The parties to loop over.
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Facet a rs q))  -- ^ The body.
+       -> Choreo ps m (Faceted qs rs a)
+fanOut qs body = forLocs body qs
+
+{--- | Perform a given choreography for each of several parties; the return values are aggregated as a list located at the recipients.
+fanIn :: (KnownSymbols qs, KnownSymbols rs)
+       => Subset qs ps  -- ^ The parties who fan in.
+       -> Subset rs ps  -- ^ The recipients.
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
+       -> Choreo ps m (Located rs [a])
+fanIn qs rs body = toFreer $ FanIn qs rs body -}
