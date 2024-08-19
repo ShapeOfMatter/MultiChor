@@ -23,9 +23,9 @@ data ChoreoSig (ps :: [LocTy]) m a where
         => (Unwrap l -> m a)
         -> ChoreoSig '[l] m a
 
-  Congruent :: (KnownSymbols ls)
-        => (Unwraps ls -> a)
-        -> ChoreoSig ls m a
+  Purely :: (KnownSymbols ls)
+       => (Unwraps ls -> a)
+       -> ChoreoSig ls m a
 
   Comm :: (Show a, Read a, KnownSymbol l)
        => Member l ps     -- from
@@ -46,9 +46,9 @@ runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig  (p ': ps) m a -> m a
     handler (Alone m) = m unwrap
-    handler (Congruent f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
-                                unwraps = unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
-                            in return . f $ unwraps
+    handler (Purely f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
+                             unwraps = unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
+                         in return . f $ unwraps
     handler (Comm _ (p, a)) = return $ unwrap p a
     handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
       TyNil -> return Empty
@@ -60,11 +60,11 @@ epp c l' = interpFreer handler c
   where
     handler :: ChoreoSig ps m a -> Network m a
     handler (Alone m) = run $ m unwrap
-    handler (Congruent f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
-                                unwraps = case tyUnCons @ps of
-                                  TyNil -> error "Undefined projection: the census is empty."
-                                  TyCons -> unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
-                            in return . f $ unwraps
+    handler (Purely f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
+                             unwraps = case tyUnCons @ps of
+                               TyNil -> error "Undefined projection: the census is empty."
+                               TyCons -> unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
+                         in return . f $ unwraps
     handler (Comm s (l, a)) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
@@ -85,11 +85,11 @@ alone m = toFreer (Alone m)
 -- | Perform the exact same computation in replicate at multiple locations.
 --"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.
 --The computation must be pure, and can not use `Faceted`s.
-congruently :: (KnownSymbols ls)
+purely :: (KnownSymbols ls)
               => (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
               -> Choreo ls m a
-infix 4 `congruently`
-congruently f = toFreer (Congruent f)
+infix 4 `purely`
+purely f = toFreer (Purely f)
 
 -- | Communication between a sender and a receiver.
 comm :: (Show a, Read a, KnownSymbol l)

@@ -61,7 +61,7 @@ instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l 
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
 s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ comm listedFirst (ownsMessagePayload s, structMessagePayload s)
-             enclave rs $ congruently (\un -> un consSet x)
+             congruently rs (\un -> un consSet x)
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
 cond :: (KnownSymbols ls)
@@ -75,7 +75,7 @@ naked :: (KnownSymbols ps)
       => Subset ps qs
       -> Located qs a
       -> Choreo ps m a
-naked ownership a = congruently (\un -> un ownership a)
+naked ownership a = purely (\un -> un ownership a)
 
 
 -- | A variant of `~>` that sends the result of a local computation.
@@ -104,6 +104,13 @@ broadcast :: forall l a ps ls m s.
           => s
           -> Choreo ps m a
 broadcast s = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
+
+congruently :: forall ls a ps m.
+               (KnownSymbols ls)
+            => Subset ls ps
+            -> (Unwraps ls -> a)
+            -> Choreo ps m (Located ls a)
+congruently ls a = enclave ls $ purely a
 
 parallel :: forall ls a ps m.
             (KnownSymbols ls)

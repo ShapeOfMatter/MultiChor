@@ -7,7 +7,6 @@ module Choreography.Core (
     alone
   , Choreo
   , comm
-  , congruently
   , consSet
   , consSub
   , consSuper
@@ -24,6 +23,7 @@ module Choreography.Core (
   , Member
   , memberships
   , nobody
+  , purely
   , refl
   , runChoreo
   , Subset
@@ -31,6 +31,7 @@ module Choreography.Core (
   , toLocs
   , transitive
   , Unwrap
+  , Unwraps
 ) where
 
 import Choreography.Internal.Choreo
