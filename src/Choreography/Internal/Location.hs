@@ -42,11 +42,11 @@ unsafeFacet [] _ = error "The provided list isn't long enough to use as a Facete
 data Member (x :: k) (xs :: [k]) where
   First :: Member x (x ': xs)
   Later :: Member x xs -> Member x (y ': xs)
-newtype Subset xs ys = Subset { memberships :: forall x. Member x xs -> Member x ys }
+newtype Subset xs ys = Subset { inSuper :: forall x. Member x xs -> Member x ys }
 refl :: Subset xs xs
 refl = Subset id
 transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
-transitive sxy syz = Subset $ memberships syz . memberships sxy
+transitive sxy syz = Subset $ inSuper syz . inSuper sxy
 
 -- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
@@ -61,10 +61,7 @@ consSuper sxy = transitive sxy consSet
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
 consSub sxy mxy = Subset \case
   First -> mxy
-  Later mxxs -> memberships sxy mxxs
-
-inSuper :: Subset xs ys -> Member x xs -> Member x ys
-inSuper (Subset sxy) = sxy
+  Later mxxs -> inSuper sxy mxxs
 
 
 -- | Convert a proof-level location to a term-level location.
