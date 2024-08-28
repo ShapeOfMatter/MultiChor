@@ -4,22 +4,21 @@
 -- | This module defines locations and located values.
 module Choreography.Location (
     allOf
+  , ExplicitMember
+  , explicitMember
+  , ExplicitSubset
+  , explicitSubset
   , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
   , mkLoc
-  , nobody
   , singleton
   , (@@)
 ) where
 
 import Language.Haskell.TH
-import Logic.Classes (refl)
 
 import Choreography.Core
 
 
--- | The `[]` case of subset proofs.
-nobody :: Subset '[] ys
-nobody = explicitSubset
 
 allOf :: forall ps. Subset ps ps
 allOf = refl
@@ -68,4 +67,19 @@ mkLoc loc = do
        , ValD (VarP locName) (NormalB (VarE em)) []
        ]
 
+
+
+class ExplicitMember (x :: k) (xs :: [k]) where
+  explicitMember :: Member x xs
+instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
+  explicitMember = inSuper consSet explicitMember
+instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
+  explicitMember = First
+
+class ExplicitSubset xs ys where
+  explicitSubset :: Subset xs ys
+instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
+  explicitSubset = consSub explicitSubset explicitMember
+instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
+  explicitSubset = nobody
 

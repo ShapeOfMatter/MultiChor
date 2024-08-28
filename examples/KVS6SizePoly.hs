@@ -16,7 +16,6 @@ import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.TypeLits (KnownSymbol)
-import Logic.Classes (refl)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf, frequency)
 import Text.Read (readMaybe)
 

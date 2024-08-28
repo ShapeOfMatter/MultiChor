@@ -12,30 +12,27 @@ module Choreography.Core (
   , consSuper
   , enclave
   , epp
-  , ExplicitMember
-  , explicitMember
-  , ExplicitSubset
-  , explicitSubset
   , Faceted()
   , fanIn
   , fanOut
   , flatten
   , fracture
   , inSuper
-  , type IsMember
-  , type IsSubset
   , KnownSymbols()
   , localize
   , LocTm
   , LocTy
   , Located()
-  , Member
+  , Member(..)
   , naked
+  , nobody
   , parallel
+  , refl
   , runChoreo
   , Subset
   , toLocTm
   , toLocs
+  , transitive
   , Unwrap
   , Unwraps
   , Wrapped()

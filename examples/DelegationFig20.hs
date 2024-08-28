@@ -23,7 +23,6 @@ import CLI
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
-import Logic.Classes (refl)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryPrintableChar, elements, listOf1)
 
 $(mkLoc "alice")
