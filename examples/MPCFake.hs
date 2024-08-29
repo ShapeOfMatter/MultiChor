@@ -14,7 +14,6 @@ import Data (TestArgs, reference)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
-import Logic.Classes (refl)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 

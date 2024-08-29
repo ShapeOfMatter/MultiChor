@@ -16,7 +16,6 @@ import CLI
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
-import Logic.Classes (refl)
 import System.Environment
 import Test.QuickCheck (Arbitrary, arbitrary, elements)
 

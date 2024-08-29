@@ -8,9 +8,7 @@ module Choreography.Internal.Choreo where
 
 import Control.Monad (when)
 import Data.List (delete)
-import Data.Maybe (catMaybes)
 import GHC.TypeLits
-import Logic.Classes (refl)
 
 import Choreography.Internal.Location
 import Choreography.Internal.Network
@@ -67,10 +65,9 @@ runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
 runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig ps m a -> m a
-    handler (Parallel ls m) = let label f l = do z <- f l
-                                                 return (toLocTm l, z)
-                                  x = label (`m` unwrap') `mapLocs` ls
-                              in Faceted <$> sequence x
+    handler (Parallel ls m) = do x <- sequence $ (`m` unwrap') `mapLocs` ls
+                                 return . FacetF $ unsafeFacet (Just <$> x)
+
     handler (Congruent ls f)= case toLocs ls of
       [] -> return Empty  -- I'm not 100% sure we should care about this situation...
       _  -> return . wrap . f $ unwrap
@@ -78,10 +75,10 @@ runChoreo = interpFreer handler
     handler (Enclave _ c) = wrap <$> runChoreo c
     handler (Naked proof a) = return $ unwrap proof a
     handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) =
-      let body' :: forall q. (KnownSymbol q) => Member q qs -> m (LocTm, a)
-          body' q = (toLocTm q, ) . unwrap' (explicitMember :: Member q '[q]) <$> runChoreo (body q)
-          bs = body' `mapLocs` qs
-      in Faceted <$> sequence bs
+      do let body' :: forall q. (KnownSymbol q) => Member q qs -> m a
+             body' q = unwrap' First <$> runChoreo (body q)
+         bs <- sequence $ body' `mapLocs` qs
+         return . FacetF $ unsafeFacet (Just <$> bs)
     handler (FanIn (qs :: Subset qs ps) (rs :: Subset rs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))) =
       let body' :: forall q. (KnownSymbol q) => Member q qs -> m a
           body' q = unwrap (refl :: Subset rs rs) <$> runChoreo (body q)
@@ -95,9 +92,9 @@ epp :: (Monad m) => Choreo ps m a -> LocTm -> Network m a
 epp c l' = interpFreer handler c
   where
     handler :: (Monad m) => ChoreoSig ps m a -> Network m a
-    handler (Parallel ls m) = (Faceted <$>) . sequence . catMaybes $ (
-        \l -> if toLocTm l == l' then Just $ (l', ) <$> run (m l unwrap') else Nothing
-      ) `mapLocs` ls
+    handler (Parallel ls m) = do
+      x <- sequence $ (\l -> if toLocTm l == l' then Just <$> run (m l unwrap') else return Nothing) `mapLocs` ls
+      return . FacetF $ unsafeFacet x
     handler (Congruent ls f)
       | l' `elem` toLocs ls = return . wrap . f $ unwrap
       | otherwise = return Empty
@@ -114,15 +111,13 @@ epp c l' = interpFreer handler c
       | otherwise       = return Empty
     handler (Naked proof a) =  -- Should we have guards here? If `Naked` is safe, then we shouldn't need them...
       return $ unwrap proof a
-    handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) =
-      let body' :: forall q. (KnownSymbol q) => Member q qs -> Network m (LocTm, Maybe a)
-          body' q = (toLocTm q, ) . safeUnwrap (explicitMember :: Member q '[q]) <$> epp (body q) l'
+    handler (FanOut (qs :: Subset qs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))) = do
+      let body' :: forall q. (KnownSymbol q) => Member q qs -> Network m (Maybe a)
+          body' q = safeUnwrap First <$> epp (body q) l'
           safeUnwrap :: forall q. (KnownSymbol q) => Member q '[q] -> w '[q] a -> Maybe a
           safeUnwrap q = if toLocTm q == l' then Just <$> unwrap' q else const Nothing
-          bs = body' `mapLocs` qs
-          filterOwned :: [(LocTm, Maybe a)] -> [(LocTm, a)]
-          filterOwned lmas = [(l, a) | (l, Just a) <- lmas]  -- pretty sure non-matching Nothings just get filtered out?
-      in Faceted . filterOwned <$> sequence bs
+      bs <- sequence $ body' `mapLocs` qs
+      return . FacetF $ unsafeFacet bs
     handler (FanIn (qs :: Subset qs ps) (rs :: Subset rs ps) (body :: forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))) =
       let bs = body `mapLocs` qs
       in do las :: [Located rs a] <- epp (sequence bs) l'
