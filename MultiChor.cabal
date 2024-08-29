@@ -90,6 +90,7 @@ library examples
         , Bookseller2HigherOrder
         , Bookseller3LocPoly
         , CardGame
+        , ChooseTeams
         , DelegationFig20
         , DiffieHellman
         , ExampleChor
@@ -141,6 +142,7 @@ Test-Suite testExamples
                  , Bookseller2HigherOrder
                  , Bookseller3LocPoly
                  , CardGame
+                 , ChooseTeams
                  , DelegationFig20
                  , DiffieHellman
                  , GMWReal

@@ -16,6 +16,7 @@ import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
 import qualified CardGame
+import qualified ChooseTeams
 import qualified DelegationFig20
 import qualified DiffieHellman
 import qualified KVS5Fig17
@@ -170,6 +171,25 @@ tests' = [
                         (runChoreography config (CardGame.game @'["player1", "player2", "player3"]) name)
                     ) situation
                   return $ (read r1, read r2, read r3) === reference args
+  },
+
+  getNormalPT PropertyTest {
+    name = "choose-teams",
+    tags =[],
+    property = \args@(ChooseTeams.Args (c2, c4)) -> ioProperty do
+                  let situation = [ ("player1", [])
+                                  , ("player2", [show c2])
+                                  , ("player3", [])
+                                  , ("player4", [show c4])
+                                  , ("player5", [])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  results <-
+                    mapConcurrently (
+                      \(name, inputs) -> fst <$> runCLIStateful inputs
+                        (runChoreography config (ChooseTeams.game @'["player1", "player2", "player3", "player4", "player5"]) name)
+                    ) situation
+                  let [r1, r2, r3, r4, r5] = [concatMap  read r | r <- results]
+                  return $ (r1, r2, r3, r4, r5) === reference args
   },
 
   getNormalPT PropertyTest {
