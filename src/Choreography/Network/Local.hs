@@ -9,7 +9,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
-import Data.HashMap.Strict (HashMap, (!))
+import Data.HashMap.Strict (HashMap, (!), (!?))
 import Data.HashMap.Strict qualified as HashMap
 
 -- | Each location is associated with a message buffer which stores messages sent
@@ -43,7 +43,13 @@ runNetworkLocal cfg self = interpFreer handler
     handler :: MonadIO m => NetworkSig m a -> m a
     handler (Run m)    = m
     handler (Send a ls) = liftIO $ mapM_ (\l -> writeChan ((locToBuf cfg ! l) ! self) (show a)) ls
-    handler (Recv l)   = liftIO $ read <$> readChan ((locToBuf cfg ! self) ! l)
+    handler (Recv l)   = do let b = locToBuf cfg ! self
+                            let q = b !? l
+                            case q of
+                              Just q' -> liftIO $ read <$> readChan q'
+                              Nothing -> liftIO do print $ void b
+                                                   print l
+                                                   error $ "We don't know how to contact the party named \"" ++ l ++ "\"."
 
 instance Backend LocalConfig where
   runNetwork = runNetworkLocal
