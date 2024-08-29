@@ -4,11 +4,8 @@
 -- | This module defines locations and located values.
 module Choreography.Internal.Location where
 
---import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
---import Logic.Proof (Proof, axiom)
---import Logic.Classes (Reflexive, refl, Transitive, transitive)
 
 -- | Term-level locations.
 type LocTm = String
@@ -35,37 +32,16 @@ type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a  -
 unwrap :: Unwrap q
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
---unwraps :: Unwraps ls
---unwrap qs la = 
---unwraps _ (Wrap a) = a
---unwraps _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
 
--- GDP has its own list logic, but IDK how to use it...
 data Member (x :: k) (xs :: [k]) where
   First :: Member x (x ': xs)
   Later :: Member x xs -> Member x (y ': xs)
---data IsMember (x :: k) (xs :: [k]) where {}
---type Member x xs = Proof (IsMember x xs)
-newtype Subset xs ys = Subset { memberships :: forall x. Member x xs -> Member x ys }
---data IsSubset (xs :: [k]) (ys :: [k]) where {}
---type Subset xs ys = Proof (IsSubset xs ys)
+newtype Subset xs ys = Subset { inSuper  :: forall x. Member x xs -> Member x ys }
 refl :: Subset xs xs
 refl = Subset id
 transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
-transitive sxy syz = Subset $ memberships syz . memberships sxy
---instance Reflexive IsSubset where {}
---instance Transitive IsSubset where {}
-
-{-class ExplicitMember (x :: k) (xs :: [k]) where
-  explicitMember :: Member x xs
-instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
-  explicitMember = inSuper consSet explicitMember
-instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
-  explicitMember = axiom-}
-
-listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
-listedFirst = First
+transitive sxy syz = Subset $ inSuper syz . inSuper sxy
 
 -- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
@@ -80,19 +56,7 @@ consSuper sxy = transitive sxy consSet
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
 consSub sxy mxy = Subset \case
   First -> mxy
-  Later mxxs -> memberships sxy mxxs
---consSub = const $ const axiom
-
-inSuper :: Subset xs ys -> Member x xs -> Member x ys
-inSuper (Subset sxy) = sxy -- Why can't this just be id?
-
-{-class ExplicitSubset xs ys where
-  explicitSubset :: Subset xs ys
-
-instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
-  explicitSubset = consSub explicitSubset explicitMember
-instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
-  explicitSubset = axiom-}
+  Later mxxs -> inSuper sxy mxxs
 
 
 -- | Convert a proof-level location to a term-level location.
@@ -111,10 +75,13 @@ instance KnownSymbols '[] where
 
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
   tyUnCons = TyCons
-  --tyUnCons = TyCons (explicitMember @Symbol @l @(l ': ls)) $ consSuper refl
 
 -- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
-mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]). KnownSymbols ls => (forall l. (KnownSymbol l) => Member l ls -> b) -> Subset ls ps -> [b]
+mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]).
+           (KnownSymbols ls)
+        => (forall l. (KnownSymbol l) => Member l ls -> b)
+        -> Subset ls ps
+        -> [b]
 mapLocs f ls = case tyUnCons @ls of
                  TyCons -> f First : (f . Later) `mapLocs` transitive consSet ls
                  TyNil -> []

@@ -11,8 +11,8 @@ module Choreography.Location (
   , Facet(..)
   , Faceted
   , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
+  , localize
   , mkLoc
-  , nobody
   , singleton
   , (@@)
 ) where
@@ -34,6 +34,8 @@ a @@ bs = bs `consSub` a  -- SHould be able to use flip?
 singleton :: forall p. Member p (p ': '[])
 singleton = listedFirst  -- IKD why I can't just use id.
 
+listedFirst :: forall p1 ps. Member p1 (p1 ': ps)  -- Can we replace all of these with something using off-the-shelf type-level Nats?
+listedFirst = First
 
 listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
 listedSecond = inSuper (consSuper refl) listedFirst
@@ -56,7 +58,7 @@ class ExplicitMember (x :: k) (xs :: [k]) where
 instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
   explicitMember = inSuper consSet explicitMember
 instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
-  explicitMember = listedFirst
+  explicitMember = First
 
 class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
@@ -81,7 +83,46 @@ mkLoc loc = do
        , ValD (VarP locName) (NormalB (VarE em)) []
        ]
 
+-- | A unified representation of possibly-distinct homogeneous values owned by many parties.
+type Faceted parties common a = forall p. Member p parties -> Facet a common p -- other branch used newtype; might help with inference?
+--newtype Faceted (ls :: [LocTy]) a = FacetF (forall l. Member l ls -> Located '[l] a)
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
-type Faceted parties common a = forall p. Member p parties -> Facet a common p
+-- | Get a `Located` value of a `Faceted` at a given location.
+localize :: Member l ls -> Faceted ls common a -> Located (l ': common) a
+localize l f = getFacet $ f l
+
+{- -- It seems like we should still want Wrapped for something....
+class Wrapped w where
+  -- | Unwrap a `Located` or a `Faceted`. Can error if misused.
+  unwrap' :: Member l ls -> w ls a -> a
+
+instance Wrapped Located where
+  unwrap' = unwrap . consSub nobody
+
+instance Wrapped Faceted where
+  unwrap' = mine
+-}
+
+{-
+unsafeFacet :: [Maybe a] -> Member l ls -> Facet a common l -- providing this as a helper function is pretty sketchy, if we don't need it delete it.
+unsafeFacet (Just a : _) First = Facet $ wrap a
+unsafeFacet (Nothing : _) First = Empty
+unsafeFacet (_ : as) (Later l) = unsafeFacet as l
+unsafeFacet [] _ = error "The provided list isn't long enough to use as a Faceted over the intended parties."
+-}
+
+{-  -- These are probably useless...
+-- | Unwrap a `Faceted` value.
+mine :: Member l ls -> Faceted ls a -> a
+mine l (FacetF f) = unwrap refl $ f l
+
+-- | Use a `Located` as a `Faceted`.
+fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
+fracture a = FacetF \_ -> case a of
+                            Empty -> Empty
+                            Wrap a' -> Wrap a'
+-}
+
+
 

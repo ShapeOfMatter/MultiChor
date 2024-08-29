@@ -9,9 +9,7 @@ module Choreography.Internal.Choreo where
 
 import Control.Monad (when)
 import Data.List (delete)
---import Data.Maybe (catMaybes)
 import GHC.TypeLits
---import Logic.Classes (refl, transitive)
 
 import Choreography.Internal.Location
 import Choreography.Internal.Network
@@ -47,7 +45,7 @@ runChoreo = interpFreer handler
     handler :: Monad m => ChoreoSig  (p ': ps) m a -> m a
     handler (Alone m) = m unwrap
     handler (Purely f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
-                             unwraps = unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
+                             unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                          in return . f $ unwraps
     handler (Comm _ (p, a)) = return $ unwrap p a
     handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
@@ -63,7 +61,7 @@ epp c l' = interpFreer handler c
     handler (Purely f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
                              unwraps = case tyUnCons @ps of
                                TyNil -> error "Undefined projection: the census is empty."
-                               TyCons -> unwrap . (\(Subset mx) -> mx listedFirst) -- wish i could write this better.
+                               TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                          in return . f $ unwraps
     handler (Comm s (l, a)) = do
       let sender = toLocTm s

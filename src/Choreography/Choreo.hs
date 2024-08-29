@@ -123,7 +123,7 @@ parallel :: forall ls a ps m.
          -> Choreo ps m (Faceted ls '[] a)
 parallel ls m = forLocs @(Facet a '[]) body ls
   where body :: (KnownSymbol l) => Member l ls -> Choreo ps m (Facet a '[] l)
-        body mls = Facet <$> locally (memberships ls mls) (m mls)
+        body mls = Facet <$> locally (inSuper ls mls) (m mls)
 
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)

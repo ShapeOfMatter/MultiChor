@@ -16,12 +16,10 @@ module Choreography.Core (
   , forLocs
   , inSuper
   , KnownSymbols()
-  , listedFirst
   , LocTm
   , LocTy
   , Located()
-  , Member
-  , memberships
+  , Member(..)
   , nobody
   , purely
   , refl
