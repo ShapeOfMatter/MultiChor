@@ -21,51 +21,46 @@ data ChoreoSig (ps :: [LocTy]) m a where
         => (Unwrap l -> m a)
         -> ChoreoSig '[l] m a
 
-  Purely :: (KnownSymbols ls)
-       => (Unwraps ls -> a)
-       -> ChoreoSig ls m a
+  Purely :: (KnownSymbol l, KnownSymbols ls)
+       => (Unwraps (l ': ls) -> a)
+       -> ChoreoSig (l ': ls) m a
 
   Comm :: (Show a, Read a, KnownSymbol l)
-       => Member l ps     -- from
-       -> (Member l ls, Located ls a)     -- value
-       -> ChoreoSig ps m a
+       => (Member l ls, Located ls a)
+       -> ChoreoSig (l ': ps) m a
 
-  Enclave :: (KnownSymbols ls)
-       => Subset ls ps
-       -> Choreo ls m b
-       -> ChoreoSig ps m (Located ls b)
+  Enclave :: (KnownSymbol l, KnownSymbols ls)
+       => Subset (l ': ls) ps
+       -> Choreo (l ': ls) m b
+       -> ChoreoSig ps m (Located (l ': ls) b)
 
 -- | Monad for writing choreographies.
 type Choreo ps m = Freer (ChoreoSig ps m)
 
 -- | Run a `Choreo` monad with centralized semantics.
-runChoreo :: forall p ps b m. Monad m => Choreo (p ': ps) m b -> m b
+runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
 runChoreo = interpFreer handler
   where
-    handler :: Monad m => ChoreoSig  (p ': ps) m a -> m a
+    handler :: Monad m => ChoreoSig ps m a -> m a
     handler (Alone m) = m unwrap
-    handler (Purely f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
+    handler (Purely f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
                              unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                          in return . f $ unwraps
-    handler (Comm _ (p, a)) = return $ unwrap p a
-    handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
-      TyNil -> return Empty
-      TyCons -> wrap <$> runChoreo c
+    handler (Comm (p, a)) = return $ unwrap p a
+    handler (Enclave _ c) =  wrap <$> runChoreo c
 
 -- | Endpoint projection.
 epp :: forall ps b m. (Monad m, KnownSymbols ps) => Choreo ps m b -> LocTm -> Network m b
-epp c l' = interpFreer handler c
+epp c l' = interpFreer handler c  -- I think we ought to add some guarentee that l' is actually in ps...
   where
     handler :: ChoreoSig ps m a -> Network m a
     handler (Alone m) = run $ m unwrap
     handler (Purely f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
-                             unwraps = case tyUnCons @ps of
-                               TyNil -> error "Undefined projection: the census is empty."
-                               TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
+                             unwraps = unwrap . (\(Subset mx) -> mx First) -- specifically, shouldn't we be using l' here instead of First?!
                          in return . f $ unwraps
-    handler (Comm s (l, a)) = do
-      let sender = toLocTm s
-      let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
+    handler (Comm (l, a)) = do
+      let sender = toLocTm (First @ps)
+      let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)  -- we should be able to skip dropping the sender if we do this right...
       when (sender == l') $ send (unwrap l a) otherRecipients
       case () of  -- Is there a better way to write this?
         _ | l' == sender -> return . unwrap l $ a
@@ -83,41 +78,26 @@ alone m = toFreer (Alone m)
 -- | Perform the exact same computation in replicate at multiple locations.
 --"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.
 --The computation must be pure, and can not use `Faceted`s.
-purely :: (KnownSymbols ls)
-              => (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
-              -> Choreo ls m a
+purely :: (KnownSymbol l, KnownSymbols ls)
+       => (Unwraps (l ': ls) -> a)  -- ^ The computation, as a function of the un-wrap-er.
+       -> Choreo (l ': ls) m a
 infix 4 `purely`
 purely f = toFreer (Purely f)
 
 -- | Communication between a sender and a receiver.
 comm :: (Show a, Read a, KnownSymbol l)
-     => Member l ps-- ^ Proof the sender is present
-     -> (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
-     -> Choreo ps m a
+     => (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
+     -> Choreo (l ': ps) m a
 infix 4 `comm`
-comm l a = toFreer (Comm l a)
+comm a = toFreer (Comm a)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --Adds a `Located ls` layer to the return type.
-enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
+enclave :: (KnownSymbol l, KnownSymbols ls)
+        => Subset (l ': ls) ps
+        -> Choreo (l ': ls) m a
+        -> Choreo ps m (Located (l ': ls) a)
 infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch
 
 
-
-forLocs :: forall b (ls :: [LocTy]) (ps :: [LocTy]) m.
-           (KnownSymbols ls)
-        => (forall l. (KnownSymbol l) => Member l ls -> Choreo ps m (b l))
-        -> Subset ls ps -- Maybe this can be more general?
-        -> Choreo ps m (forall l'. () => Member l' ls -> b l')
-forLocs f ls = case tyUnCons @ls of
-                 TyCons ->  -- If I put this in do-notation it won't typecheck and I have no idea why.
-                     f First >>= (\b ->
-                       forLocs (f . Later) (transitive consSet ls)
-                       >>= (\fTail ->
-                         return \(z :: Member l'' ls) -> case z of
-                           First -> b
-                           Later lllll -> fTail lllll
-                           ))
-                 --f h :  (f . inSuper ts) `mapLocs` transitive ts ls
-                 TyNil -> return \case {}

@@ -26,11 +26,29 @@ module Choreography.Choreo (
 ) where
 
 import Control.Monad (void)
+import Data.Functor.Compose (Compose(Compose), getCompose)
 
 import Choreography.Core
 import Choreography.Location
 import GHC.TypeLits
 
+
+forLocs :: forall b (ls :: [LocTy]) (ps :: [LocTy]) m.
+           (KnownSymbols ls)
+        => (forall l. (KnownSymbol l) => Member l ls -> Choreo ps m (b l))
+        -> Subset ls ps -- Maybe this can be more general?
+        -> Choreo ps m (forall l'. () => Member l' ls -> b l')
+forLocs f ls = case tyUnCons @ls of
+                 TyCons ->  -- If I put this in do-notation it won't typecheck and I have no idea why.
+                     f First >>= (\b ->
+                       forLocs (f . Later) (transitive consSet ls)
+                       >>= (\fTail ->
+                         return \(z :: Member l'' ls) -> case z of
+                           First -> b
+                           Later lllll -> fTail lllll
+                           ))
+                 --f h :  (f . inSuper ts) `mapLocs` transitive ts ls
+                 TyNil -> return \case {}
 
 --class CanSend loc val owners census struct | struct -> loc val owners census where
   --normalSendArgs :: struct -> (Member loc census, Member loc owners, val)
@@ -63,7 +81,7 @@ instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l 
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ comm listedFirst (ownsMessagePayload s, structMessagePayload s)
+s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ comm (ownsMessagePayload s, structMessagePayload s)
              congruently rs (\un -> un consSet x)
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
@@ -72,12 +90,20 @@ cond :: (KnownSymbols ls)
                                                                   --and are present, the branch guard
      -> (a -> Choreo ls m b) -- ^ The body of the conditional as a function from the unwrapped value.
      -> Choreo ps m (Located ls b)
-cond (ls, (owns, a)) c = enclave ls $ naked owns a >>= c
+cond = uncurry middleware
+  where middleware :: (KnownSymbols ls)
+             => Subset ls ps
+             -> (Subset ls qs, Located qs a)
+             -> (a -> Choreo ls m b)
+             -> Choreo ps m (Located ls b)
+        middleware = getCompose . getCompose <$> ifAnyone (Compose . Compose <$> interior)
+        interior ls (owns, a) c = enclave ls $ naked owns a >>= c
+--cond (ls, (owns, a)) c = enclave ls $ naked owns a >>= c
 
-naked :: (KnownSymbols ps)
-      => Subset ps qs
+naked :: (KnownSymbol p, KnownSymbols ps)
+      => Subset (p ': ps) qs
       -> Located qs a
-      -> Choreo ps m a
+      -> Choreo (p ': ps) m a
 naked ownership a = purely (\un -> un ownership a)
 
 
@@ -102,11 +128,16 @@ infix 4 -~>
   (l, x) ~> ls'
 
 
-broadcast :: forall l a ps ls m s.
-             (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps)
-          => s
-          -> Choreo ps m a
-broadcast s = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
+broadcast :: forall sender val census owners m struct p ps'.
+             (Show val, Read val, KnownSymbol sender, KnownSymbols census, CanSend struct sender val owners census, census ~ p ': ps', KnownSymbol p, KnownSymbols ps')
+          => struct
+          -> Choreo census m val
+broadcast s = enclave (presentToSend s @@ allOf @census) (commm (ownsMessagePayload s, payload))
+                >>= naked (consSuper $ allOf @census)
+  where payload :: Located owners val
+        payload = structMessagePayload s
+        commm :: (Member sender owners, Located owners val) -> Choreo (sender : census) m val
+        commm = comm
 
 congruently :: forall ls a ps m.
                (KnownSymbols ls)
@@ -114,7 +145,7 @@ congruently :: forall ls a ps m.
             -> (Unwraps ls -> a)
             -> Choreo ps m (Located ls a)
 infix 4 `congruently`
-congruently ls a = enclave ls $ purely a
+congruently = getCompose <$> ifAnyone (Compose <$> \ls a -> enclave ls $ purely a)
 
 parallel :: forall ls a ps m.
             (KnownSymbols ls)
@@ -162,14 +193,26 @@ _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 infix 4 `_locally_`
 _locally_ l m = void $ locally l (const m)
 
+ifAnyone :: forall ls f ps a.
+            (KnownSymbols ls, Applicative f)
+         => (forall l ls'. (ls ~ l ': ls', KnownSymbol l, KnownSymbols ls') => Subset ls ps -> f (Located ls a))
+         -> Subset ls ps -> f (Located ls a)
+ifAnyone f = case tyUnCons @ls of
+  TyNil -> pure . pure $ vacuous
+  TyCons -> f
+
 -- | Lift a choreography of involving fewer parties into the larger party space.
---   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
-enclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
+--   This version, where the returned value is Located at the entire enclave, takes one less argument than enclaveTo.
+enclaveToAll :: forall ls a ps m.
+                (KnownSymbols ls)
+             => Subset ls ps
+             -> Choreo ls m (Located ls a)
+             -> Choreo ps m (Located ls a)
 infix 4 `enclaveToAll`
 enclaveToAll = (`enclaveTo` (allOf @ls))
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
---   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
+--   This version, where the returned value is already Located, does not add a Located layer.
 enclaveTo :: forall ls a rs ps m.
              (KnownSymbols ls)
           => Subset ls ps
@@ -177,7 +220,7 @@ enclaveTo :: forall ls a rs ps m.
           -> Choreo ls m (Located rs a)
           -> Choreo ps m (Located rs a)
 infix 4 `enclaveTo`
-enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> (subcensus `enclave` ch)
+enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> getCompose (ifAnyone (Compose <$> enclave) subcensus) ch
 
 
 -- | Perform a given choreography for each of several parties, giving each of them a return value that form a new `Faceted`.
