@@ -33,9 +33,11 @@ unwrap :: Unwrap q
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
 
+vacuous :: Located '[] a  -- So far I haven't been able to think of a reason this would be unsafe to expose to users...
+vacuous = Empty
 
 data Member (x :: k) (xs :: [k]) where
-  First :: Member x (x ': xs)
+  First :: forall xs x xs'. (xs ~ x ': xs') => Member x xs
   Later :: Member x xs -> Member x (y ': xs)
 newtype Subset xs ys = Subset { inSuper  :: forall x. Member x xs -> Member x ys }
 refl :: Subset xs xs

@@ -13,9 +13,8 @@ module Choreography.Core (
   , enclave
   , epp
   , flatten
-  , forLocs
   , inSuper
-  , KnownSymbols()
+  , KnownSymbols(tyUnCons)  -- So far I haven't been able to think of a reason this would be unsafe to expose to users...
   , LocTm
   , LocTy
   , Located()
@@ -28,8 +27,10 @@ module Choreography.Core (
   , toLocTm
   , toLocs
   , transitive
+  , TyUnCons(TyNil, TyCons)  -- So far I haven't been able to think of a reason this would be unsafe to expose to users...
   , Unwrap
   , Unwraps
+  , vacuous
 ) where
 
 import Choreography.Internal.Choreo
