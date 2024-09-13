@@ -26,6 +26,7 @@ module Choreography.Choreo (
 ) where
 
 import Control.Monad (void)
+import Data.Functor.Compose (Compose(Compose))
 
 import Choreography.Core
 import Choreography.Location
@@ -119,19 +120,18 @@ congruently ls a = enclave ls $ purely a
 parallel :: forall ls a ps m.
             (KnownSymbols ls)
          => Subset ls ps
-         -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)
+         -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)  -- Could promote this to PIndexed too, but ergonomics might be worse?
          -> Choreo ps m (Faceted ls '[] a)
-parallel ls m = forLocs @(Facet a '[]) body ls
-  where body :: (KnownSymbol l) => Member l ls -> Choreo ps m (Facet a '[] l)
-        body mls = Facet <$> locally (inSuper ls mls) (m mls)
+parallel ls m = forLocs (PIndexed body) ls
+  where body :: PIndex ls (Compose (Choreo ps m) (Facet a '[]))
+        body mls = Compose $ Facet <$> locally (inSuper ls mls) (m mls)
 
 parallel_ :: forall ls ps m.
              (KnownSymbols ls)
           => Subset ls ps
           -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m ())
           -> Choreo ps m ()
-parallel_ ls m = parallel ls m >>= (\(_ :: forall p. Member p ls -> Facet () '[] p) ->
-                    return ())   -- WHY CAN"T I JUST USE VOID???!!
+parallel_ ls m = void $ parallel ls m
 
 _parallel :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> m a -> Choreo ps m (Faceted ls '[] a)
 _parallel ls m = parallel ls \_ _ -> m
@@ -185,7 +185,7 @@ fanOut :: (KnownSymbols qs)
        => Subset qs ps  -- ^ The parties to loop over.
        -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Facet a rs q))  -- ^ The body.
        -> Choreo ps m (Faceted qs rs a)
-fanOut qs body = forLocs body qs
+fanOut qs body = forLocs (PIndexed $ Compose <$> body) qs
 
 {--- | Perform a given choreography for each of several parties; the return values are aggregated as a list located at the recipients.
 fanIn :: (KnownSymbols qs, KnownSymbols rs)

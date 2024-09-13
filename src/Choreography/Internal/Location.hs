@@ -4,6 +4,7 @@
 -- | This module defines locations and located values.
 module Choreography.Internal.Location where
 
+import Data.Functor.Const (Const(Const), getConst)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 
@@ -76,19 +77,23 @@ instance KnownSymbols '[] where
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
   tyUnCons = TyCons
 
+type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
+newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
+
+
 -- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
 mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]).
            (KnownSymbols ls)
-        => (forall l. (KnownSymbol l) => Member l ls -> b)
+        => PIndexed ls (Const b)
         -> Subset ls ps
         -> [b]
-mapLocs f ls = case tyUnCons @ls of
-                 TyCons -> f First : (f . Later) `mapLocs` transitive consSet ls
+mapLocs (PIndexed f) ls = case tyUnCons @ls of
+                 TyCons -> getConst (f First) : PIndexed (f . Later) `mapLocs` transitive consSet ls
                  TyNil -> []
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
-toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
+toLocs ls = PIndexed (Const . toLocTm) `mapLocs` ls
 
 -- | Un-nest located values.
 flatten :: Subset ls ms -> Subset ls ns -> Located ms (Located ns a) -> Located ls a

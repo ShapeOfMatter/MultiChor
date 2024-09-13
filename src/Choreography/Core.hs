@@ -21,6 +21,8 @@ module Choreography.Core (
   , Located()
   , Member(..)
   , nobody
+  , PIndex
+  , PIndexed(..)
   , purely
   , refl
   , runChoreo

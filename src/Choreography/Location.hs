@@ -17,6 +17,7 @@ module Choreography.Location (
   , (@@)
 ) where
 
+import GHC.TypeLits (KnownSymbol)
 import Language.Haskell.TH
 
 import Choreography.Core
@@ -84,13 +85,12 @@ mkLoc loc = do
        ]
 
 -- | A unified representation of possibly-distinct homogeneous values owned by many parties.
-type Faceted parties common a = forall p. Member p parties -> Facet a common p -- other branch used newtype; might help with inference?
---newtype Faceted (ls :: [LocTy]) a = FacetF (forall l. Member l ls -> Located '[l] a)
+type Faceted parties common a = PIndexed parties (Facet a common)
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
 -- | Get a `Located` value of a `Faceted` at a given location.
-localize :: Member l ls -> Faceted ls common a -> Located (l ': common) a
-localize l f = getFacet $ f l
+localize :: (KnownSymbol l) => Member l ls -> Faceted ls common a -> Located (l ': common) a
+localize l (PIndexed f) = getFacet $ f l
 
 {- -- It seems like we should still want Wrapped for something....
 class Wrapped w where

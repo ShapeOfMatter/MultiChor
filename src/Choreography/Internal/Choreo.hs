@@ -8,6 +8,7 @@
 module Choreography.Internal.Choreo where
 
 import Control.Monad (when)
+import Data.Functor.Compose (Compose(getCompose))
 import Data.List (delete)
 import GHC.TypeLits
 
@@ -107,17 +108,15 @@ enclave proof ch = toFreer $ Enclave proof ch
 
 forLocs :: forall b (ls :: [LocTy]) (ps :: [LocTy]) m.
            (KnownSymbols ls)
-        => (forall l. (KnownSymbol l) => Member l ls -> Choreo ps m (b l))
+        => PIndexed ls (Compose (Choreo ps m) b)
         -> Subset ls ps -- Maybe this can be more general?
-        -> Choreo ps m (forall l'. () => Member l' ls -> b l')
-forLocs f ls = case tyUnCons @ls of
-                 TyCons ->  -- If I put this in do-notation it won't typecheck and I have no idea why.
-                     f First >>= (\b ->
-                       forLocs (f . Later) (transitive consSet ls)
-                       >>= (\fTail ->
-                         return \(z :: Member l'' ls) -> case z of
-                           First -> b
-                           Later lllll -> fTail lllll
-                           ))
-                 --f h :  (f . inSuper ts) `mapLocs` transitive ts ls
-                 TyNil -> return \case {}
+        -> Choreo ps m (PIndexed ls b)
+forLocs (PIndexed f) ls = case tyUnCons @ls of
+                 TyCons -> do b <- getCompose $ f First
+                              PIndexed fTail <- forLocs (PIndexed $ f . Later) (transitive consSet ls)
+                              let retVal :: PIndex ls b
+                                  retVal First = b
+                                  retVal (Later ltr) = fTail ltr
+                              return $ PIndexed retVal
+                 TyNil -> return $ PIndexed \case {}
+
