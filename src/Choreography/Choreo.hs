@@ -12,6 +12,8 @@ module Choreography.Choreo (
   , enclaveTo
   , enclaveToAll
   , fanOut
+  , fanIn
+  , gather
   , locally
   , locally_
   , _locally
@@ -20,13 +22,16 @@ module Choreography.Choreo (
   , parallel
   , parallel_
   , _parallel
+  , scatter
   , (~>)
   , (~~>)
   , (-~>)
+  , (*~>)
 ) where
 
 import Control.Monad (void)
 import Data.Functor.Compose (Compose(Compose))
+import Data.Functor.Const (Const(Const, getConst))
 
 import Choreography.Core
 import Choreography.Location
@@ -100,6 +105,16 @@ infix 4 ~~>
 infix 4 -~>
 (-~>) (l, m) ls' = do
   x <- l `_locally` m
+  (l, x) ~> ls'
+
+-- | A variant of `~>` that doesn't use the local monad.
+(*~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
+      => (Member l ps, Unwrap l -> a) -- ^ A pair of a sender's location and a local computation.
+      -> Subset ls' ps                   -- ^ A receiver's location.
+      -> Choreo ps m (Located ls' a)
+infix 4 *~>
+(*~>) (l, m) ls' = do
+  x <- l @@ nobody `congruently` \uns -> m $ uns . (@@ nobody)
   (l, x) ~> ls'
 
 
@@ -183,14 +198,39 @@ enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> (subcensu
 -- | Perform a given choreography for each of several parties, giving each of them a return value that form a new `Faceted`.
 fanOut :: (KnownSymbols qs)
        => Subset qs ps  -- ^ The parties to loop over.
-       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Facet a rs q))  -- ^ The body.
+       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located (q ': rs) a))  -- ^ The body.  -- kinda sketchy that rs might not be a subset of ps...
        -> Choreo ps m (Faceted qs rs a)
-fanOut qs body = forLocs (PIndexed $ Compose <$> body) qs
+fanOut qs body = forLocs (PIndexed $ Compose . (Facet <$>) <$> body) qs  -- I tried ungolfing this and it errored :(
 
-{--- | Perform a given choreography for each of several parties; the return values are aggregated as a list located at the recipients.
+-- | Perform a given choreography for each of several parties; the return values are known to recipients but (possibly) not to the loop-parties.
 fanIn :: (KnownSymbols qs, KnownSymbols rs)
-       => Subset qs ps  -- ^ The parties who fan in.
+       => Subset qs ps  -- ^ The parties to loop over.
        -> Subset rs ps  -- ^ The recipients.
        -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
-       -> Choreo ps m (Located rs [a])
-fanIn qs rs body = toFreer $ FanIn qs rs body -}
+       -> Choreo ps m (Located rs (Quire qs a))
+fanIn qs rs body = do (PIndexed x) <- forLocs (PIndexed $ Compose . (Const <$>) <$> body) qs
+                      rs `congruently` \un -> stackLeaves $ \q -> un refl (getConst $ x q)
+
+scatter :: forall census sender recipients a m.
+           (KnownSymbol sender, KnownSymbols recipients, Show a, Read a)
+        => Member sender census
+        -> Subset recipients census
+        -> Located '[sender] (Quire recipients a)
+        -> Choreo census m (Faceted recipients '[sender] a)
+scatter sender recipients values = forLocs body recipients
+  where body :: PIndexed recipients (Compose (Choreo census m) (Facet a '[sender]))
+        body = PIndexed $ \r -> Compose $ do recieved <- (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
+                                             return $ Facet recieved
+
+gather :: forall census recipients senders a dontcare m.
+          (KnownSymbols senders, KnownSymbols recipients, Show a, Read a)
+       => Subset senders census
+       -> Subset recipients census
+       -> Faceted senders dontcare a
+       -> Choreo census m (Located recipients (Quire senders a))  -- could be Faceted senders recipients instead...
+gather senders recipients values = do (PIndexed recieved) <- forLocs body senders
+                                      recipients `congruently` \un -> stackLeaves (un refl . getConst . recieved)
+  where body :: PIndexed senders (Compose (Choreo census m) (Const (Located recipients a)))
+        body = PIndexed $ \s -> Compose $ do recieved <- (inSuper senders s, getFacet $ pindex values s) ~> recipients
+                                             return $ Const recieved
+

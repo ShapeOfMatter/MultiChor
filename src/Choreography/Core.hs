@@ -14,22 +14,32 @@ module Choreography.Core (
   , epp
   , flatten
   , forLocs
+  , getLeaf
   , inSuper
-  , KnownSymbols()
+  , KnownSymbols(..)
   , LocTm
   , LocTy
   , Located()
   , Member(..)
   , nobody
+  , othersForget
   , PIndex
   , PIndexed(..)
   , purely
+  , qCons
+  , qHead
+  , qModify
+  , qNil
+  , qTail
+  , Quire(..)
   , refl
   , runChoreo
   , Subset
+  , stackLeaves
   , toLocTm
   , toLocs
   , transitive
+  , TyUnCons(..)
   , Unwrap
   , Unwraps
 ) where

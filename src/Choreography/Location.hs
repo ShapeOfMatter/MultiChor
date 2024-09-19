@@ -14,6 +14,7 @@ module Choreography.Location (
   , localize
   , mkLoc
   , singleton
+  , viewFacet
   , (@@)
 ) where
 
@@ -91,6 +92,9 @@ newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 -- | Get a `Located` value of a `Faceted` at a given location.
 localize :: (KnownSymbol l) => Member l ls -> Faceted ls common a -> Located (l ': common) a
 localize l (PIndexed f) = getFacet $ f l
+
+viewFacet :: (KnownSymbol l) => Unwrap l -> Member l ls -> Faceted ls common a -> a
+viewFacet un l = un First . localize l
 
 {- -- It seems like we should still want Wrapped for something....
 class Wrapped w where

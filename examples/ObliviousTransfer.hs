@@ -72,7 +72,7 @@ ot2Insecure b1 b2 s = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
   sr <- (receiver, s) ~> sender @@ nobody
-  (sender, \un -> return $ un singleton $ if (un singleton sr) then b1 else b2) ~~> receiver @@ nobody
+  (sender, \un -> return $ un singleton $ if un singleton sr then b1 else b2) ~~> receiver @@ nobody
 
 genKeys :: (CRT.MonadRandom m) => Bool -> m (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey)
 genKeys s = do -- Generate keys for OT. One key is real, and one is fake - select bit decides

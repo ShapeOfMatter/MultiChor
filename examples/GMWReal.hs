@@ -10,9 +10,10 @@ import System.Environment
 import Choreography
 import Choreography.Network.Http
 import CLI
-import Control.Monad (replicateM, void)
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data (TestArgs, reference)
+import Data.Foldable (toList)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
@@ -29,9 +30,8 @@ $(mkLoc "p3")
 $(mkLoc "p4")
 
 
-xor :: [Bool] -> Bool
-xor [] = error "don't let this happen!"
-xor bs = foldr1 (/=) bs
+xor :: (Foldable f) => f Bool -> Bool
+xor = foldr1 (/=)
 
 data Circuit :: [LocTy] -> Type where
   InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
@@ -74,46 +74,50 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
           answer = recurse circuit
 
 
-genShares :: (MonadIO m) => [LocTm] -> Bool -> m [(LocTm, Bool)]
-genShares partyNames x = do
-  freeShares <- replicateM (length partyNames - 1) $ liftIO randomIO -- generate n-1 random shares
-  return $ zip partyNames $ xor (x : freeShares) : freeShares        -- make the sum equal to x
+genShares :: forall ps p m. (MonadIO m, KnownSymbols ps) => Member p ps -> Bool -> m (Quire ps Bool)
+genShares p x = case (p, tyUnCons @ps) of  -- gotta explain to GHC that ps is necessaly (q ': qs) with KS q and KSs qs.
+                     (First, TyCons) -> gs'
+                     (Later _, TyCons) -> gs'
+  where gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)
+        gs' = do freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
+                 return $ xor (qCons @q x freeShares) `qCons` freeShares
+
 
 secretShare :: forall parties p m. (KnownSymbols parties, KnownSymbol p, MonadIO m)
             => Member p parties -> Located '[p] Bool -> Choreo parties m (Faceted parties '[] Bool)
 secretShare p value = do
-  shares <- p `locally` \un -> genShares (toLocs $ allOf @parties) (un singleton value)
-  allOf @parties `fanOut` \q ->
-    (p, \un -> return $ fromJust $ toLocTm q `lookup` un singleton shares) ~~> q @@ nobody
+  shares <- p `locally` \un -> genShares p (un singleton value)
+  PIndexed fs <- scatter p (allOf @parties) shares
+  return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
 
 reveal :: forall ps m. (KnownSymbols ps) => Faceted ps '[] Bool -> Choreo ps m Bool
-reveal shares = let ps = allOf @ps
-                in xor <$> ((fanIn ps ps \p -> (p, (p, shares)) ~> ps) >>= naked ps)
+reveal shares = xor <$> (gather ps ps shares >>= naked ps)
+  where ps = allOf @ps
 
 
 -- use OT to do multiplication
-fAnd :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
-     => Faceted parties '[] Bool -> Faceted parties '[] Bool -> Choreo parties (CLI m) (Faceted parties '[] Bool)
+fAnd :: forall parties m.
+        (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
+     => Faceted parties '[] Bool
+     -> Faceted parties '[] Bool
+     -> Choreo parties (CLI m) (Faceted parties '[] Bool)
 fAnd uShares vShares = do
-  let partyNames = toLocs (allOf @parties)
-      genBools = mapM (\name -> (name,) <$> randomIO)
-  a_j_s :: Faceted parties '[] [(LocTm, Bool)] <- allOf @parties `_parallel` genBools partyNames
-  bs :: Faceted parties '[] Bool  <- allOf @parties `fanOut` \p_j -> do
+  let genBools = sequence $ pure randomIO
+  a_j_s :: Faceted parties '[] (Quire parties Bool) <- allOf @parties `_parallel` genBools
+  bs :: Faceted parties '[] Bool <- allOf @parties `fanOut` \p_j -> do
       let p_j_name = toLocTm p_j
       b_i_s <- fanIn (allOf @parties) (p_j @@ nobody) \p_i ->
         if toLocTm p_i == p_j_name
           then p_j `_locally` pure False
           else do
-              bb <- p_i `locally` \un -> let a_ij = fromJust $ lookup p_j_name (un p_i a_j_s)
-                                             u_i = un p_i uShares
+              bb <- p_i `locally` \un -> let a_ij = viewFacet un p_i a_j_s `getLeaf` p_j
+                                             u_i = viewFacet un p_i uShares
                                          in pure (xor [u_i, a_ij], a_ij)
               enclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
       p_j `locally` \un -> pure $ xor $ un singleton b_i_s
   allOf @parties `parallel` \p_i un ->
-    let name = toLocTm p_i
-        ok p_j = p_j /= name
-        computeShare u v a_js b = xor $ [u && v, b] ++ [a_j | (p_j, a_j) <- a_js, ok p_j]
-    in pure $ computeShare (un p_i uShares) (un p_i vShares) (un p_i a_j_s) (un p_i bs)
+    let computeShare u v a_js b = xor $ [u && v, b] ++ toList (qModify p_i (const False) a_js)
+    in pure $ computeShare (viewFacet un p_i uShares) (viewFacet un p_i vShares) (viewFacet un p_i a_j_s) (viewFacet un p_i bs)
 
 gmw :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties -> Choreo parties (CLI m) (Faceted parties '[] Bool)
@@ -130,7 +134,7 @@ gmw circuit = case circuit of
     fAnd lResult rResult
   XorGate l r -> do        -- process an XOR gate
     lResult <- gmw l; rResult <- gmw r
-    allOf @parties `parallel` \p un -> pure $ xor [un p lResult, un p rResult]
+    allOf @parties `parallel` \p un -> pure $ xor [viewFacet un p lResult, viewFacet un p rResult]
 
 mpc :: forall parties m. (KnownSymbols parties, MonadIO m, CRT.MonadRandom m)
     => Circuit parties -> Choreo parties (CLI m) ()
@@ -148,7 +152,7 @@ mpcmany circuit = do
 type Clients = '["p1", "p2"]--, "p3", "p4"]
 main :: IO ()
 main = do
-  let circuit :: Circuit Clients = (AndGate (LitWire True) (LitWire True))
+  let circuit :: Circuit Clients = AndGate (LitWire True) (LitWire True)
   [loc] <- getArgs
   delivery <- case loc of
     "p1" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p1"
