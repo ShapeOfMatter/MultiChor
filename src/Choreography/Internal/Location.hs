@@ -82,7 +82,7 @@ type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
 newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
 
 -- | A collection of values assigned to each of a list of parties.
-newtype Quire parties a = Quire {asPIntexed :: PIndexed parties (Const a)}
+newtype Quire parties a = Quire {asPIndexed :: PIndexed parties (Const a)}
 getLeaf :: (KnownSymbol p) => Quire parties a -> Member p parties -> a
 getLeaf (Quire (PIndexed q)) p = getConst $ q p
 stackLeaves :: forall ps a. (forall p. (KnownSymbol p) => Member p ps -> a) -> Quire ps a
