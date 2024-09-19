@@ -217,10 +217,8 @@ scatter :: forall census sender recipients a m.
         -> Subset recipients census
         -> Located '[sender] (Quire recipients a)
         -> Choreo census m (Faceted recipients '[sender] a)
-scatter sender recipients values = forLocs body recipients
-  where body :: PIndexed recipients (Compose (Choreo census m) (Facet a '[sender]))
-        body = PIndexed $ \r -> Compose $ do recieved <- (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
-                                             return $ Facet recieved
+scatter sender recipients values = fanOut recipients \r ->
+                                     (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
 
 gather :: forall census recipients senders a dontcare m.
           (KnownSymbols senders, KnownSymbols recipients, Show a, Read a)
@@ -228,9 +226,6 @@ gather :: forall census recipients senders a dontcare m.
        -> Subset recipients census
        -> Faceted senders dontcare a
        -> Choreo census m (Located recipients (Quire senders a))  -- could be Faceted senders recipients instead...
-gather senders recipients values = do (PIndexed recieved) <- forLocs body senders
-                                      recipients `congruently` \un -> stackLeaves (un refl . getConst . recieved)
-  where body :: PIndexed senders (Compose (Choreo census m) (Const (Located recipients a)))
-        body = PIndexed $ \s -> Compose $ do recieved <- (inSuper senders s, getFacet $ pindex values s) ~> recipients
-                                             return $ Const recieved
+gather senders recipients (PIndexed values) = fanIn senders recipients \s ->
+                                     (inSuper senders s, getFacet $ values s) ~> recipients
 
