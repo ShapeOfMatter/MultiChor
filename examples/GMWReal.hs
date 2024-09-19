@@ -14,6 +14,7 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data (TestArgs, reference)
 import Data.Foldable (toList)
+import Data.Functor.Compose (Compose(Compose))
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
@@ -126,9 +127,10 @@ gmw circuit = case circuit of
     value :: Located '[p] Bool <- p `_locally` getInput "Enter a secret input value:"
     secretShare p value
   LitWire b -> do          -- process a publicly-known literal value
-    let partyNames = toLocs (allOf @parties)
-        shares = partyNames `zip` (b : repeat False)
-    allOf @parties `fanOut` \p -> p `_locally` pure (fromJust $ toLocTm p `lookup` shares)
+    let chooseShare :: PIndex parties (Compose (Choreo parties (CLI m)) (Facet Bool '[]))
+        chooseShare p = Compose $ Facet <$> (p @@ nobody `congruently` \_ -> case p of First -> b
+                                                                                       Later _ -> False)
+    forLocs (PIndexed chooseShare) (allOf @parties)
   AndGate l r -> do        -- process an AND gate
     lResult <- gmw l; rResult <- gmw r;
     fAnd lResult rResult
