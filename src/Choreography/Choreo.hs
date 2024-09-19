@@ -184,7 +184,7 @@ infix 4 `enclaveToAll`
 enclaveToAll = (`enclaveTo` (allOf @ls))
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
---   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
+--   This version, where the returned value is already Located, does not add a Located layer.
 enclaveTo :: forall ls a rs ps m.
              (KnownSymbols ls)
           => Subset ls ps
