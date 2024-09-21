@@ -10,6 +10,7 @@ module KVS6SizePoly where
 import Choreography
 import CLI
 import Control.Monad.IO.Class (liftIO, MonadIO)
+import Data.Foldable (toList)
 import Data.IORef (IORef)
 import qualified Data.IORef as IORef
 import Data.List (nub)
@@ -52,12 +53,11 @@ naryReplicationStrategy primary backups = ReplicationStrategy{
     , handle = \stateRef pHas request -> do
           request' <- (primary, (pHas, request)) ~> servers
           localResponse <- servers `parallel` \server un ->
-              handleRequest (un server stateRef) (un server request')
-          responses <- fanIn servers (primary @@ nobody) \server ->
-              (server, servers, localResponse) ~> primary @@ nobody
+              handleRequest (viewFacet un server stateRef) (un server request')
+          responses <- gather servers (primary @@ nobody) localResponse
           response <- (primary @@ nobody) `congruently` \un ->
-              case nub (un refl responses) of [r] -> r
-                                              rs -> Desynchronization rs
+              case nub (toList $ un refl responses) of [r] -> r
+                                                       rs -> Desynchronization rs
           broadcast (primary, response)   }
   where servers = primary @@ backups
 
@@ -125,10 +125,9 @@ naryHumans primary backups =
                          request' <- (primary, (pHas, request)) ~> backups
                          backupResponse <- backups `parallel` \server un -> readResponse (un server request')
                          localResponse <- primary `locally` \un -> handleRequest (un singleton stateRef) (un pHas request)
-                         responses <- fanIn backups (primary @@ nobody) \server ->
-                           (server, backups, backupResponse) ~> primary @@ nobody
+                         responses <- gather backups (primary @@ nobody) backupResponse
                          response <- (primary @@ nobody) `congruently` \un ->
-                           case nub $ un refl localResponse : un refl responses of
+                           case nub $ un refl localResponse : toList (un refl responses) of
                              [r] -> r
                              rs -> Desynchronization rs
                          ((primary, response) ~> refl) >>= naked refl

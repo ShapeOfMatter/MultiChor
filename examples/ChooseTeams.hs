@@ -6,6 +6,7 @@
 module ChooseTeams where
 
 import Control.Monad (when)
+import Data.Foldable (toList)
 import Data.Maybe (catMaybes)
 
 import Choreography
@@ -37,5 +38,5 @@ game = do
                                            then (p, Just <$> getInput @Int "A number to send:") -~> players
                                            else enclave players $ return Nothing
   parallel_ players \p un -> when (toLocTm p `elem` blue) $
-                               putOutput "Numbers recieved:" $ catMaybes $ un p numbers
+                               putOutput "Numbers recieved:" $ catMaybes . toList $ un p numbers
 

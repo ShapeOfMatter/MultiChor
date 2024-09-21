@@ -8,7 +8,6 @@ module MPCFake where
 
 import Choreography
 import CLI
-import Control.Monad (replicateM)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 import Data (TestArgs, reference)
 import Data.Kind (Type)
@@ -25,9 +24,8 @@ $(mkLoc "p3")
 $(mkLoc "p4")
 
 
-xor :: [Bool] -> Bool
-xor [] = error "don't let this happen!"
-xor bs = foldr1 (/=) bs
+xor :: (Foldable f) => f Bool -> Bool
+xor = foldr1 (/=)
 
 data Circuit :: [LocTy] -> Type where
   InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
@@ -70,30 +68,31 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
           answer = recurse circuit
 
 
-secretShare :: (KnownSymbols parties, KnownSymbol p, MonadIO m)
+secretShare :: forall p parties owners ps m.
+               (KnownSymbols parties, KnownSymbol p, MonadIO m)
             => Subset parties ps
             -> Member p ps
             -> (Member p owners, Located owners Bool)
             -> Choreo ps m (Faceted parties '[] Bool)
 secretShare parties p (ownership, value) = do
-  shares <- p `locally` \un -> do (freeShares :: [Bool]) <- case partyNames of
-                                                              [] -> return [] -- This can't actually happen/get used...
-                                                              _:others -> replicateM (length others) $ liftIO randomIO
-                                  let lastShare = xor (un ownership value : freeShares)  -- But freeShares could really be empty!
-                                  return $ partyNames `zip` (lastShare : freeShares)
-  parties `fanOut` \q -> do
-    share <- p `locally` \un -> return $ fromJust $ toLocTm q `lookup` un singleton shares
-    (p, share) ~> inSuper parties q @@ nobody
-  where partyNames = toLocs parties
+  shares <- p `locally` \un -> genShares (un ownership value)
+  PIndexed fs <- scatter p parties shares
+  return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
+  where genShares x = case tyUnCons @parties of
+                           TyCons -> gs'
+                           TyNil -> error "Can't secret-share to zero people."
+          where gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)
+                gs' = do freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
+                         return $ xor (qCons @q x freeShares) `qCons` freeShares
+
 
 reveal :: forall ps m. (KnownSymbols ps)
        => Faceted ps '[] Bool
        -> Choreo ps m Bool
 reveal shares = do
   let ps = allOf @ps
-  allShares <- fanIn ps ps \p -> (p, (p, shares)) ~> ps
-  value <- ps `congruently` \un -> case un ps allShares of [] -> error "There's nobody who can hit this"
-                                                           aS -> xor aS
+  allShares <- gather ps ps shares
+  value <- ps `congruently` \un -> xor $ un ps allShares 
   naked ps value
 
 computeWire :: (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, MonadIO m)
@@ -112,16 +111,15 @@ computeWire trustedAnd parties circuit = case circuit of
     lResult <- compute l
     rResult <- compute r
     inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
-      (inSuper parties p, \un -> return (un p lResult, un p rResult)) ~~> trustedAnd @@ nobody
+      (inSuper parties p, \un -> return (viewFacet un p lResult, viewFacet un p rResult)) ~~> trustedAnd @@ nobody
     outputVal <- (trustedAnd @@ nobody) `congruently` \un ->
       let ovs = un refl inputShares
-      in case ovs of [] -> error "make sure there's at least one party"
-                     _:_ -> xor (fst <$> un refl inputShares) && xor (snd <$> un refl inputShares)
+      in xor (fst <$> ovs) && xor (snd <$> ovs)
     secretShare parties trustedAnd (singleton, outputVal)
   XorGate l r -> do
     lResult <- compute l
     rResult <- compute r
-    parties `parallel` \p un -> pure (un p lResult /= un p rResult)
+    parties `parallel` \p un -> pure (viewFacet un p lResult /= viewFacet un p rResult)
   where compute = computeWire trustedAnd parties
         partyNames = toLocs parties
 

@@ -13,6 +13,7 @@ module Choreography.Location (
   , listedFirst, listedSecond, listedThird, listedForth, listedFifth, listedSixth
   , localize
   , mkLoc
+  , quorum1
   , singleton
   , viewFacet
   , (@@)
@@ -128,5 +129,9 @@ fracture a = FacetF \_ -> case a of
                             Wrap a' -> Wrap a'
 -}
 
-
+quorum1 :: forall ps p a.
+           (KnownSymbols ps)
+        => Member p ps -> (forall q qs. (KnownSymbol q, KnownSymbols qs, ps ~ q ': qs) => a) -> a
+quorum1 p a = case (p, tyUnCons @ps) of (First, TyCons) -> a
+                                        (Later _, TyCons) -> a
 

@@ -54,24 +54,23 @@ game = do
   hand1 <- fanOut players \player -> do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
       (dealer, card1) ~> inSuper players player @@ nobody
-  onTheTable <- fanIn players players \player -> do
-      (player, players, hand1) ~> players
+  onTheTable <- gather players players hand1
   wantsNextCard <- players `parallel` \player un -> do
-      putNote $ "My first card is: " ++ show (un player hand1)
+      putNote $ "My first card is: " ++ show (viewFacet un player hand1)
       putNote $ "Cards on the table: " ++ show (un player onTheTable)
       getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut players \(player :: Member player players) -> do
       (dealer @@ inSuper players player @@ nobody `enclaveTo` listedSecond @@ nobody) do
-        choice <- broadcast (listedSecond @player, (player, wantsNextCard))
+        choice <- broadcast (listedSecond @player, getFacet $ pindex wantsNextCard player)
         if choice then do
             cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
             card2 <- (dealer, cd2) ~> listedSecond @@ nobody
-            listedSecond `locally` \un -> pure [un player hand1, un singleton card2]
-          else listedSecond `locally` \un -> pure [un player hand1]
+            listedSecond `locally` \un -> pure [viewFacet un player hand1, un singleton card2]
+          else listedSecond `locally` \un -> pure [viewFacet un player hand1]
   tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
   tableCard <- (dealer, tblCrd) ~> players
   players `parallel_` \player un -> do
-      let hand = un player tableCard : un player hand2
+      let hand = un player tableCard : viewFacet un player hand2
       putNote $ "My hand: " ++ show hand
       putOutput "My win result:" $ sum hand > card 19
 

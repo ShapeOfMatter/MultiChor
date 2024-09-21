@@ -115,6 +115,10 @@ instance forall parties. (KnownSymbols parties) => Traversable (Quire parties) w
   sequenceA q = case tyUnCons @parties of
                   TyCons -> qCons <$> qHead q <*> sequenceA (qTail q)
                   TyNil -> pure qNil
+instance forall parties a. (KnownSymbols parties, Eq a) => Eq (Quire parties a) where
+  q1 == q2 = and $ (==) <$> q1 <*> q2
+instance forall parties a. (KnownSymbols parties, Show a) => Show (Quire parties a) where
+  show q = show $ toLocs (refl @parties) `zip` toList q
 -- Many more instances are possible...
 
 qModify :: forall p ps a. (KnownSymbol p, KnownSymbols ps) =>  Member p ps -> (a -> a) -> Quire ps a -> Quire ps a

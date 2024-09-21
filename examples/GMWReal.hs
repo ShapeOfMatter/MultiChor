@@ -76,9 +76,7 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
 
 
 genShares :: forall ps p m. (MonadIO m, KnownSymbols ps) => Member p ps -> Bool -> m (Quire ps Bool)
-genShares p x = case (p, tyUnCons @ps) of  -- gotta explain to GHC that ps is necessaly (q ': qs) with KS q and KSs qs.
-                     (First, TyCons) -> gs'
-                     (Later _, TyCons) -> gs'
+genShares p x = quorum1 p gs'
   where gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)
         gs' = do freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
                  return $ xor (qCons @q x freeShares) `qCons` freeShares
