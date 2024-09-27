@@ -4,38 +4,44 @@ This is the membrane between internal and external code; only here and /src/Netw
 and everything they export should be safe for users to use.
 -}
 module Choreography.Core (
-    Choreo
+    alone
+  , Choreo
   , comm
-  , congruently
   , consSet
   , consSub
   , consSuper
   , enclave
   , epp
-  , Faceted()
-  , fanIn
-  , fanOut
   , flatten
-  , fracture
+  , forLocs
+  , getLeaf
   , inSuper
-  , KnownSymbols()
-  , localize
+  , KnownSymbols(..)
   , LocTm
   , LocTy
   , Located()
   , Member(..)
-  , naked
   , nobody
-  , parallel
+  , othersForget
+  , PIndex
+  , PIndexed(..)
+  , purely
+  , qCons
+  , qHead
+  , qModify
+  , qNil
+  , qTail
+  , Quire(..)
   , refl
   , runChoreo
   , Subset
+  , stackLeaves
   , toLocTm
   , toLocs
   , transitive
+  , TyUnCons(..)
   , Unwrap
   , Unwraps
-  , Wrapped()
 ) where
 
 import Choreography.Internal.Choreo

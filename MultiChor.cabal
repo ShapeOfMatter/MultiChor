@@ -45,6 +45,7 @@ common basic-config
     default-extensions: BlockArguments
                        ,DataKinds
                        ,FunctionalDependencies
+                       ,GADTs
                        ,LambdaCase
 
 library choreography

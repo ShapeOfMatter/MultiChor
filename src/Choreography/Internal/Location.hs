@@ -4,6 +4,8 @@
 -- | This module defines locations and located values.
 module Choreography.Internal.Location where
 
+import Data.Foldable (toList)
+import Data.Functor.Const (Const(Const), getConst)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits
 
@@ -23,26 +25,21 @@ data Located (ls :: [LocTy]) a
 wrap :: a -> Located l a
 wrap = Wrap
 
+-- | Unwraps values known to the specified party or parties.
+type Unwrap (q :: LocTy) = forall ls a. Member q ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
+type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
+
 -- | Unwrap a `Located` value.
 --Unwrapping a empty located value will throw an exception!
-unwrap :: Subset qs ls -> Located ls a -> a  -- This is wrong! should use membership to avoid empty sets.
+unwrap :: Unwrap q
 unwrap _ (Wrap a) = a
 unwrap _ Empty    = error "Located: This should never happen for a well-typed choreography."
-
--- | A unified representation of possibly-distinct homogeneous values owned by many parties.
-newtype Faceted (ls :: [LocTy]) a = FacetF (forall l. Member l ls -> Located '[l] a)
-
-unsafeFacet :: [Maybe a] -> Member l ls -> Located '[l] a
-unsafeFacet (Just a : _) First = Wrap a
-unsafeFacet (Nothing : _) First = Empty
-unsafeFacet (_ : as) (Later l) = unsafeFacet as l
-unsafeFacet [] _ = error "The provided list isn't long enough to use as a Faceted over the intended parties."
 
 
 data Member (x :: k) (xs :: [k]) where
   First :: Member x (x ': xs)
   Later :: Member x xs -> Member x (y ': xs)
-newtype Subset xs ys = Subset { inSuper :: forall x. Member x xs -> Member x ys }
+newtype Subset xs ys = Subset { inSuper  :: forall x. Member x xs -> Member x ys }
 refl :: Subset xs xs
 refl = Subset id
 transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
@@ -50,7 +47,7 @@ transitive sxy syz = Subset $ inSuper syz . inSuper sxy
 
 -- | The `[]` case of subset proofs.
 nobody :: Subset '[] ys
-nobody = Subset \case {}
+nobody = Subset \case {}  -- might be a nicer way to write that...
 
 consSet :: Subset xs (x ': xs)
 consSet = Subset Later
@@ -81,19 +78,57 @@ instance KnownSymbols '[] where
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
   tyUnCons = TyCons
 
--- | Map a function, which takes proof of membership as its argument, over a proof-specified list of locations.
-mapLocs :: forall (ls :: [LocTy]) b (ps :: [LocTy]).
-           (KnownSymbols ls)
-        => (forall l. (KnownSymbol l) => Member l ls -> b)
-        -> Subset ls ps
-        -> [b]
-mapLocs f ls = case tyUnCons @ls of
-                 TyCons -> f First : (f . Later) `mapLocs` transitive consSet ls
-                 TyNil -> []
+type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
+newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
+
+-- | A collection of values assigned to each of a list of parties.
+newtype Quire parties a = Quire {asPIndexed :: PIndexed parties (Const a)}
+getLeaf :: (KnownSymbol p) => Quire parties a -> Member p parties -> a
+getLeaf (Quire (PIndexed q)) p = getConst $ q p
+stackLeaves :: forall ps a. (forall p. (KnownSymbol p) => Member p ps -> a) -> Quire ps a
+stackLeaves f = Quire $ PIndexed $ Const . f
+qHead :: (KnownSymbol p) => Quire (p ': ps) a -> a
+qHead (Quire (PIndexed f)) = getConst $ f First
+qTail :: Quire (p ': ps) a -> Quire ps a
+qTail (Quire (PIndexed f)) = Quire $ PIndexed $ f . Later
+qCons :: forall p ps a. a -> Quire ps a -> Quire (p ': ps) a
+qCons a (Quire (PIndexed f)) = Quire $ PIndexed $ \case
+  First -> Const a
+  Later mps -> f mps
+qNil :: Quire '[] a
+qNil = Quire $ PIndexed \case {}
+
+instance forall parties. (KnownSymbols parties) => Functor (Quire parties) where
+  fmap f q = case tyUnCons @parties of
+               TyCons -> f (qHead q) `qCons` fmap f (qTail q)
+               TyNil -> qNil
+instance forall parties. (KnownSymbols parties) => Applicative (Quire parties) where
+  pure a = Quire $ PIndexed $ const $ Const a
+  qf <*> qa = case tyUnCons @parties of
+                TyCons -> qHead qf (qHead qa) `qCons` (qTail qf <*> qTail qa)
+                TyNil -> qNil
+instance forall parties. (KnownSymbols parties) => Foldable (Quire parties) where
+  foldMap f q = case tyUnCons @parties of
+                  TyCons -> f (qHead q) <> foldMap f (qTail q)
+                  TyNil -> mempty
+instance forall parties. (KnownSymbols parties) => Traversable (Quire parties) where
+  sequenceA q = case tyUnCons @parties of
+                  TyCons -> qCons <$> qHead q <*> sequenceA (qTail q)
+                  TyNil -> pure qNil
+instance forall parties a. (KnownSymbols parties, Eq a) => Eq (Quire parties a) where
+  q1 == q2 = and $ (==) <$> q1 <*> q2
+instance forall parties a. (KnownSymbols parties, Show a) => Show (Quire parties a) where
+  show q = show $ toLocs (refl @parties) `zip` toList q
+-- Many more instances are possible...
+
+qModify :: forall p ps a. (KnownSymbol p, KnownSymbols ps) =>  Member p ps -> (a -> a) -> Quire ps a -> Quire ps a
+qModify First f q = f (qHead q) `qCons` qTail q
+qModify (Later m) f q = case tyUnCons @ps of TyCons -> qHead q `qCons` qModify m f (qTail q)
+
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
-toLocs ls = (\(_ :: KnownSymbol l => Member l ls) -> symbolVal $ Proxy @l) `mapLocs` ls
+toLocs _ = toList $ stackLeaves @ls toLocTm
 
 -- | Un-nest located values.
 flatten :: Subset ls ms -> Subset ls ns -> Located ms (Located ns a) -> Located ls a
@@ -102,26 +137,6 @@ flatten _ _ Empty = Empty
 flatten _ _ (Wrap Empty) = Empty
 flatten _ _ (Wrap (Wrap a)) = Wrap a
 
--- | Get the singlely-`Located` value of a `Faceted` at a given location.
-localize :: Member l ls -> Faceted ls a -> Located '[l] a
-localize l (FacetF f) = f l
-
--- | Unwrap a `Faceted` value.
-mine :: Member l ls -> Faceted ls a -> a
-mine l (FacetF f) = unwrap refl $ f l
-
--- | Use a `Located` as a `Faceted`.
-fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
-fracture a = FacetF \_ -> case a of
-                            Empty -> Empty
-                            Wrap a' -> Wrap a'
-
-class Wrapped w where
-  -- | Unwrap a `Located` or a `Faceted`. Can error if misused.
-  unwrap' :: Member l ls -> w ls a -> a
-
-instance Wrapped Located where
-  unwrap' = unwrap . consSub nobody
-
-instance Wrapped Faceted where
-  unwrap' = mine
+othersForget :: Subset ls owners -> Located owners a -> Located ls a
+othersForget _ Empty = Empty
+othersForget _ (Wrap a) = Wrap a

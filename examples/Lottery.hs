@@ -7,7 +7,7 @@
 module Lottery where
 
 import Control.Exception (Exception, throwIO)
-import Control.Monad ( replicateM, unless )
+import Control.Monad (unless)
 import Crypto.Hash (Digest)
 import qualified Crypto.Hash as Crypto
 import Control.Monad.Cont (MonadIO, liftIO)
@@ -15,7 +15,7 @@ import Data.Bifunctor (first)
 import qualified Data.Binary as Binary
 import Data.ByteString (toStrict)
 import Data.FiniteField (primeField)
-import Data.Maybe (fromJust)
+import Data.Foldable (toList)
 import GHC.TypeLits (KnownSymbol)
 import System.Environment (getArgs)
 import System.Random (Random, random, randomR, randomIO, randomRIO)
@@ -69,13 +69,14 @@ lottery
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
   secret <- _parallel clients (getInput @Fp "secret:")
-  clientShares <- clients `parallel` \client un -> do
-      freeShares <- liftIO $ replicateM (length serverNames - 1) $ randomIO @Fp
-      return $ serverNames `zip` (un client secret - sum freeShares : freeShares)
-  serverShares <- fanOut servers (\server ->
+  clientShares <- clients `parallel` \client un -> (case tyUnCons @servers of
+      TyCons -> do  -- I guess this explains to GHC that we have KnownSymbols _servTail? IDK
+        freeShares <- liftIO $ sequence $ pure $ randomIO @Fp
+        return $ (viewFacet un client secret - sum freeShares) `qCons` freeShares)
+  serverShares <- fanOut servers (\server ->   -- Probably I've already got a nicer way to write this on hand; idk.
       fanIn clients (inSuper servers server @@ nobody) (\client -> do
           serverShare <- inSuper clients client `locally` \un ->
-                           pure $ fromJust $ lookup (toLocTm server) $ un client clientShares
+                           pure $ viewFacet un client clientShares `getLeaf` server
           (inSuper clients client, serverShare) ~> inSuper servers server @@ nobody
         )
     )
@@ -84,26 +85,23 @@ lottery clients servers analyst = do
   -- Salt value
   ψ <- _parallel servers (randomRIO (2^(18::Int), 2^(20::Int)))
   -- 2) Each server computes and publishes the hash α = H(ρ, ψ) to serve as a commitment
-  α <- parallel servers \server un -> pure $ hash (un server ψ) (un server ρ)
-  α' <- fanIn servers servers ( \server -> (server, servers, α) ~> servers )
+  α <- parallel servers \server un -> pure $ hash (viewFacet un server ψ) (viewFacet un server ρ)
+  α' <- gather servers servers α
   -- 3) Every server opens their commitments by publishing their ψ and ρ to each other
-  ψ' <- fanIn servers servers ( \server -> (server, servers, ψ) ~> servers )
-  ρ' <- fanIn servers servers ( \server -> (server, servers, ρ) ~> servers )
+  ψ' <- gather servers servers ψ
+  ρ' <- gather servers servers ρ
   -- 4) All servers verify each other's commitment by checking α = H(ρ, ψ)
   parallel_ servers (\server un ->
-      unless (un server α' == zipWith hash (un server ψ') (un server ρ'))
+      unless (un server α' == (hash <$> un server ψ' <*> un server ρ'))
              (liftIO $ throwIO CommitmentCheckFailed)
     )
   -- 5) If all the checks are successful, then sum random values to get the random index.
   ω <- servers `congruently` (\un -> sum (un refl ρ') `mod` length (toLocs clients))
-  chosenShares <- servers `parallel` (\server un -> pure $ un server serverShares !! un server ω)
+  chosenShares <- servers `parallel` (\server un -> pure $ toList (viewFacet un server serverShares) !! un server ω)
   -- Servers forward shares to an analyist.
-  allShares <- fanIn servers (analyst @@ nobody) (\server ->
-      (server, servers, chosenShares) ~> analyst @@ nobody
-    )
+  allShares <- gather servers (analyst @@ nobody) chosenShares
   analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un singleton allShares
- where serverNames = toLocs servers
-       hash :: Int -> Int -> Digest Crypto.SHA256
+ where hash :: Int -> Int -> Digest Crypto.SHA256
        hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
