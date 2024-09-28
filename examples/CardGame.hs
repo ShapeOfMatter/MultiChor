@@ -51,7 +51,7 @@ game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) 
 game = do
   let players = consSuper (allOf @players)
       dealer = listedFirst @"dealer"
-  hand1 <- fanOut players \player -> do
+  hand1 <- fanOut \player -> do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
       (dealer, card1) ~> inSuper players player @@ nobody
   onTheTable <- gather players players hand1
@@ -59,7 +59,7 @@ game = do
       putNote $ "My first card is: " ++ show (viewFacet un player hand1)
       putNote $ "Cards on the table: " ++ show (un player onTheTable)
       getInput "I'll ask for another? [True/False]"
-  hand2 <- fanOut players \(player :: Member player players) -> do
+  hand2 <- fanOut \(player :: Member player players) -> do
       (dealer @@ inSuper players player @@ nobody `enclaveTo` listedSecond @@ nobody) do
         choice <- broadcast (listedSecond @player, getFacet $ pindex wantsNextCard player)
         if choice then do

@@ -13,7 +13,6 @@ module Choreography.Core (
   , enclave
   , epp
   , flatten
-  , forLocs
   , getLeaf
   , inSuper
   , KnownSymbols(..)
@@ -34,6 +33,7 @@ module Choreography.Core (
   , Quire(..)
   , refl
   , runChoreo
+  , sequenceP
   , Subset
   , stackLeaves
   , toLocTm

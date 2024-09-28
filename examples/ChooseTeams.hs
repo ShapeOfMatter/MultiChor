@@ -34,7 +34,7 @@ game :: forall players m. (KnownSymbols players) => Choreo players (CLI m) ()
 game = do
   let players = allOf @players
   let (red, blue) = chooseTeams $ toLocs players
-  numbers <- fanIn players players \p -> if toLocTm p `elem` red
+  numbers <- fanIn players \p -> if toLocTm p `elem` red
                                            then (p, Just <$> getInput @Int "A number to send:") -~> players
                                            else enclave players $ return Nothing
   parallel_ players \p un -> when (toLocTm p `elem` blue) $

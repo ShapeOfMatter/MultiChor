@@ -106,14 +106,13 @@ enclave proof ch = toFreer $ Enclave proof ch
 
 
 
-forLocs :: forall b (ls :: [LocTy]) (ps :: [LocTy]) m.
+sequenceP :: forall b (ls :: [LocTy]) m.
            (KnownSymbols ls, Monad m)
         => PIndexed ls (Compose m b)
-        -> Subset ls ps -- Maybe this can be more general?
         -> m (PIndexed ls b)
-forLocs (PIndexed f) ls = case tyUnCons @ls of
+sequenceP (PIndexed f) = case tyUnCons @ls of
                  TyCons -> do b <- getCompose $ f First
-                              PIndexed fTail <- forLocs (PIndexed $ f . Later) (transitive consSet ls)
+                              PIndexed fTail <- sequenceP (PIndexed $ f . Later)
                               let retVal :: PIndex ls b
                                   retVal First = b
                                   retVal (Later ltr) = fTail ltr

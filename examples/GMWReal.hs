@@ -103,9 +103,9 @@ fAnd :: forall parties m.
 fAnd uShares vShares = do
   let genBools = sequence $ pure randomIO
   a_j_s :: Faceted parties '[] (Quire parties Bool) <- allOf @parties `_parallel` genBools
-  bs :: Faceted parties '[] Bool <- allOf @parties `fanOut` \p_j -> do
+  bs :: Faceted parties '[] Bool <- fanOut \p_j -> do
       let p_j_name = toLocTm p_j
-      b_i_s <- fanIn (allOf @parties) (p_j @@ nobody) \p_i ->
+      b_i_s <- fanIn (p_j @@ nobody) \p_i ->
         if toLocTm p_i == p_j_name
           then p_j `_locally` pure False
           else do
@@ -128,7 +128,7 @@ gmw circuit = case circuit of
     let chooseShare :: PIndex parties (Compose (Choreo parties (CLI m)) (Facet Bool '[]))
         chooseShare p = Compose $ Facet <$> (p @@ nobody `congruently` \_ -> case p of First -> b
                                                                                        Later _ -> False)
-    forLocs (PIndexed chooseShare) (allOf @parties)
+    sequenceP (PIndexed chooseShare)
   AndGate l r -> do        -- process an AND gate
     lResult <- gmw l; rResult <- gmw r;
     fAnd lResult rResult

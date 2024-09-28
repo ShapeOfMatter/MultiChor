@@ -137,7 +137,7 @@ parallel :: forall ls a ps m.
          => Subset ls ps
          -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)  -- Could promote this to PIndexed too, but ergonomics might be worse?
          -> Choreo ps m (Faceted ls '[] a)
-parallel ls m = forLocs (PIndexed body) ls
+parallel ls m = sequenceP (PIndexed body)
   where body :: PIndex ls (Compose (Choreo ps m) (Facet a '[]))
         body mls = Compose $ Facet <$> locally (inSuper ls mls) (m mls)
 
@@ -197,19 +197,17 @@ enclaveTo subcensus recipients ch = flatten recipients (allOf @rs) <$> (subcensu
 
 -- | Perform a given choreography for each of several parties, giving each of them a return value that form a new `Faceted`.
 fanOut :: (KnownSymbols qs)
-       => Subset qs ps  -- ^ The parties to loop over.
-       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located (q ': rs) a))  -- ^ The body.  -- kinda sketchy that rs might not be a subset of ps...
+       => (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located (q ': rs) a))  -- ^ The body.  -- kinda sketchy that rs might not be a subset of ps...
        -> Choreo ps m (Faceted qs rs a)
-fanOut qs body = forLocs (PIndexed $ Compose . (Facet <$>) <$> body) qs  -- I tried ungolfing this and it errored :(
+fanOut body = sequenceP (PIndexed $ Compose . (Facet <$>) <$> body)
 
 -- | Perform a given choreography for each of several parties; the return values are known to recipients but (possibly) not to the loop-parties.
 fanIn :: (KnownSymbols qs, KnownSymbols rs)
-       => Subset qs ps  -- ^ The parties to loop over.
-       -> Subset rs ps  -- ^ The recipients.
+       => Subset rs ps  -- ^ The recipients.
        -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a))  -- ^ The body.
        -> Choreo ps m (Located rs (Quire qs a))
-fanIn qs rs body = do (PIndexed x) <- forLocs (PIndexed $ Compose . (Const <$>) <$> body) qs
-                      rs `congruently` \un -> stackLeaves $ \q -> un refl (getConst $ x q)
+fanIn rs body = do (PIndexed x) <- sequenceP (PIndexed $ Compose . (Const <$>) <$> body)
+                   rs `congruently` \un -> stackLeaves $ \q -> un refl (getConst $ x q)
 
 scatter :: forall census sender recipients a m.
            (KnownSymbol sender, KnownSymbols recipients, Show a, Read a)
@@ -217,8 +215,8 @@ scatter :: forall census sender recipients a m.
         -> Subset recipients census
         -> Located '[sender] (Quire recipients a)
         -> Choreo census m (Faceted recipients '[sender] a)
-scatter sender recipients values = fanOut recipients \r ->
-                                     (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
+scatter sender recipients values = fanOut \r ->
+    (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
 
 gather :: forall census recipients senders a dontcare m.
           (KnownSymbols senders, KnownSymbols recipients, Show a, Read a)
@@ -226,6 +224,6 @@ gather :: forall census recipients senders a dontcare m.
        -> Subset recipients census
        -> Faceted senders dontcare a
        -> Choreo census m (Located recipients (Quire senders a))  -- could be Faceted senders recipients instead...
-gather senders recipients (PIndexed values) = fanIn senders recipients \s ->
-                                     (inSuper senders s, getFacet $ values s) ~> recipients
+gather senders recipients (PIndexed values) = fanIn recipients \s ->
+    (inSuper senders s, getFacet $ values s) ~> recipients
 

@@ -73,8 +73,8 @@ lottery clients servers analyst = do
       TyCons -> do  -- I guess this explains to GHC that we have KnownSymbols _servTail? IDK
         freeShares <- liftIO $ sequence $ pure $ randomIO @Fp
         return $ (viewFacet un client secret - sum freeShares) `qCons` freeShares)
-  serverShares <- fanOut servers (\server ->   -- Probably I've already got a nicer way to write this on hand; idk.
-      fanIn clients (inSuper servers server @@ nobody) (\client -> do
+  serverShares <- fanOut (\server ->   -- Probably I've already got a nicer way to write this on hand; idk.
+      fanIn (inSuper servers server @@ nobody) (\client -> do
           serverShare <- inSuper clients client `locally` \un ->
                            pure $ viewFacet un client clientShares `getLeaf` server
           (inSuper clients client, serverShare) ~> inSuper servers server @@ nobody

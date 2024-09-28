@@ -106,11 +106,11 @@ computeWire trustedAnd parties circuit = case circuit of
     secretShare parties (inSuper parties p) (singleton, value)
   LitWire b -> do
     let shares = partyNames `zip` (b : repeat False)
-    parties `fanOut` \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
+    fanOut \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
   AndGate l r -> do
     lResult <- compute l
     rResult <- compute r
-    inputShares <- fanIn parties (trustedAnd @@ nobody) \p -> do
+    inputShares <- fanIn (trustedAnd @@ nobody) \p -> do
       (inSuper parties p, \un -> return (viewFacet un p lResult, viewFacet un p rResult)) ~~> trustedAnd @@ nobody
     outputVal <- (trustedAnd @@ nobody) `congruently` \un ->
       let ovs = un refl inputShares
