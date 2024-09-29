@@ -69,7 +69,7 @@ instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l 
      -> Subset ls' ps          -- ^ The recipients.
      -> Choreo ps m (Located ls' a)
 infix 4 ~>
-s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ comm listedFirst (ownsMessagePayload s, structMessagePayload s)
+s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ broadcast' listedFirst (ownsMessagePayload s, structMessagePayload s)
              congruently rs (\un -> un consSet x)
 
 -- | Conditionally execute choreographies based on a located value. Automatically enclaves.
@@ -122,7 +122,7 @@ broadcast :: forall l a ps ls m s.
              (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps)
           => s
           -> Choreo ps m a
-broadcast s = comm (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
+broadcast s = broadcast' (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
 
 congruently :: forall ls a ps m.
                (KnownSymbols ls)

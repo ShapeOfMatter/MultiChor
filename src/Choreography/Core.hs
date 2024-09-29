@@ -5,8 +5,8 @@ and everything they export should be safe for users to use.
 -}
 module Choreography.Core (
     alone
+  , broadcast'
   , Choreo
-  , comm
   , consSet
   , consSub
   , consSuper

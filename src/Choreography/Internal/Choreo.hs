@@ -26,10 +26,10 @@ data ChoreoSig (ps :: [LocTy]) m a where
        => (Unwraps ls -> a)
        -> ChoreoSig ls m a
 
-  Comm :: (Show a, Read a, KnownSymbol l)
-       => Member l ps     -- from
-       -> (Member l ls, Located ls a)     -- value
-       -> ChoreoSig ps m a
+  Broadcast :: (Show a, Read a, KnownSymbol l)
+            => Member l ps     -- from
+            -> (Member l ls, Located ls a)     -- value
+            -> ChoreoSig ps m a
 
   Enclave :: (KnownSymbols ls)
        => Subset ls ps
@@ -48,7 +48,7 @@ runChoreo = interpFreer handler
     handler (Purely f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
                              unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                          in return . f $ unwraps
-    handler (Comm _ (p, a)) = return $ unwrap p a
+    handler (Broadcast _ (p, a)) = return $ unwrap p a
     handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
       TyNil -> return Empty
       TyCons -> wrap <$> runChoreo c
@@ -64,7 +64,7 @@ epp c l' = interpFreer handler c
                                TyNil -> error "Undefined projection: the census is empty."
                                TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                          in return . f $ unwraps
-    handler (Comm s (l, a)) = do
+    handler (Broadcast s (l, a)) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
       when (sender == l') $ send (unwrap l a) otherRecipients
@@ -91,12 +91,12 @@ infix 4 `purely`
 purely f = toFreer (Purely f)
 
 -- | Communication between a sender and a receiver.
-comm :: (Show a, Read a, KnownSymbol l)
+broadcast' :: (Show a, Read a, KnownSymbol l)
      => Member l ps-- ^ Proof the sender is present
      -> (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
      -> Choreo ps m a
-infix 4 `comm`
-comm l a = toFreer (Comm l a)
+infix 4 `broadcast'`
+broadcast' l a = toFreer (Broadcast l a)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --Adds a `Located ls` layer to the return type.
