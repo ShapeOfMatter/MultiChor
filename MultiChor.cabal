@@ -60,7 +60,6 @@ library choreography
         Choreography.Network.Http
         Choreography.Network.Local
         Control.Monad.Freer
-        CLI
     other-modules:
         Choreography.Internal.Choreo
         Choreography.Internal.Location
@@ -110,6 +109,7 @@ library examples
         , Playground
         , QuickSort
         , RingLeader
+        , CLI
         , Data
 
 common example
@@ -131,6 +131,7 @@ common example
         , transformers >= 0.5  && < 0.7
         , QuickCheck >= 2.14 && < 3
     other-modules: Data
+                 , CLI
 
 Test-Suite testExamples
     import: example
