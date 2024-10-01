@@ -44,26 +44,29 @@ common basic-config
       -Winvalid-haddock
     default-extensions: BlockArguments
                        ,DataKinds
+                       ,ExplicitNamespaces
                        ,FunctionalDependencies
                        ,GADTs
+                       ,ImpredicativeTypes
                        ,LambdaCase
+                       ,LiberalTypeSynonyms
+                       ,TypeFamilies
 
 library choreography
     import: basic-config
     hs-source-dirs:   src
     exposed-modules:
         Choreography
-        Choreography.Choreo
+        Choreography.Choreography
+        Choreography.Choreography.Batteries
         Choreography.Core
-        Choreography.Location
+        Choreography.Locations
+        Choreography.Locations.Batteries
         Choreography.Network
         Choreography.Network.Http
         Choreography.Network.Local
+        Choreography.Polymorphism
         Control.Monad.Freer
-    other-modules:
-        Choreography.Internal.Choreo
-        Choreography.Internal.Location
-        Choreography.Internal.Network
 
 common lib-dependent
     import: basic-config

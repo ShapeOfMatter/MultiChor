@@ -3,14 +3,15 @@
 -- | This module defines the multi-thread backend for the `Network` monad.
 module Choreography.Network.Local where
 
-import Choreography.Core
-import Choreography.Network
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Data.HashMap.Strict (HashMap, (!), (!?))
 import Data.HashMap.Strict qualified as HashMap
+
+import Choreography.Locations
+import Choreography.Network
 
 -- | Each location is associated with a message buffer which stores messages sent
 -- from other locations.

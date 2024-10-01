@@ -1,184 +1,31 @@
-(-~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-      => (Member l ps, m a) -> Subset ls' ps -> Choreo ps m (Located ls' a)
-infix 4 -~>
 
-(~~>) :: forall a l ls' m ps. (Show a, Read a, KnownSymbol l, KnownSymbols ls')
-      => (Member l ps, Unwrap l -> m a) -> Subset ls' ps -> Choreo ps m (Located ls' a)
-infix 4 ~~>
 
-(@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
-infixr 5 @@
 
-(~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps w)
-     => s  -- ^ The message argument can take three forms:
-           --     `(Member sender census, wrapped owners a)` where
-           --         the sender is explicitly listed in owners,
-           --     `(Member sender owners, Subset owners census, wrapped owners a)`, or
-           --     `(Member sender census, (Member sender owners, wrapped owners a)`.
-     -> Subset ls' ps -> Choreo ps m (Located ls' a)
-infix 4 ~>
 
-allOf :: forall ps. Subset ps ps
 
-Backend :: Type -> Constraint  -- A phonebook for running Network monad expressions.
 
-broadcast :: forall l a ps ls w m s.
-             (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps w)
-          => s -> Choreo ps m a
 
-Choreo :: [LocTy] -> (Type -> Type) -> Type -> Type
-type Choreo ps m = Freer (ChoreoSig ps m)
+{- -- It seems like we should still want Wrapped for something....
+class Wrapped w where
+  -- | Unwrap a `Located` or a `Faceted`. Can error if misused.
+  unwrap' :: Member l ls -> w ls a -> a
 
-comm :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', Wrapped w)
-     => Member l ps -> (Member l ls, w ls a) -> Subset ls' ps
-     -> Choreo ps m (Located ls' a)
-infix 4 `comm`
+instance Wrapped Located where
+  unwrap' = unwrap . consSub nobody
 
-cond :: (KnownSymbols ls)
-     => (Subset ls ps, (Subset ls qs, Located qs a)) -> (a -> Choreo ls m b)
-     -> Choreo ps m (Located ls b)
+instance Wrapped Faceted where
+  unwrap' = mine
+-}
 
-congruently :: (KnownSymbols ls)
-              => Subset ls ps -> (Unwraps ls -> a) -> Choreo ps m (Located ls a)
-infix 4 `congruently`
 
-consSet :: Subset xs (x ': xs)
+{-  -- These are probably useless...
+-- | Unwrap a `Faceted` value.
+mine :: Member l ls -> Faceted ls a -> a
+mine l (FacetF f) = unwrap refl $ f l
 
-consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
-
-consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
-
-enclave :: (KnownSymbols ls)
-        => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
-infix 4 `enclave`
-
-enclaveTo :: forall ls a rs ps m. (KnownSymbols ls)
-          => Subset ls ps -> Subset rs ls -> Choreo ls m (Located rs a)
-          -> Choreo ps m (Located rs a)
-infix 4 `enclaveTo`
-
-enclaveToAll :: forall ls a ps m. (KnownSymbols ls)
-             => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
-infix 4 `enclaveToAll`
-
-epp :: (Monad m) => Choreo ps m a -> LocTm -> Network m a
-
-ExplicitMember :: forall k. k -> [k] -> Constraint
-explicitMember :: forall k (x :: k) (xs :: [k]). ExplicitMember x xs => Member x xs
-
-ExplicitSubset :: forall {k}. [k] -> [k] -> Constraint
-explicitSubset :: forall {k} (xs :: [k]) (ys :: [k]). ExplicitSubset xs ys => Subset xs ys
-
-Faceted :: [LocTy] -> Type -> Type
-
-fanIn :: (KnownSymbols qs, KnownSymbols rs)
-       => Subset qs ps -> Subset rs ps
-       -> (forall q. (KnownSymbol q)
-           => Member q qs -> Choreo ps m (Located rs a))
-       -> Choreo ps m (Located rs [a])
-
-fanOut :: (KnownSymbols qs, Wrapped w)
-       => Subset qs ps
-       -> (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (w '[q] a))
-       -> Choreo ps m (Faceted qs a)
-
-flatten :: Subset ls ms -> Subset ls ns -> Located ms (Located ns a)
-        -> Located ls a
-infix 3 `flatten`
-
+-- | Use a `Located` as a `Faceted`.
 fracture :: forall ls a. (KnownSymbols ls) => Located ls a -> Faceted ls a
-
-inSuper :: Subset xs ys -> Member x xs -> Member x ys
-
-IsMember :: forall k. k -> [k] -> Type
-
-IsSubset :: forall k. [k] -> [k] -> Type
-
-KnownSymbols :: [Symbol] -> Constraint  -- lift KnownSymbol to type-level lists
-
-listedFifth :: forall p5 p4 p3 p2 p1 ps. Member p5 (p1 ': p2 ': p3 ': p4 ': p5 ': ps)
-
-listedFirst :: forall p1 ps. Member p1 (p1 ': ps)
-
-listedForth :: forall p4 p3 p2 p1 ps. Member p4 (p1 ': p2 ': p3 ': p4 ': ps)
-
-listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
-
-listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p5 ': p6 ': ps)
-
-listedThird :: forall p3 p2 p1 ps. Member p3 (p1 ': p2 ': p3 ': ps)
-
-localize :: (KnownSymbol l) => Member l ls -> Faceted ls a -> Located '[l] a
-
-locally :: (KnownSymbol (l :: LocTy))
-        => Member l ps -> (Unwrap l -> m a) -> Choreo ps m (Located '[l] a)
-infix 4 `locally`
-
-locally_ :: (KnownSymbol l) => Member l ps -> (Unwrap l -> m ()) -> Choreo ps m ()
-infix 4 `locally_`
-
-_locally :: (KnownSymbol l) => Member l ps -> m a -> Choreo ps m (Located '[l] a)
-infix 4 `_locally`
-
-_locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
-infix 4 `_locally_`
-
-Located :: [LocTy] -> Type -> Type
-
-LocTm :: Type
-type LocTm = String
-
-LocTy :: Type
-type LocTy = Symbol
-
-Member :: forall {k}. k -> [k] -> Type
-type Member x xs = Proof (IsMember x xs)
-
-mkLoc :: String -> Q [Dec]  -- Template Haskell
-
-naked :: Subset ps qs -> Located qs a -> Choreo ps m a
-infix 4 `naked`
-
-Network :: (Type -> Type) -> Type -> Type
-
-NetworkSig :: (Type -> Type) -> Type -> Type
-
-nobody :: Subset '[] ys
-
-parallel :: (KnownSymbols ls)
-         => Subset ls ps -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a)
-         -> Choreo ps m (Faceted ls a)
-
-parallel_ :: forall ls ps m. (KnownSymbols ls)
-          => Subset ls ps -> (forall l. (KnownSymbol l) => Member l ls -> Unwrap l ->m ())
-          -> Choreo ps m ()
-
-_parallel :: forall ls a ps m. (KnownSymbols ls)
-          => Subset ls ps -> m a -> Choreo ps m (Faceted ls a)
-
-recv :: forall a (m :: Type -> Type). Read a => LocTm -> Network m a
-
-run :: forall (m :: Type -> Type) a. m a -> Network m a
-
-runChoreo :: forall ps b m. Monad m => Choreo ps m b -> m b
-
-runNetwork :: (Backend c, MonadIO m) => c -> LocTm -> Network m a -> m a
-
-send :: forall a (m :: Type -> Type). Show a => a -> [LocTm] -> Network m ()
-
-singleton :: forall p. Member p (p ': '[])
-
-Subset :: forall {k}. [k] -> [k] -> Type
-type Subset xs ys = Proof (IsSubset xs ys)
-
-toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
-
-toLocTm :: forall (l :: LocTy) (ps :: [LocTy]). KnownSymbol l => Member l ps -> LocTm
-
-Unwrap :: LocTy -> Type
-type Unwrap (l :: LocTy) = forall ls a w. (Wrapped w) => Member l ls -> w ls a -> a
-
-Unwraps :: [LocTy] -> Type
-type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
-
-Wrapped :: ([Symbol] -> Type -> Type) -> Constraint
+fracture a = FacetF \_ -> case a of
+                            Empty -> Empty
+                            Wrap a' -> Wrap a'
+-}
