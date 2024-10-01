@@ -1,9 +1,3 @@
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE ExplicitNamespaces #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LiberalTypeSynonyms #-}
-
 -- | This module defines `Choreo`, the monad for writing choreographies,
 --   and the closely related `Located` data type.
 module Choreography.Core (

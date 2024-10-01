@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs #-}
-
 -- | This module defines the multi-thread backend for the `Network` monad.
 module Choreography.Network.Local where
 

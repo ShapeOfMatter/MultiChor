@@ -1,12 +1,7 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeFamilies #-}
-
 -- | This module defines locations and functions/relations pertaining to type-level lists of locations.
 --   Additionally introduces `PIndexed` and `Quire`.
 module Choreography.Locations where
 
-import Data.Foldable (toList)
-import Data.Functor.Const (Const(Const), getConst)
 import Data.Proxy (Proxy(..))
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 
@@ -81,8 +76,7 @@ toLocTm _ = symbolVal (Proxy @l)
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
---toLocs _ = toList $ stackLeaves @ls toLocTm
-toLocs _ = case tyUnCons @ls of
+toLocs _ = case tyUnCons @ls of  -- this could be golfed by Quire, if that were defined here.
   TyNil -> []
   TyCons -> toLocTm (First @ls) : toLocs (consSet @ls)
 

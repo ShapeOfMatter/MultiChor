@@ -1,4 +1,3 @@
-
 module Choreography.Choreography  where
 
 import Choreography.Core

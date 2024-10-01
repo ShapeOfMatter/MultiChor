@@ -1,6 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs     #-}
-
 -- | This module implments the HTTP message transport backend for the `Network`
 -- monad.
 module Choreography.Network.Http where
