@@ -1,16 +1,16 @@
 -- | This module defines `Choreo`, the monad for writing choreographies,
 --   and the closely related `Located` data type.
 module Choreography.Core (
-    alone
-  , broadcast'
+    broadcast'
   , Choreo
   -- , ChoreoSig(..)  I can't think of any reasons why we _should_ export this, nor any reason why we shouldn't...
+  , congruently'
   , enclave
   , epp
   , flatten
+  , locally'
   , Located()
   , othersForget
-  , purely
   , runChoreo
   , Unwrap
   , Unwraps
@@ -62,13 +62,13 @@ othersForget _ (Wrap a) = Wrap a
 
 
 data ChoreoSig (ps :: [LocTy]) m a where
-  Alone :: (KnownSymbol l)
-        => (Unwrap l -> m a)
-        -> ChoreoSig '[l] m a
+  Locally :: (KnownSymbol l)
+          => (Unwrap l -> m a)
+          -> ChoreoSig '[l] m a
 
-  Purely :: (KnownSymbols ls)
-       => (Unwraps ls -> a)
-       -> ChoreoSig ls m a
+  Congruently :: (KnownSymbols ls)
+              => (Unwraps ls -> a)
+              -> ChoreoSig ls m a
 
   Broadcast :: (Show a, Read a, KnownSymbol l)
             => Member l ps     -- from
@@ -88,10 +88,10 @@ runChoreo :: forall p ps b m. Monad m => Choreo (p ': ps) m b -> m b
 runChoreo = interpFreer handler
   where
     handler :: Monad m => ChoreoSig  (p ': ps) m a -> m a
-    handler (Alone m) = m unwrap
-    handler (Purely f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
-                             unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
-                         in return . f $ unwraps
+    handler (Locally m) = m unwrap
+    handler (Congruently f) = let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
+                                  unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
+                              in return . f $ unwraps
     handler (Broadcast _ (p, a)) = return $ unwrap p a
     handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
       TyNil -> return Empty
@@ -102,12 +102,12 @@ epp :: forall ps b m. (Monad m, KnownSymbols ps) => Choreo ps m b -> LocTm -> Ne
 epp c l' = interpFreer handler c
   where
     handler :: ChoreoSig ps m a -> Network m a
-    handler (Alone m) = run $ m unwrap
-    handler (Purely f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
-                             unwraps = case tyUnCons @ps of
-                               TyNil -> error "Undefined projection: the census is empty."
-                               TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
-                         in return . f $ unwraps
+    handler (Locally m) = run $ m unwrap
+    handler (Congruently f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
+                                  unwraps = case tyUnCons @ps of
+                                    TyNil -> error "Undefined projection: the census is empty."
+                                    TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
+                              in return . f $ unwraps
     handler (Broadcast s (l, a)) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
@@ -120,18 +120,18 @@ epp c l' = interpFreer handler c
       | otherwise       = return Empty
 
 -- | Access to the inner "local" monad.
-alone :: (KnownSymbol l)
-      => (Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the unwraper.
-      -> Choreo '[l] m a
-alone m = toFreer (Alone m)
+locally' :: (KnownSymbol l)
+         => (Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the unwraper.
+         -> Choreo '[l] m a
+locally' m = toFreer (Locally m)
 
 -- | Perform the exact same computation in replicate at all participating locations.
 --   The computation can not use anything local to an individual party, including their identity.
-purely :: (KnownSymbols ls)
-              => (Unwraps ls -> a)  -- ^ The computation, as a function of the unwraper.
-              -> Choreo ls m a
-infix 4 `purely`
-purely f = toFreer (Purely f)
+congruently' :: (KnownSymbols ls)
+             => (Unwraps ls -> a)  -- ^ The computation, as a function of the unwraper.
+             -> Choreo ls m a
+infix 4 `congruently'`
+congruently' f = toFreer (Congruently f)
 
 -- | Communicate a value to all present parties.
 broadcast' :: (Show a, Read a, KnownSymbol l)

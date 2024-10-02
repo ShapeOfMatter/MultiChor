@@ -14,7 +14,7 @@ locally :: (KnownSymbol (l :: LocTy))
                              --   unwrap funciton.
         -> Choreo ps m (Located '[l] a)
 infix 4 `locally`
-locally l m = enclave (l @@ nobody) $ alone m
+locally l m = enclave (l @@ nobody) $ locally' m
 
 -- | Perform the exact same computation in replicate at multiple locations.
 --   The computation can not use anything local to an individual party, including their identity.
@@ -24,14 +24,14 @@ congruently :: forall ls a ps m.
             -> (Unwraps ls -> a)
             -> Choreo ps m (Located ls a)
 infix 4 `congruently`
-congruently ls a = enclave ls $ purely a
+congruently ls a = enclave ls $ congruently' a
 
 -- | Unwrap a value known to the entire census.
 naked :: (KnownSymbols ps)
       => Subset ps qs
       -> Located qs a
       -> Choreo ps m a
-naked ownership a = purely (\un -> un ownership a)
+naked ownership a = congruently' (\un -> un ownership a)
 
 
 -- * Communication
