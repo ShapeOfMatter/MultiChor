@@ -1,12 +1,7 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs     #-}
-
 -- | This module implments the HTTP message transport backend for the `Network`
 -- monad.
 module Choreography.Network.Http where
 
-import Choreography.Core
-import Choreography.Network hiding (run, send)
 import Data.Proxy (Proxy(..))
 import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
@@ -20,6 +15,9 @@ import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Network.Wai.Handler.Warp (run)
 import Data.Either (lefts)
+
+import Choreography.Locations
+import Choreography.Network hiding (run, send)
 
 -- * Servant API
 

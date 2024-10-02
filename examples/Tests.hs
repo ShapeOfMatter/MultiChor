@@ -25,7 +25,6 @@ import qualified KVS6SizePoly
 import qualified MPCFake
 import qualified GMWReal
 import Choreography
-import Choreography.Network (runNetwork)
 import Choreography.Network.Local (mkLocalConfig)
 import Data (BooksellerArgs(..), reference)
 import CLI (runCLIStateful)
