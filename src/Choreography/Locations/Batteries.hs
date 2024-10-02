@@ -35,11 +35,14 @@ allOf = refl
 infixr 5 @@
 (@@) = flip consSub
 
+-- | Any element `p` is a member of the list `'[p]`.
 singleton :: forall p. Member p (p ': '[])
 singleton = First
 
+-- * Easy indexing with `Member` objects.
+
 listedFirst :: forall p1 ps. Member p1 (p1 ': ps)  -- Can we replace all of these with something using off-the-shelf type-level Nats?
-listedFirst = First                                -- Additionally, note that type-allicaiton may be easier with `listedFirst than with `First`.
+listedFirst = First                                -- Additionally, note that type-applicaiton is different than with `First`.
 
 listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
 listedSecond = inSuper (consSuper refl) listedFirst
@@ -57,14 +60,17 @@ listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p
 listedSixth = inSuper (consSuper refl) listedFifth
 
 
+-- | Use any membership proof to to safely call code that only works on a non-empy list.
 quorum1 :: forall ps p a.
            (KnownSymbols ps)
-        => Member p ps -> (forall q qs. (KnownSymbol q, KnownSymbols qs, ps ~ q ': qs) => a) -> a
+        => Member p ps
+        -> (forall q qs. (KnownSymbol q, KnownSymbols qs, ps ~ q ': qs) => a)
+        -> a
 quorum1 p a = case (p, tyUnCons @ps) of (First, TyCons) -> a
                                         (Later _, TyCons) -> a
 
 
--- |Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.
+-- | Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.
 mkLoc :: String -> Q [Dec]
 mkLoc loc = do
   let locName = mkName loc
@@ -77,3 +83,4 @@ mkLoc loc = do
                                (AppT (AppT (ConT m) (LitT (StrTyLit loc))) (VarT tvar)))
        , ValD (VarP locName) (NormalB (VarE em)) []
        ]
+

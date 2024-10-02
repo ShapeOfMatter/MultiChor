@@ -36,8 +36,10 @@ data Located (ls :: [LocTy]) a
 wrap :: a -> Located l a
 wrap = Wrap
 
--- | Unwraps values known to the specified party or parties.
+-- | Unwraps values known to the specified party.
 type Unwrap (q :: LocTy) = forall ls a. Member q ls -> Located ls a -> a
+-- | Unwraps values known to the specified list of parties.
+--   Could be dangerous if the list is empty, but the API is designed so that no value of type `Unwraps '[]` will ever actually get evaluated.
 type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
 
 -- | Unwrap a `Located` value.
@@ -53,6 +55,7 @@ flatten _ _ Empty = Empty
 flatten _ _ (Wrap Empty) = Empty
 flatten _ _ (Wrap (Wrap a)) = Wrap a
 
+-- | Cast a `Located` value to a smaller ownership set; useful when working with functions whos arguments have explict ownership sets.
 othersForget :: Subset ls owners -> Located owners a -> Located ls a
 othersForget _ Empty = Empty
 othersForget _ (Wrap a) = Wrap a
@@ -118,20 +121,19 @@ epp c l' = interpFreer handler c
 
 -- | Access to the inner "local" monad.
 alone :: (KnownSymbol l)
-      => (Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the un-wrap-er.
+      => (Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the unwraper.
       -> Choreo '[l] m a
 alone m = toFreer (Alone m)
 
--- | Perform the exact same computation in replicate at multiple locations.
---"Replicate" is stronger than "parallel"; all parties will compute the exact same thing.
---The computation must be pure, and can not use `Faceted`s.
+-- | Perform the exact same computation in replicate at all participating locations.
+--   The computation can not use anything local to an individual party, including their identity.
 purely :: (KnownSymbols ls)
-              => (Unwraps ls -> a)  -- ^ The computation, as a function of the un-wrap-er.
+              => (Unwraps ls -> a)  -- ^ The computation, as a function of the unwraper.
               -> Choreo ls m a
 infix 4 `purely`
 purely f = toFreer (Purely f)
 
--- | Communication between a sender and a receiver.
+-- | Communicate a value to all present parties.
 broadcast' :: (Show a, Read a, KnownSymbol l)
      => Member l ps-- ^ Proof the sender is present
      -> (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
@@ -140,7 +142,7 @@ infix 4 `broadcast'`
 broadcast' l a = toFreer (Broadcast l a)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
---Adds a `Located ls` layer to the return type.
+--   Adds a `Located ls` layer to the return type.
 enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
 infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch

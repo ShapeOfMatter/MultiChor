@@ -10,12 +10,13 @@ import GHC.TypeLits
 locally :: (KnownSymbol (l :: LocTy))
         => Member l ps           -- ^ Location performing the local computation.
         -> (Unwrap l -> m a) -- ^ The local computation given a constrained
-                             -- unwrap funciton.
+                             --   unwrap funciton.
         -> Choreo ps m (Located '[l] a)
 infix 4 `locally`
 locally l m = enclave (l @@ nobody) $ alone m
 
-
+-- | Perform the exact same computation in replicate at multiple locations.
+--   The computation can not use anything local to an individual party, including their identity.
 congruently :: forall ls a ps m.
                (KnownSymbols ls)
             => Subset ls ps
@@ -24,6 +25,7 @@ congruently :: forall ls a ps m.
 infix 4 `congruently`
 congruently ls a = enclave ls $ purely a
 
+-- | Unwrap a value known to the entire census.
 naked :: (KnownSymbols ps)
       => Subset ps qs
       -> Located qs a
@@ -31,8 +33,7 @@ naked :: (KnownSymbols ps)
 naked ownership a = purely (\un -> un ownership a)
 
 
---class CanSend loc val owners census struct | struct -> loc val owners census where
-  --normalSendArgs :: struct -> (Member loc census, Member loc owners, val)
+
 class (KnownSymbol loc) => CanSend struct loc val owners census | struct -> loc val owners census where
   presentToSend :: struct -> Member loc census
   ownsMessagePayload :: struct -> Member loc owners
