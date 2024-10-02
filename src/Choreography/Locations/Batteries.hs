@@ -27,7 +27,11 @@ instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
 allOf :: forall ps. Subset ps ps
 allOf = refl
 
--- | Use like `:` for subset proofs.
+{- | Used like `:` for subset proofs.
+Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
+
+>>> proof :: Subset '["Alice"]  census  = alice @@ nobody
+-}
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
 (@@) = flip consSub
