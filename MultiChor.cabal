@@ -102,6 +102,7 @@ library examples
         , KVS4LocPoly
         , KVS5Fig17
         , KVS6SizePoly
+        , KVS_PaperExamples
         , Lottery
         , MergeSort
         , MPCFake
