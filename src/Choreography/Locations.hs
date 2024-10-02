@@ -11,20 +11,21 @@ type LocTm = String
 type LocTy = Symbol
 
 -- * Membership and Subset proofs
--- These are frequently used both for proofs *per se* and to indentify individuals in list of locations
+-- These are frequently used both for proofs *per se* and to indentify individuals in lists of locations.
 --
--- For example: `players :: Subset players census` is a proof that the type level list `players`  is a subset of `census`,
--- and it can also be used as a **term-level** identifier for the **type-level** `players`.
+-- For example: `players :: Subset players census` is a proof that the type-level list `players`  is a subset of `census`,
+-- and it can also be used as a **term-level** identifier for the **type-level** `players`, similar to how a `proxy` might be used.
 
 
 -- | A term-level proof that a `LocTy` is a member of a `[LocTy]`.
---   Pattern matching on such a term recovers knowlege of the list's structure.
+--   Pattern matching on such these values is like pattern matching on a successor-based `Nat`;
+--   in this sense a `Member x xs` is an index into `xs` at which `x` can be found.
 data Member (x :: k) (xs :: [k]) where
   First :: forall xs x xs'. (xs ~ (x ': xs')) => Member x (x ': xs')
   Later :: Member x xs -> Member x (y ': xs)
 
 
--- | A term level proof that one type-level list represents a subset of another is
+-- | A term level proof that one type-level list represents a subset of another,
 --   embodied by a total function from proof-of-membership in the sublist to proof-of-membership in the superlist.
 newtype Subset xs ys = Subset {
   -- | Convert a proof of membership in the sublist to a proof of membership in the superlist.
@@ -45,16 +46,20 @@ transitive sxy syz = Subset $ inSuper syz . inSuper sxy
 nobody :: Subset '[] ys
 nobody = Subset \case {}
 
+-- | Any lists is a subset of the list made by consing itself with any other item.
 consSet :: forall xs x xs'. (xs ~ (x ': xs')) => Subset xs' (x ': xs')
 consSet = Subset Later
 
+-- | Cons an element to the superset in a `Subset` value.
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
+-- | Cons an element to the subset in a `Subset` value; requires proof that the new head element is already a member of the superset.
 consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
 consSub sxy mxy = Subset \case
   First -> mxy
   Later mxxs -> inSuper sxy mxxs
+
 
 -- * Accessing parties' names
 
@@ -71,22 +76,29 @@ toLocs _ = case tyUnCons @ls of  -- this could be golfed by Quire, if that were 
   TyNil -> []
   TyCons -> toLocTm (First @ls) : toLocs (consSet @ls)
 
+
 -- * Handling type-level lists literals
--- The class KnownSymobls will need to be propogated to user code, but `tyUnCons` should only be neccessary
--- when the behavior of the choreography only depends on the structure of the type-level lists.
+-- `KnownSymobls` constraints will often need to be declared in user code,
+-- but using `tyUnCons` should only be neccessary
+-- when the behavior of the choreography depends on the structure of the type-level lists.
 -- Most of the time the functions in `Choreography.Polymorphism` should do this for you.
 
 -- | Term-level markers of the spine/structure of a type-level list.
 --   Pattern matching on them recovers both the spine of the list and, if applicable,
 --   `KnownSymbol[s]` instances for the head and tail.
 data TyUnCons ps where
+    -- | Denotes that the list has a head and tail, and exposes `KnownSymbol` and `KnownSymbols` constraints respectively.
     TyCons :: (KnownSymbol h, KnownSymbols ts) => TyUnCons (h ': ts)
+    -- | Denotes that the list is empty.
     TyNil :: TyUnCons '[]
 
 -- | The type-level-list version of GHC.TypeList.KnownSymbol.
 --   Denotes that both the spine of the list and each of its elements is known at compile-time.
 --   This knowlege is typically recovered by recursively pattern-matching on `tyUnCons @ls`.
 class KnownSymbols ls where
+  -- | Pattern matching on `tyUnCons @ls` will normally have two cases, for when `ls` is empty or not.
+  --   Contextual knowlege may let one or the other case be skipped.
+  --   Within those casese, the knowlege afforded by `TyUnCons`'s constructors can be used.
   tyUnCons :: TyUnCons ls
 
 instance KnownSymbols '[] where

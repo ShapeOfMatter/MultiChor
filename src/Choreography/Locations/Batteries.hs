@@ -7,7 +7,7 @@ import Language.Haskell.TH
 
 import Choreography.Locations
 
-
+-- | Quickly build membership proofs, when the membership can be directly observed by GHC.
 class ExplicitMember (x :: k) (xs :: [k]) where
   explicitMember :: Member x xs
 instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': xs) where
@@ -15,6 +15,7 @@ instance {-# OVERLAPPABLE #-} (ExplicitMember x xs) =>  ExplicitMember x (y ': x
 instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
   explicitMember = First
 
+-- | Quickly build subset proofs, when the subset relation can be directly observed by GHC.
 class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
 instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
@@ -27,11 +28,9 @@ instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
 allOf :: forall ps. Subset ps ps
 allOf = refl
 
-{- | Used like `:` for subset proofs.
-Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
-
->>> proof :: Subset '["Alice"]  census  = alice @@ nobody
--}
+-- | Used like `:` for subset proofs.
+--   Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
+--   >>> proof :: Subset '["Alice"]  census  = alice @@ nobody
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
 (@@) = flip consSub
