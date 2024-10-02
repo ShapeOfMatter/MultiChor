@@ -5,6 +5,7 @@ import Choreography.Locations
 import Choreography.Locations.Batteries(ExplicitMember(..), (@@))
 import GHC.TypeLits
 
+-- * Computation _per se_
 
 -- | Perform a local computation at a given location.
 locally :: (KnownSymbol (l :: LocTy))
@@ -33,7 +34,9 @@ naked :: (KnownSymbols ps)
 naked ownership a = purely (\un -> un ownership a)
 
 
+-- * Communication
 
+-- | Writing out the first argument to `~>` can be done a few different ways depending on context, represented by this class.
 class (KnownSymbol loc) => CanSend struct loc val owners census | struct -> loc val owners census where
   presentToSend :: struct -> Member loc census
   ownsMessagePayload :: struct -> Member loc owners
@@ -54,13 +57,14 @@ instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l 
   ownsMessagePayload (m, _, _) = m
   structMessagePayload (_, _, p) = p
 
+-- | Send a value from one party to the entire census.
 broadcast :: forall l a ps ls m s.
              (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps)
           => s
           -> Choreo ps m a
 broadcast s = broadcast' (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
 
--- | Communication between a sender and a receiver.
+-- | Communication between a sender and a list of receivers.
 (~>) :: (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps)
      => s  -- ^ The message argument can take three forms:
            --     `(Member sender census, wrapped owners a)` where the sender is explicitly listed in owners,
@@ -72,6 +76,8 @@ infix 4 ~>
 s ~> rs = do x :: a <- enclave (presentToSend s @@ rs) $ broadcast' First (ownsMessagePayload s, structMessagePayload s)
              congruently rs (\un -> un consSet x)
 
+
+-- * Enclaves
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
