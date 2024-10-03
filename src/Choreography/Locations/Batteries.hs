@@ -66,8 +66,8 @@ quorum1 :: forall ps p a.
         => Member p ps
         -> (forall q qs. (KnownSymbol q, KnownSymbols qs, ps ~ q ': qs) => a)
         -> a
-quorum1 p a = case (p, tyUnCons @ps) of (First, TyCons) -> a
-                                        (Later _, TyCons) -> a
+quorum1 p a = case (p, tySpine @ps) of (First, TyCons) -> a
+                                       (Later _, TyCons) -> a
 
 
 -- | Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.

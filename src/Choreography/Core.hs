@@ -93,7 +93,7 @@ runChoreo = interpFreer handler
                                   unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                               in return . f $ unwraps
     handler (Broadcast _ (p, a)) = return $ unwrap p a
-    handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tyUnCons @ls of
+    handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tySpine @ls of
       TyNil -> return Empty
       TyCons -> wrap <$> runChoreo c
 
@@ -104,7 +104,7 @@ epp c l' = interpFreer handler c
     handler :: ChoreoSig ps m a -> Network m a
     handler (Locally m) = run $ m unwrap
     handler (Congruently f) = let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
-                                  unwraps = case tyUnCons @ps of
+                                  unwraps = case tySpine @ps of
                                     TyNil -> error "Undefined projection: the census is empty."
                                     TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
                               in return . f $ unwraps

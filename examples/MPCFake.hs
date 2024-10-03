@@ -78,7 +78,7 @@ secretShare parties p (ownership, value) = do
   shares <- p `locally` \un -> genShares (un ownership value)
   PIndexed fs <- scatter p parties shares
   return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
-  where genShares x = case tyUnCons @parties of
+  where genShares x = case tySpine @parties of
                            TyCons -> gs'
                            TyNil -> error "Can't secret-share to zero people."
           where gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)

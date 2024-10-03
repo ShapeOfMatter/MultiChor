@@ -72,38 +72,38 @@ toLocTm _ = symbolVal (Proxy @l)
 
 -- | Get the term-level list of names-as-strings for a proof-level list of parties.
 toLocs :: forall (ls :: [LocTy]) (ps :: [LocTy]). KnownSymbols ls => Subset ls ps -> [LocTm]
-toLocs _ = case tyUnCons @ls of  -- this could be golfed by Quire, if that were defined here.
+toLocs _ = case tySpine @ls of  -- this could be golfed by Quire, if that were defined here.
   TyNil -> []
   TyCons -> toLocTm (First @ls) : toLocs (consSet @ls)
 
 
 -- * Handling type-level lists literals
 -- `KnownSymobls` constraints will often need to be declared in user code,
--- but using `tyUnCons` should only be neccessary
+-- but using `tySpine` should only be neccessary
 -- when the behavior of the choreography depends on the structure of the type-level lists.
 -- Most of the time the functions in `Choreography.Polymorphism` should do this for you.
 
 -- | Term-level markers of the spine/structure of a type-level list.
 --   Pattern matching on them recovers both the spine of the list and, if applicable,
 --   `KnownSymbol[s]` instances for the head and tail.
-data TyUnCons ps where
+data TySpine ps where
     -- | Denotes that the list has a head and tail, and exposes `KnownSymbol` and `KnownSymbols` constraints respectively.
-    TyCons :: (KnownSymbol h, KnownSymbols ts) => TyUnCons (h ': ts)
+    TyCons :: (KnownSymbol h, KnownSymbols ts) => TySpine (h ': ts)
     -- | Denotes that the list is empty.
-    TyNil :: TyUnCons '[]
+    TyNil :: TySpine '[]
 
 -- | The type-level-list version of GHC.TypeList.KnownSymbol.
 --   Denotes that both the spine of the list and each of its elements is known at compile-time.
---   This knowlege is typically recovered by recursively pattern-matching on `tyUnCons @ls`.
+--   This knowlege is typically recovered by recursively pattern-matching on `tySpine @ls`.
 class KnownSymbols ls where
-  -- | Pattern matching on `tyUnCons @ls` will normally have two cases, for when `ls` is empty or not.
+  -- | Pattern matching on `tySpine @ls` will normally have two cases, for when `ls` is empty or not.
   --   Contextual knowlege may let one or the other case be skipped.
-  --   Within those casese, the knowlege afforded by `TyUnCons`'s constructors can be used.
-  tyUnCons :: TyUnCons ls
+  --   Within those casese, the knowlege afforded by `tySpine`'s constructors can be used.
+  tySpine :: TySpine ls
 
 instance KnownSymbols '[] where
-  tyUnCons = TyNil
+  tySpine = TyNil
 
 instance (KnownSymbols ls, KnownSymbol l) => KnownSymbols (l ': ls) where
-  tyUnCons = TyCons
+  tySpine = TyCons
 

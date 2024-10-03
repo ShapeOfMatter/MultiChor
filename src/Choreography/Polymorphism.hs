@@ -29,7 +29,7 @@ sequenceP :: forall b (ls :: [LocTy]) m.
            (KnownSymbols ls, Monad m)
         => PIndexed ls (Compose m b)
         -> m (PIndexed ls b)
-sequenceP (PIndexed f) = case tyUnCons @ls of
+sequenceP (PIndexed f) = case tySpine @ls of
                  TyCons -> do b <- getCompose $ f First
                               PIndexed fTail <- sequenceP (PIndexed $ f . Later)
                               let retVal :: PIndex ls b
@@ -73,23 +73,23 @@ qNil = Quire $ PIndexed \case {}
 -- | Apply a function to a single item in a `Quire`.
 qModify :: forall p ps a. (KnownSymbol p, KnownSymbols ps) =>  Member p ps -> (a -> a) -> Quire ps a -> Quire ps a
 qModify First f q = f (qHead q) `qCons` qTail q
-qModify (Later m) f q = case tyUnCons @ps of TyCons -> qHead q `qCons` qModify m f (qTail q)
+qModify (Later m) f q = case tySpine @ps of TyCons -> qHead q `qCons` qModify m f (qTail q)
 
 instance forall parties. (KnownSymbols parties) => Functor (Quire parties) where
-  fmap f q = case tyUnCons @parties of
+  fmap f q = case tySpine @parties of
                TyCons -> f (qHead q) `qCons` fmap f (qTail q)
                TyNil -> qNil
 instance forall parties. (KnownSymbols parties) => Applicative (Quire parties) where
   pure a = Quire $ PIndexed $ const $ Const a
-  qf <*> qa = case tyUnCons @parties of
+  qf <*> qa = case tySpine @parties of
                 TyCons -> qHead qf (qHead qa) `qCons` (qTail qf <*> qTail qa)
                 TyNil -> qNil
 instance forall parties. (KnownSymbols parties) => Foldable (Quire parties) where
-  foldMap f q = case tyUnCons @parties of
+  foldMap f q = case tySpine @parties of
                   TyCons -> f (qHead q) <> foldMap f (qTail q)
                   TyNil -> mempty
 instance forall parties. (KnownSymbols parties) => Traversable (Quire parties) where
-  sequenceA q = case tyUnCons @parties of
+  sequenceA q = case tySpine @parties of
                   TyCons -> qCons <$> qHead q <*> sequenceA (qTail q)
                   TyNil -> pure qNil
 instance forall parties a. (KnownSymbols parties, Eq a) => Eq (Quire parties a) where

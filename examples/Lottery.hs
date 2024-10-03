@@ -69,7 +69,7 @@ lottery
   -> Choreo census (CLI m) ()
 lottery clients servers analyst = do
   secret <- _parallel clients (getInput @Fp "secret:")
-  clientShares <- clients `parallel` \client un -> (case tyUnCons @servers of
+  clientShares <- clients `parallel` \client un -> (case tySpine @servers of
       TyCons -> do  -- I guess this explains to GHC that we have KnownSymbols _servTail? IDK
         freeShares <- liftIO $ sequence $ pure $ randomIO @Fp
         return $ (viewFacet un client secret - sum freeShares) `qCons` freeShares)
