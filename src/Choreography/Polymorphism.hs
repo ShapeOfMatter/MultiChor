@@ -131,9 +131,7 @@ parallel :: forall ls a ps m.
                                           -- ^ The local computation has access to the identity of the party in question,
                                           --   in additon to the usual unwrapper function.
          -> Choreo ps m (Faceted ls '[] a)
-parallel ls m = sequenceP (PIndexed body)
-  where body :: PIndex ls (Compose (Choreo ps m) (Facet a '[]))
-        body mls = Compose $ Facet <$> locally (inSuper ls mls) (m mls)
+parallel ls m = fanOut \mls -> locally (inSuper ls mls) (m mls)
 
 -- | Perform a local computation at all of a list of parties, yielding nothing.
 parallel_ :: forall ls ps m.
