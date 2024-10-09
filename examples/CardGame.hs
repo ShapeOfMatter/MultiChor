@@ -47,9 +47,9 @@ instance Arbitrary Args where
 {- A simple black-jack-style game. The dealer gives everyone a card, face up. Each player may
  - request a second card. Then the dealer reveals one more card that applies to everyone. Each
  - player individually wins if the sum of their cards (modulo 21) is greater than 19.  -}
-game :: forall players m. (KnownSymbols players) => Choreo ("dealer"': players) (CLI m) ()
+game :: forall players m. (KnownSymbols players) => Choreo ("dealer" ': players) (CLI m) ()
 game = do
-  let players = consSuper (allOf @players)
+  let players = consSuper (refl @players)
       dealer = listedFirst @"dealer"
   hand1 <- fanOut \player -> do
       card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
@@ -61,12 +61,12 @@ game = do
       getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut \(player :: Member player players) -> do
       (dealer @@ inSuper players player @@ nobody `enclaveTo` listedSecond @@ nobody) do
-        choice <- broadcast (listedSecond @player, getFacet $ pindex wantsNextCard player)
+        choice <- broadcast (listedSecond @player, localize player wantsNextCard)
         if choice then do
             cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
             card2 <- (dealer, cd2) ~> listedSecond @@ nobody
-            listedSecond `locally` \un -> pure [viewFacet un player hand1, un singleton card2]
-          else listedSecond `locally` \un -> pure [viewFacet un player hand1]
+            listedSecond `purely` \un -> [viewFacet un player hand1, un singleton card2]
+          else listedSecond `purely` \un -> [viewFacet un player hand1]
   tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
   tableCard <- (dealer, tblCrd) ~> players
   players `parallel_` \player un -> do

@@ -32,6 +32,17 @@ _locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
 infix 4 `_locally_`
 _locally_ l m = void $ locally l (const m)
 
+-- | Perform a pure computation at a single location.
+purely :: forall l a ps m.
+               (KnownSymbol l)
+            => Member l ps
+            -> (Unwrap l -> a)
+            -> Choreo ps m (Located '[l] a)
+infix 4 `purely`
+purely l a = congruently (Subset \First -> l) (\un -> let un' :: Unwrap l  -- There is definitley a nicer way to write this...
+                                                          un' mem = un (Subset \First -> mem)
+                                                      in a un')
+
 
 -- * Communication
 
