@@ -60,7 +60,8 @@ game = do
   wantsNextCard <- players `parallel` \_ _ -> do
       putNote $ "All cards on the table: " ++ show onTheTable
       getInput "I'll ask for another? [True/False]"
-  hand2 <- fanOut \(player :: Member player players) -> enclave (inSuper players player @@ dealer @@ nobody) do
+  hand2 <- fanOut \(player :: Member player players) ->
+    enclave (inSuper players player @@ dealer @@ nobody) do
         let dealer = listedSecond @"dealer"
         choice <- broadcast (listedFirst @player, localize player wantsNextCard)
         if choice then do
