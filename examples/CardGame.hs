@@ -7,6 +7,7 @@ module CardGame where
 
 import Choreography
 import CLI
+import Control.Monad (void)
 import Data (TestArgs, reference)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
@@ -50,26 +51,26 @@ instance Arbitrary Args where
 game :: forall players m. (KnownSymbols players) => Choreo ("dealer" ': players) (CLI m) ()
 game = do
   let players = consSuper (refl @players)
-      dealer = listedFirst @"dealer"
-  hand1 <- fanOut \player -> do
-      card1 <- dealer `_locally` getInput ("Enter random card for " ++ toLocTm player)
-      (dealer, card1) ~> inSuper players player @@ nobody
-  onTheTable <- gather players players hand1
-  wantsNextCard <- players `parallel` \player un -> do
-      putNote $ "My first card is: " ++ show (viewFacet un player hand1)
-      putNote $ "Cards on the table: " ++ show (un player onTheTable)
+      dealer = listedFirst @"dealer"    -- listedFirst is just First with the type-arguments rearranged.
+      everyone = refl @("dealer" ': players)
+  onTheTable <- (fanIn everyone \(player :: Member player players) -> do
+      card1 <- dealer `locally` (\_ -> getInput ("Enter random card for " ++ toLocTm player))
+      (dealer, card1) ~> everyone
+    ) >>= naked everyone
+  wantsNextCard <- players `parallel` \_ _ -> do
+      putNote $ "All cards on the table: " ++ show onTheTable
       getInput "I'll ask for another? [True/False]"
-  hand2 <- fanOut \(player :: Member player players) -> do
-      (dealer @@ inSuper players player @@ nobody `enclaveTo` listedSecond @@ nobody) do
-        choice <- broadcast (listedSecond @player, localize player wantsNextCard)
+  hand2 <- fanOut \(player :: Member player players) -> enclave (inSuper players player @@ dealer @@ nobody) do
+        let dealer = listedSecond @"dealer"
+        choice <- broadcast (listedFirst @player, localize player wantsNextCard)
         if choice then do
-            cd2 <- dealer `_locally` getInput (toLocTm player ++ "'s second card:")
-            card2 <- (dealer, cd2) ~> listedSecond @@ nobody
-            listedSecond `purely` \un -> [viewFacet un player hand1, un singleton card2]
-          else listedSecond `purely` \un -> [viewFacet un player hand1]
-  tblCrd <- dealer `_locally` getInput "Enter a single card for everyone:"
+            cd2 <- dealer `locally` (\_ -> getInput (toLocTm player ++ "'s second card:"))
+            card2 <- broadcast (dealer, cd2)
+            return [getLeaf onTheTable player, card2]
+        else return [getLeaf onTheTable player]
+  tblCrd <- dealer `locally` (\_ -> getInput "Enter a single card for everyone:")
   tableCard <- (dealer, tblCrd) ~> players
-  players `parallel_` \player un -> do
+  void $ players `parallel` \player un -> do
       let hand = un player tableCard : viewFacet un player hand2
       putNote $ "My hand: " ++ show hand
       putOutput "My win result:" $ sum hand > card 19
