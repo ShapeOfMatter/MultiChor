@@ -53,25 +53,25 @@ game = do
   let players = consSuper (refl @players)
       dealer = listedFirst @"dealer"    -- listedFirst is just First with the type-arguments rearranged.
       everyone = refl @("dealer" ': players)
-  onTheTable <- (fanIn everyone \(player :: Member player players) -> do
-      card1 <- dealer `locally` (\_ -> getInput ("Enter random card for " ++ toLocTm player))
+  hand1 <- (fanIn everyone \(player :: Member player players) -> do
+      card1 <- locally dealer (\_ -> getInput ("Enter random card for " ++ toLocTm player))
       (dealer, card1) ~> everyone
     ) >>= naked everyone
-  wantsNextCard <- players `parallel` \_ _ -> do
-      putNote $ "All cards on the table: " ++ show onTheTable
+  wantsNextCard <- parallel players \_ _ -> do
+      putNote $ "All cards on the table: " ++ show hand1
       getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut \(player :: Member player players) ->
     enclave (inSuper players player @@ dealer @@ nobody) do
         let dealer = listedSecond @"dealer"
         choice <- broadcast (listedFirst @player, localize player wantsNextCard)
         if choice then do
-            cd2 <- dealer `locally` (\_ -> getInput (toLocTm player ++ "'s second card:"))
+            cd2 <- locally dealer (\_ -> getInput (toLocTm player ++ "'s second card:"))
             card2 <- broadcast (dealer, cd2)
-            return [getLeaf onTheTable player, card2]
-        else return [getLeaf onTheTable player]
-  tblCrd <- dealer `locally` (\_ -> getInput "Enter a single card for everyone:")
+            return [getLeaf hand1 player, card2]
+        else return [getLeaf hand1 player]
+  tblCrd <- locally dealer (\_ -> getInput "Enter a single card for everyone:")
   tableCard <- (dealer, tblCrd) ~> players
-  void $ players `parallel` \player un -> do
+  void $ parallel players \player un -> do
       let hand = un player tableCard : viewFacet un player hand2
       putNote $ "My hand: " ++ show hand
       putOutput "My win result:" $ sum hand > card 19
