@@ -33,7 +33,9 @@ allOf = refl
 --   >>> proof :: Subset '["Alice"]  census  = alice @@ nobody
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 infixr 5 @@
-(@@) = flip consSub
+mxy @@ sxy = Subset \case
+  First -> mxy
+  Later mxxs -> inSuper sxy mxxs
 
 -- | Any element `p` is a member of the list `'[p]`.
 singleton :: forall p. Member p (p ': '[])

@@ -17,7 +17,6 @@ module Choreography.Core (
   , wrap  -- consider renaming or removing.
 ) where
 
-import Control.Monad (when)
 import Data.List (delete)
 import GHC.TypeLits
 
@@ -111,39 +110,41 @@ epp c l' = interpFreer handler c
     handler (Broadcast s (l, a)) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
-      when (sender == l') $ send (unwrap l a) otherRecipients
-      case () of  -- Is there a better way to write this?
-        _ | l' == sender -> return . unwrap l $ a
-          | otherwise    -> recv sender
+      if sender == l' then do send (unwrap l a) otherRecipients
+                              return . unwrap l $ a
+                      else recv sender
     handler (Enclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
       | otherwise       = return Empty
 
 -- | Access to the inner "local" monad.
 locally' :: (KnownSymbol l)
-         => (Unwrap l -> m a)  -- ^ The local action(s), as a function of identity and the unwraper.
+         => (Unwrap l -> m a)  -- ^ The local action(s), which can use an unwraper function.
          -> Choreo '[l] m a
 locally' m = toFreer (Locally m)
 
 -- | Perform the exact same computation in replicate at all participating locations.
 --   The computation can not use anything local to an individual party, including their identity.
 congruently' :: (KnownSymbols ls)
-             => (Unwraps ls -> a)  -- ^ The computation, as a function of the unwraper.
+             => (Unwraps ls -> a)  -- ^ The computation, which can use an unwraper function.
              -> Choreo ls m a
 infix 4 `congruently'`
 congruently' f = toFreer (Congruently f)
 
 -- | Communicate a value to all present parties.
 broadcast' :: (Show a, Read a, KnownSymbol l)
-     => Member l ps-- ^ Proof the sender is present
-     -> (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
-     -> Choreo ps m a
+           => Member l ps-- ^ Proof the sender is present
+           -> (Member l ls, Located ls a)  -- ^ Proof the sender knows the value, the value.
+           -> Choreo ps m a
 infix 4 `broadcast'`
 broadcast' l a = toFreer (Broadcast l a)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   Adds a `Located ls` layer to the return type.
-enclave :: (KnownSymbols ls) => Subset ls ps -> Choreo ls m a -> Choreo ps m (Located ls a)
+enclave :: (KnownSymbols ls)
+        => Subset ls ps
+        -> Choreo ls m a
+        -> Choreo ps m (Located ls a)
 infix 4 `enclave`
 enclave proof ch = toFreer $ Enclave proof ch
 
