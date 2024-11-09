@@ -96,12 +96,12 @@ ot2 bb s = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
 
-  keys <- receiver `locally` \un -> liftIO $ genKeys $ un singleton s
+  keys <- locally receiver  \un -> liftIO $ genKeys $ un singleton s
   pks <- (receiver, \un -> let (pk1, pk2, _) = un singleton keys
                            in return (pk1, pk2)) ~~> sender @@ nobody
   encrypted <- (sender, \un -> let (b1, b2) = un singleton bb
                                in liftIO $ encryptS (un singleton pks) b1 b2) ~~> receiver @@ nobody
-  receiver `locally` \un -> liftIO $ decryptS (un singleton keys)
+  locally receiver  \un -> liftIO $ decryptS (un singleton keys)
                                                            (un singleton s)
                                                            (un singleton encrypted)
 
