@@ -10,7 +10,6 @@ import Choreography.Core
 import Choreography.Choreography
 import Choreography.Choreography.Batteries ((*~>))
 import Choreography.Locations
-import Choreography.Locations.Batteries((@@))
 
 -- * The root abstraction
 

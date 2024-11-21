@@ -5,7 +5,6 @@ import Control.Monad (void)
 import Choreography.Choreography
 import Choreography.Core
 import Choreography.Locations
-import Choreography.Locations.Batteries((@@))
 import GHC.TypeLits
 
 

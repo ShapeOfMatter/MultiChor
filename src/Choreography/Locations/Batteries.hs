@@ -19,7 +19,7 @@ instance {-# OVERLAPS #-} ExplicitMember x (x ': xs) where
 class ExplicitSubset xs ys where
   explicitSubset :: Subset xs ys
 instance {-# OVERLAPPABLE #-} (ExplicitSubset xs ys, ExplicitMember x ys) => ExplicitSubset (x ': xs) ys where
-  explicitSubset = consSub explicitSubset explicitMember
+  explicitSubset = explicitMember @@ explicitSubset
 instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
   explicitSubset = nobody
 
@@ -27,15 +27,6 @@ instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
 -- | Alias `refl`. When used as an identifier, this is more descriptive.
 allOf :: forall ps. Subset ps ps
 allOf = refl
-
--- | Used like `:` for subset proofs.
---   Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
---   >>> proof :: Subset '["Alice"]  census  = alice @@ nobody
-(@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
-infixr 5 @@
-mxy @@ sxy = Subset \case
-  First -> mxy
-  Later mxxs -> inSuper sxy mxxs
 
 -- | Any element `p` is a member of the list `'[p]`.
 singleton :: forall p. Member p (p ': '[])

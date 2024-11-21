@@ -2,7 +2,7 @@ module Choreography.Choreography  where
 
 import Choreography.Core
 import Choreography.Locations
-import Choreography.Locations.Batteries(ExplicitMember(..), (@@))
+import Choreography.Locations.Batteries(ExplicitMember(..))
 import GHC.TypeLits
 
 -- * Computation _per se_
