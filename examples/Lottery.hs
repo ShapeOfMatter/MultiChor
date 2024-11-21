@@ -28,7 +28,13 @@ import Data (TestArgs, reference)
 
 -- | Arbitrary "large" prime
 newtype Fp = Fp $(primeField 999983)                           -- AFAICT the hint warning needs a newer version of hlint to go away:
-           deriving (Bounded, Enum, Eq, Ord, Num, Read, Show)  -- https://github.com/ndmitchell/hlint/issues/1226
+           deriving (Bounded, Enum, Eq, Ord, Num)  -- https://github.com/ndmitchell/hlint/issues/1226
+
+instance Read Fp where
+    readsPrec _ s = [(Fp (read s), "")]
+
+instance Show Fp where
+    show (Fp x) = show x
 
 instance Random Fp where
   random g = toEnum `first` randomR (fromEnum @Fp minBound, fromEnum @Fp maxBound) g
@@ -45,6 +51,7 @@ instance Exception LotteryError
 data Args = Args{ secrets :: (Fp, Fp, Fp, Fp, Fp) -- we lock our test to the case of five clients and three servers
                 , randomIs :: (Int, Int, Int)
                 } deriving (Eq, Show, Read)
+
 instance TestArgs Args Fp where
   reference Args{secrets=(c1, c2, c3, c4, c5), randomIs=(s1, s2, s3)} =
     let i = (s1 + s2 + s3) `mod` 5
