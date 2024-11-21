@@ -42,7 +42,7 @@ transitive :: Subset xs ys -> Subset ys zs -> Subset xs zs
 transitive sxy syz = Subset $ inSuper syz . inSuper sxy
 
 -- | The `[]` case of subset proofs.
--- Typlically used to build subset proofs using membership proofs using 'consSub' or "Locations.Batteries.@@".
+-- Typlically used to build subset proofs using membership proofs using `@@`.
 nobody :: Subset '[] ys
 nobody = Subset \case {}
 
@@ -55,8 +55,12 @@ consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
 -- | Cons an element to the subset in a `Subset` value; requires proof that the new head element is already a member of the superset.
-consSub :: Subset xs ys -> Member x ys -> Subset (x ': xs) ys
-consSub sxy mxy = Subset \case
+--   Used like `:` for subset proofs.
+--   Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
+--   >>> proof :: Subset '["Alice"]  census  = alice @@ nobody
+(@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
+infixr 5 @@
+mxy @@ sxy = Subset \case
   First -> mxy
   Later mxxs -> inSuper sxy mxxs
 
