@@ -64,7 +64,7 @@ mkDecision2 price = do
   --   contrib2 <- (buyer2, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
   --   buyer `locally` \un -> return $ un buyer price - un buyer contrib2 <= un buyer contrib1a
 
-  contribs <- fanIn _ $ \supporter ->
+  contribs <- fanIn explicitSubset $ \supporter ->
     (supporter, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
   contrib <-
     buyer `locally` \un ->
