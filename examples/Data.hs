@@ -56,3 +56,8 @@ instance TestArgs (BooksellerArgs, Positive Int) (Maybe Day) where
       then Nothing
       else Just $ deliveryDateOf books choice
 
+instance TestArgs (BooksellerArgs, Positive Int, Positive Int) (Maybe Day) where
+  reference (BooksellerArgs{books, choice, budget}, Positive contrib, Positive contrib2) =
+    if budget < (priceOf books choice - contrib - contrib2)
+      then Nothing
+      else Just $ deliveryDateOf books choice

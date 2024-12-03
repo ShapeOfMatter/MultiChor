@@ -15,6 +15,7 @@ import qualified Bookseller0Network
 import qualified Bookseller1Simple
 import qualified Bookseller2HigherOrder
 import qualified Bookseller3LocPoly
+import qualified BooksellerFancy
 import qualified CardGame
 import qualified ChooseTeams
 import qualified DelegationFig20
@@ -151,6 +152,23 @@ tests' = [
                     mapConcurrently (
                       \(name, inputs) -> runCLIStateful inputs $
                         runChoreography config (Bookseller3LocPoly.bookseller buyer) name
+                    ) situation
+                  return $ (read <$> delivery) === maybeToList (reference args)
+  },
+
+  getNormalPT PropertyTest {
+    name = "bookseller-fancy",
+    tags =[],
+    property = \args@(BooksellerArgs{books, choice, budget}, contrib :: Positive Int, contrib2 :: Positive Int) -> ioProperty do
+                  let situation = [ ("seller", [show books])
+                                  , ("buyer", [choice, show budget])
+                                  , ("buyer2", [show $ getPositive contrib])
+                                  , ("buyer3", [show $ getPositive contrib2])]
+                  config <- mkLocalConfig [l | (l, _) <- situation]
+                  [ ([], ()), (delivery, ()), ([], ())] <-
+                    mapConcurrently (
+                      \(name, inputs) -> runCLIStateful inputs $
+                        runChoreography config (BooksellerFancy.bookseller @["buyer2", "buyer3"] BooksellerFancy.mkDecision2) name
                     ) situation
                   return $ (read <$> delivery) === maybeToList (reference args)
   },

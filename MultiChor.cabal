@@ -149,6 +149,7 @@ Test-Suite testExamples
                  , Bookseller1Simple
                  , Bookseller2HigherOrder
                  , Bookseller3LocPoly
+                 , BooksellerFancy
                  , CardGame
                  , ChooseTeams
                  , DelegationFig20
