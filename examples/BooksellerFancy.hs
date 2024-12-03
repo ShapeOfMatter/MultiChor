@@ -58,18 +58,16 @@ mkDecision1 price = do
 
 -- | `mkDecision2` asks supporters how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus all supporters' contribution
-mkDecision2 :: (KnownSymbols supporters) => Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)
+mkDecision2 :: forall supporters {m}. (KnownSymbols supporters) => Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)
 mkDecision2 price = do
   budget <- buyer `_locally` getInput "What are you willing to pay?"
-  --   contrib2 <- (buyer2, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
-  --   buyer `locally` \un -> return $ un buyer price - un buyer contrib2 <= un buyer contrib1a
 
-  contribs <- fanIn explicitSubset $ \supporter ->
-    (supporter, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
+  contribs <- fanIn @supporters explicitSubset $ \supporter ->
+    (Later supporter, getInput "How much you're willing to contribute?") -~> buyer @@ nobody
   contrib <-
     buyer `locally` \un ->
       return $ sum (un buyer contribs)
-  buyer `locally` \un -> return $ un buyer price <= un buyer budget - un buyer contrib
+  buyer `locally` \un -> return $ un buyer price <= un buyer budget + un buyer contrib
 
 main :: IO ()
 main = do

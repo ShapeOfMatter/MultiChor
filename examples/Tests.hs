@@ -159,16 +159,17 @@ tests' = [
   getNormalPT PropertyTest {
     name = "bookseller-fancy",
     tags =[],
-    property = \args@(BooksellerArgs{books, choice, budget}, contrib :: Positive Int, contrib2 :: Positive Int) -> ioProperty do
+    property = \args@(BooksellerArgs{books, choice, budget}, contrib :: Positive Int, contrib2 :: Positive Int, contrib3 :: Positive Int) -> ioProperty do
                   let situation = [ ("seller", [show books])
-                                  , ("buyer", [choice, show budget])
+                                  , ("buyer",  [choice, show budget])
                                   , ("buyer2", [show $ getPositive contrib])
-                                  , ("buyer3", [show $ getPositive contrib2])]
+                                  , ("buyer3", [show $ getPositive contrib2])
+                                  , ("buyer4", [show $ getPositive contrib3])]
                   config <- mkLocalConfig [l | (l, _) <- situation]
-                  [ ([], ()), (delivery, ()), ([], ())] <-
+                  [ ([], ()), (delivery, ()), ([], ()), ([], ()), ([], ()) ] <-
                     mapConcurrently (
                       \(name, inputs) -> runCLIStateful inputs $
-                        runChoreography config (BooksellerFancy.bookseller @["buyer2", "buyer3"] BooksellerFancy.mkDecision2) name
+                        runChoreography config (BooksellerFancy.bookseller @["buyer2", "buyer3", "buyer4"] BooksellerFancy.mkDecision2) name
                     ) situation
                   return $ (read <$> delivery) === maybeToList (reference args)
   },
