@@ -10,10 +10,9 @@ category: Distributed-Computing
 synopsis: Type-safe and efficient choreographies with location-set polymorphism.
 description:
     MultiChor is a library for functional choreographic programming in Haskell.
-    See the README.md for more information.
 
 tested-with:
-    GHC == 9.2.8
+    GHC == 9.4.8
 
 extra-doc-files:
     README.md
