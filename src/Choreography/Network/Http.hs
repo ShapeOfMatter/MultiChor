@@ -61,7 +61,7 @@ mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
       -> IO (HashMap LocTm (Chan String))
     f hm l = do
       c <- newChan
-      return $ HashMap.insert l c hm
+      pure $ HashMap.insert l c hm
 
 -- * HTTP backend
 
@@ -73,7 +73,7 @@ runNetworkHttp cfg self prog = do
   result <- runNetworkMain mgr chans prog
   liftIO $ threadDelay 1000000 -- wait until all outstanding requests to be completed
   liftIO $ killThread recvT
-  return result
+  pure result
   where
     runNetworkMain :: MonadIO m => Manager -> RecvChans -> Network m a -> m a
     runNetworkMain mgr chans = interpFreer handler
@@ -83,8 +83,8 @@ runNetworkHttp cfg self prog = do
         handler(Send a ls) = liftIO $ do
           res <- mapM (\l -> runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))) ls
           case lefts res of
-            [] -> return ()
-            errors -> putStrLn $ "Errors : " ++ show errors
+            [] -> pure ()
+            errors -> putStrLn $ "Errors : " <> show errors
         handler (Recv l)   = liftIO $ read <$> readChan (chans ! l)
 
     api :: Proxy API
@@ -99,7 +99,7 @@ runNetworkHttp cfg self prog = do
         handler :: LocTm -> String -> Handler NoContent
         handler rmt msg = do
           liftIO $ writeChan (chans ! rmt) msg
-          return NoContent
+          pure NoContent
 
     recvThread :: HttpConfig -> RecvChans -> IO ()
     recvThread cfg' chans = run (baseUrlPort $ locToUrl cfg' ! self ) (serve api $ server chans)

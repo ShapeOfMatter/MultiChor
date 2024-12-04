@@ -34,8 +34,8 @@ sequenceP (PIndexed f) = case tySpine @ls of
                               let retVal :: PIndex ls b
                                   retVal First = b
                                   retVal (Later ltr) = fTail ltr
-                              return $ PIndexed retVal
-                 TyNil -> return $ PIndexed \case {}
+                              pure $ PIndexed retVal
+                 TyNil -> pure $ PIndexed \case {}
 
 -- * A type-indexed vector type
 
@@ -48,7 +48,7 @@ getLeaf (Quire (PIndexed q)) p = getConst $ q p
 
 -- | Package a function as a `Quire`.
 stackLeaves :: forall ps a. (forall p. (KnownSymbol p) => Member p ps -> a) -> Quire ps a
-stackLeaves f = Quire $ PIndexed $ Const . f
+stackLeaves f = Quire . PIndexed $ Const . f
 
 -- | Get the head item from a `Quire`.
 qHead :: (KnownSymbol p) => Quire (p ': ps) a -> a
@@ -56,12 +56,12 @@ qHead (Quire (PIndexed f)) = getConst $ f First
 
 -- | Get the tail of a `Quire`.
 qTail :: Quire (p ': ps) a -> Quire ps a
-qTail (Quire (PIndexed f)) = Quire $ PIndexed $ f . Later
+qTail (Quire (PIndexed f)) = Quire . PIndexed $ f . Later
 
 -- | Prepend a value to a `Quire`.
 --   The corresponding `Symbol` to bind it to must be provided by type-application if it can't be infered.
 qCons :: forall p ps a. a -> Quire ps a -> Quire (p ': ps) a
-qCons a (Quire (PIndexed f)) = Quire $ PIndexed $ \case
+qCons a (Quire (PIndexed f)) = Quire . PIndexed $ \case
   First -> Const a
   Later mps -> f mps
 
@@ -79,7 +79,7 @@ instance forall parties. (KnownSymbols parties) => Functor (Quire parties) where
                TyCons -> f (qHead q) `qCons` fmap f (qTail q)
                TyNil -> qNil
 instance forall parties. (KnownSymbols parties) => Applicative (Quire parties) where
-  pure a = Quire $ PIndexed $ const $ Const a
+  pure a = Quire . PIndexed $ const (Const a)
   qf <*> qa = case tySpine @parties of
                 TyCons -> qHead qf (qHead qa) `qCons` (qTail qf <*> qTail qa)
                 TyNil -> qNil

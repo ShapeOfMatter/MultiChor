@@ -93,10 +93,10 @@ runChoreo = interpFreer handler
     handler (Congruently f) =
       let unwraps :: forall c ls. Subset (p ': ps) ls -> Located ls c -> c
           unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
-       in return . f $ unwraps
-    handler (Broadcast _ (p, a)) = return $ unwrap p a
+       in pure . f $ unwraps
+    handler (Broadcast _ (p, a)) = pure $ unwrap p a
     handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tySpine @ls of
-      TyNil -> return Empty
+      TyNil -> pure Empty
       TyCons -> wrap <$> runChoreo c
 
 -- | Endpoint projection.
@@ -110,18 +110,18 @@ epp c l' = interpFreer handler c
           unwraps = case tySpine @ps of
             TyNil -> error "Undefined projection: the census is empty."
             TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
-       in return . f $ unwraps
+       in pure . f $ unwraps
     handler (Broadcast s (l, a)) = do
       let sender = toLocTm s
       let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
       if sender == l'
         then do
           send (unwrap l a) otherRecipients
-          return . unwrap l $ a
+          pure . unwrap l $ a
         else recv sender
     handler (Enclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
-      | otherwise = return Empty
+      | otherwise = pure Empty
 
 -- | Access to the inner "local" monad.
 locally' ::

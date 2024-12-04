@@ -24,14 +24,14 @@ newEmptyMsgBuf = foldM f HashMap.empty
   where
     f hash loc = do
       chan <- newChan
-      return (HashMap.insert loc chan hash)
+      pure (HashMap.insert loc chan hash)
 
 mkLocalConfig :: [LocTm] -> IO LocalConfig
 mkLocalConfig ls = LocalConfig <$> foldM f HashMap.empty ls
   where
     f hash loc = do
       buf <- newEmptyMsgBuf ls
-      return (HashMap.insert loc buf hash)
+      pure (HashMap.insert loc buf hash)
 
 locs :: LocalConfig -> [LocTm]
 locs = HashMap.keys . locToBuf
@@ -48,7 +48,7 @@ runNetworkLocal cfg self = interpFreer handler
                               Just q' -> liftIO $ read <$> readChan q'
                               Nothing -> liftIO do print $ void b
                                                    print l
-                                                   error $ "We don't know how to contact the party named \"" ++ l ++ "\"."
+                                                   error $ "We don't know how to contact the party named \"" <> l <> "\"."
 
 instance Backend LocalConfig where
   runNetwork = runNetworkLocal

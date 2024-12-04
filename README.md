@@ -41,6 +41,12 @@ but the API is incompatible and can express more kinds of choreographic behavior
   - `congruently` lets many parties perform _the same pure computation_ in parallel, using only their `Located` values;
     the return is `Located`.
 
+## QA
+
+Unit test can and should be run frequently with `cabal test`.
+
+We use hlint and ormolu, both of which are free and default with hls.
+Run `hlint src --report` to check for hints.
 
 ## Examples
 
