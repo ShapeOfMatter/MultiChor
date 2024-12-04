@@ -4,6 +4,8 @@
 
 module KVS7SimplePoly where
 
+-- # This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 import Choreography
 import Data.IORef (IORef, newIORef, readIORef)
 

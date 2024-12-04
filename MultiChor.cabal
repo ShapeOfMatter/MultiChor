@@ -97,7 +97,6 @@ library examples
         , ChooseTeams
         , DelegationFig20
         , DiffieHellman
-        , ExampleChor
         , GMWReal
         , Karatsuba
         , KVS1Simple
@@ -107,12 +106,10 @@ library examples
         , KVS5Fig17
         , KVS6SizePoly
         , KVS7SimplePoly
-        , KVS_PaperExamples
         , Lottery
         , MergeSort
         , MPCFake
         , ObliviousTransfer
-        , Playground
         , QuickSort
         , RingLeader
         , CLI
@@ -167,7 +164,6 @@ Test-Suite testExamples
                  , MergeSort
                  , MPCFake
                  , ObliviousTransfer
-                 , Playground
                  , QuickSort
                  , RingLeader
 
@@ -263,12 +259,6 @@ executable oblivious-transfer
     main-is:          ObliviousTransfer.hs
     ghc-options:
       -main-is ObliviousTransfer
-
-executable playground
-    import: example
-    main-is:          Playground.hs
-    ghc-options:
-      -main-is Playground
 
 executable quicksort
     import: example

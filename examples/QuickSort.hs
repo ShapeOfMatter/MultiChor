@@ -4,6 +4,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 # Example: Quicksort
 
 ## Overview

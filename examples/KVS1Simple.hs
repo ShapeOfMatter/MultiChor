@@ -5,6 +5,8 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 # Example: Simple client-server key-value store
 
 This is the first version of the 4-stage key-value store tutorial and implements a simple client-server key-value store. The client can `PUT` a key-value pair to the server and `GET` a value for a given key.

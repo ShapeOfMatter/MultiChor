@@ -5,6 +5,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 # Example: Primary-backup key-value store
 
 This is the second version of the 4-stage key-value store tutorial. This builds on the first version and adds a backup location to improve durability.

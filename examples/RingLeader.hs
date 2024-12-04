@@ -4,6 +4,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 # Ring leader election
 
 Experinmental implementaion of ring leader election.

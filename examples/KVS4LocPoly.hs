@@ -5,6 +5,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+
 # Example: Key-value store with location polymorphism
 
 This is the final version of the 4-stage key-value store tutorial where we define the location-polymorphic choreography `doBackup`. We use it to define `doubleBackupReplicationStrategy`, which replicates data to two backup locations (`backup1` and `backup2`).
