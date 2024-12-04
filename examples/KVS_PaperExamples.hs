@@ -118,7 +118,7 @@ kvs2 request (primaryStateRef, backupStateRef) = do
   request' <- (client, request) ~> primary @@ nobody
 
   -- branch on the request
-  broadcast (primary, request') >>= (handlePutBackup backupStateRef)
+  broadcast (primary, request') >>= handlePutBackup backupStateRef
 
   -- process request on the primary node
   response <-
@@ -158,7 +158,7 @@ kvs3 request (primaryStateRef, backupStateRef) = do
   request' <- (client, request) ~> primary @@ nobody
 
   -- branch on the request
-  enclave servers $ broadcast (primary, request') >>= (handlePutBackup3 backupStateRef)
+  _ <- enclave servers $ broadcast (primary, request') >>= handlePutBackup3 backupStateRef
 
   -- process request on the primary node
   response <-

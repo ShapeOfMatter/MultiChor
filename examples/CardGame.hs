@@ -62,11 +62,11 @@ game = do
       getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut \(player :: Member player players) ->
     enclave (inSuper players player @@ dealer @@ nobody) do
-        let dealer = listedSecond @"dealer"
+        let dealer' = listedSecond @"dealer"
         choice <- broadcast (listedFirst @player, localize player wantsNextCard)
         if choice then do
-            cd2 <- locally dealer (\_ -> getInput (toLocTm player ++ "'s second card:"))
-            card2 <- broadcast (dealer, cd2)
+            cd2 <- locally dealer' (\_ -> getInput (toLocTm player ++ "'s second card:"))
+            card2 <- broadcast (dealer', cd2)
             return [getLeaf hand1 player, card2]
         else return [getLeaf hand1 player]
   tblCrd <- locally dealer (\_ -> getInput "Enter a single card for everyone:")
