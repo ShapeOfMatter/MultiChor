@@ -2,22 +2,21 @@
 -- monad.
 module Choreography.Network.Http where
 
-import Data.Proxy (Proxy(..))
-import Data.HashMap.Strict (HashMap, (!))
-import Data.HashMap.Strict qualified as HashMap
-import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
-import Servant.API
-import Servant.Client (ClientM, client, runClientM, BaseUrl(..), mkClientEnv, Scheme(..))
-import Servant.Server (Handler, Server, serve)
+import Choreography.Locations
+import Choreography.Network hiding (run, send)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
-import Network.Wai.Handler.Warp (run)
 import Data.Either (lefts)
-
-import Choreography.Locations
-import Choreography.Network hiding (run, send)
+import Data.HashMap.Strict (HashMap, (!))
+import Data.HashMap.Strict qualified as HashMap
+import Data.Proxy (Proxy (..))
+import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
+import Network.Wai.Handler.Warp (run)
+import Servant.API
+import Servant.Client (BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM)
+import Servant.Server (Handler, Server, serve)
 
 -- * Servant API
 
@@ -32,6 +31,7 @@ newtype HttpConfig = HttpConfig
   }
 
 type Host = String
+
 type Port = Int
 
 -- | Create a HTTP backend configuration from a association list that maps
@@ -40,12 +40,13 @@ mkHttpConfig :: [(LocTm, (Host, Port))] -> HttpConfig
 mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
   where
     f :: (Host, Port) -> BaseUrl
-    f (host, port) = BaseUrl
-      { baseUrlScheme = Http
-      , baseUrlHost = host
-      , baseUrlPort = port
-      , baseUrlPath = ""
-      }
+    f (host, port) =
+      BaseUrl
+        { baseUrlScheme = Http,
+          baseUrlHost = host,
+          baseUrlPort = port,
+          baseUrlPath = ""
+        }
 
 locs :: HttpConfig -> [LocTm]
 locs = HashMap.keys . locToUrl
@@ -57,15 +58,17 @@ type RecvChans = HashMap LocTm (Chan String)
 mkRecvChans :: HttpConfig -> IO RecvChans
 mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
   where
-    f :: HashMap LocTm (Chan String) -> LocTm
-      -> IO (HashMap LocTm (Chan String))
+    f ::
+      HashMap LocTm (Chan String) ->
+      LocTm ->
+      IO (HashMap LocTm (Chan String))
     f hm l = do
       c <- newChan
       pure $ HashMap.insert l c hm
 
 -- * HTTP backend
 
-runNetworkHttp :: MonadIO m => HttpConfig -> LocTm -> Network m a -> m a
+runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
   chans <- liftIO $ mkRecvChans cfg
@@ -75,17 +78,17 @@ runNetworkHttp cfg self prog = do
   liftIO $ killThread recvT
   pure result
   where
-    runNetworkMain :: MonadIO m => Manager -> RecvChans -> Network m a -> m a
+    runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> Network m a -> m a
     runNetworkMain mgr chans = interpFreer handler
       where
-        handler :: MonadIO m => NetworkSig m a -> m a
-        handler (Run m)    = m
-        handler(Send a ls) = liftIO $ do
+        handler :: (MonadIO m) => NetworkSig m a -> m a
+        handler (Run m) = m
+        handler (Send a ls) = liftIO $ do
           res <- mapM (\l -> runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))) ls
           case lefts res of
             [] -> pure ()
             errors -> putStrLn $ "Errors : " <> show errors
-        handler (Recv l)   = liftIO $ read <$> readChan (chans ! l)
+        handler (Recv l) = liftIO $ read <$> readChan (chans ! l)
 
     api :: Proxy API
     api = Proxy
@@ -102,7 +105,7 @@ runNetworkHttp cfg self prog = do
           pure NoContent
 
     recvThread :: HttpConfig -> RecvChans -> IO ()
-    recvThread cfg' chans = run (baseUrlPort $ locToUrl cfg' ! self ) (serve api $ server chans)
+    recvThread cfg' chans = run (baseUrlPort $ locToUrl cfg' ! self) (serve api $ server chans)
 
 instance Backend HttpConfig where
   runNetwork = runNetworkHttp

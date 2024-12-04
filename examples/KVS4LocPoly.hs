@@ -43,6 +43,7 @@ $(mkLoc "client")
 $(mkLoc "primary")
 $(mkLoc "backup1")
 $(mkLoc "backup2")
+
 type Participants = ["client", "primary", "backup1", "backup2"]
 
 type State = Map String String
@@ -95,9 +96,10 @@ nullReplicationStrategy request stateRef = do
 
 -- | `doBackup` relays a mutating request to a backup location.
 doBackup ::
-  (KnownSymbol a,
-   KnownSymbol b,
-   KnownSymbols ps)=>
+  ( KnownSymbol a,
+    KnownSymbol b,
+    KnownSymbols ps
+  ) =>
   Member a ps ->
   Member b ps ->
   Located '[a] Request ->
@@ -107,8 +109,10 @@ doBackup locA locB request stateRef = do
   broadcast (locA, request) >>= \case
     Put _ _ -> do
       request' <- (locA, request) ~> locB @@ nobody
-      _ <- (locB, \un -> handleRequest (un singleton request') (un singleton stateRef))
-        ~~> locA @@ nobody
+      _ <-
+        (locB, \un -> handleRequest (un singleton request') (un singleton stateRef))
+          ~~> locA
+          @@ nobody
       return ()
     _ -> do
       return ()

@@ -46,7 +46,13 @@ but the API is incompatible and can express more kinds of choreographic behavior
 Unit test can and should be run frequently with `cabal test`.
 
 We use hlint and ormolu, both of which are free and default with hls.
+At present these **are not** set up to run automatically.
 Run `hlint src --report` to check for hints.
+Run
+```bash
+ormolu --mode check $(git ls-files '*.hs') 2>&1 | wc -l
+```
+to check for unformatted files; if you're all set then it will just print `0`.
 
 ## Examples
 

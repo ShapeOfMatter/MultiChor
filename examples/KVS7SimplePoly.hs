@@ -8,53 +8,70 @@ import Choreography
 import Data.IORef (IORef, newIORef, readIORef)
 
 type Response = Int
+
 type Key = String
+
 type State = String
 
 errorResponse :: Response
 errorResponse = -1
 
-data Request = Get Key
-             | Put Key Int
-             deriving(Eq, Read, Show)
+data Request
+  = Get Key
+  | Put Key Int
+  deriving (Eq, Read, Show)
 
 handleGet :: IORef State -> Key -> IO Response
-handleGet s k = do readIORef s >>= putStrLn
-                   return $ length k
+handleGet s k = do
+  readIORef s >>= putStrLn
+  return $ length k
 
 handlePut :: IORef State -> Key -> Int -> IO Response
-handlePut s k v = do readIORef s >>= putStrLn
-                     return . fromEnum $ v /= length k
+handlePut s k v = do
+  readIORef s >>= putStrLn
+  return . fromEnum $ v /= length k
 
 isOk :: Response -> Bool
-isOk = (==0)
+isOk = (== 0)
 
-handleRequest :: forall backups. (KnownSymbols backups)
-              => Located '["primary"] Request
-              -> (Located '["primary"] (IORef State), Faceted backups '[] (IORef State))
-              -> Choreo ("primary" ': backups) IO (Located '["primary"] Response)
-handleRequest request (primaryStateRef, backupsStateRefs) = broadcast (primary, request) >>= \case
-    Put key value -> do oks <- parallel backups \backup un ->
-                                   handlePut (viewFacet un backup backupsStateRefs) key value
-                        gathered <- gather backups (primary @@ nobody) oks
-                        locally primary \un -> if all isOk (un primary gathered)
-                                                then handlePut (un primary primaryStateRef) key value
-                                                else return errorResponse
+handleRequest ::
+  forall backups.
+  (KnownSymbols backups) =>
+  Located '["primary"] Request ->
+  (Located '["primary"] (IORef State), Faceted backups '[] (IORef State)) ->
+  Choreo ("primary" ': backups) IO (Located '["primary"] Response)
+handleRequest request (primaryStateRef, backupsStateRefs) =
+  broadcast (primary, request) >>= \case
+    Put key value -> do
+      oks <- parallel backups \backup un ->
+        handlePut (viewFacet un backup backupsStateRefs) key value
+      gathered <- gather backups (primary @@ nobody) oks
+      locally primary \un ->
+        if all isOk (un primary gathered)
+          then handlePut (un primary primaryStateRef) key value
+          else return errorResponse
     Get key -> locally primary \un -> handleGet (un primary primaryStateRef) key
-  where primary :: forall ps. Member "primary" ("primary" ': ps)
-        primary = listedFirst ; backups = consSuper refl
+  where
+    primary :: forall ps. Member "primary" ("primary" ': ps)
+    primary = listedFirst
+    backups = consSuper refl
 
-kvs :: forall backups. (KnownSymbols backups)
-    => Located '["client"] Request
-    -> (Located '["primary"] (IORef State), Faceted backups '[] (IORef State))
-    -> Choreo ("client" ': "primary" ': backups) IO (Located '["client"] Response)
+kvs ::
+  forall backups.
+  (KnownSymbols backups) =>
+  Located '["client"] Request ->
+  (Located '["primary"] (IORef State), Faceted backups '[] (IORef State)) ->
+  Choreo ("client" ': "primary" ': backups) IO (Located '["client"] Response)
 kvs request stateRefs = do
-    request' <- (client, request) ~> primary @@ nobody
-    response <- enclave (primary @@ backups) (handleRequest request' stateRefs)
-    (primary, flatten (First @@ nobody) (First @@ nobody) response) ~> client @@ nobody
-  where client :: forall ps. Member "client" ("client" ': ps)
-        primary :: forall ps p. Member "primary" (p ': "primary" ': ps)
-        client = listedFirst ; primary = listedSecond ; backups = consSuper $ consSuper refl
+  request' <- (client, request) ~> primary @@ nobody
+  response <- enclave (primary @@ backups) (handleRequest request' stateRefs)
+  (primary, flatten (First @@ nobody) (First @@ nobody) response) ~> client @@ nobody
+  where
+    client :: forall ps. Member "client" ("client" ': ps)
+    primary :: forall ps p. Member "primary" (p ': "primary" ': ps)
+    client = listedFirst
+    primary = listedSecond
+    backups = consSuper $ consSuper refl
 
 mainChoreo :: (KnownSymbols backups) => Choreo ("client" ': "primary" ': backups) IO ()
 mainChoreo = do
@@ -72,7 +89,6 @@ mainChoreo = do
       response <- kvs request state
       client `locally_` \un -> do putStrLn ("> " ++ show (un client response))
       loop state
-
 
 main :: IO ()
 main = runChoreo (mainChoreo @'["A", "B", "C", "D", "E", "F"])

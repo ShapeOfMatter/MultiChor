@@ -37,6 +37,7 @@ import System.Environment
 $(mkLoc "client")
 $(mkLoc "primary")
 $(mkLoc "backup")
+
 type Participants = ["client", "primary", "backup"]
 
 type State = Map String String

@@ -22,8 +22,6 @@ cabal run karatsuba 100 200
 `Reference.h` contains a single-threaded reference implementation of the algorithm.
 -}
 
-
-
 module Karatsuba where
 
 import Choreography
@@ -52,7 +50,6 @@ reference n1 n2 =
     z1 = reference (l1 + h1) (l2 + h2) - z2 - z0
     result = z2 * splitter * splitter + z1 * splitter + z0
 
-
 $(mkLoc "primary")
 $(mkLoc "worker1")
 $(mkLoc "worker2")
@@ -77,8 +74,8 @@ karatsuba ::
   Choreo Participants IO (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \un -> return $ un singleton n1 < 10 || un singleton n2 < 10
-  broadcast (a, done) >>=
-    \case
+  broadcast (a, done)
+    >>= \case
       True -> do
         a `locally` \un -> return $ un singleton n1 * un singleton n2
       False -> do
@@ -95,8 +92,10 @@ karatsuba a b c n1 n2 = do
         s2 <- a `locally` \un -> return $ l2 (un singleton x) + h2 (un singleton x)
         z1' <- karatsuba a b c s1 s2
         z1 <- a `locally` \un -> return $ un singleton z1' - un singleton z2 - un singleton z0
-        a `locally` \un -> return let s = splitter (un singleton x)
-                                  in (un singleton z2 * s * s) + (un singleton z1 * s) + un singleton z0
+        a `locally` \un ->
+          return
+            let s = splitter (un singleton x)
+             in (un singleton z2 * s * s) + (un singleton z1 * s) + un singleton z0
         where
           f n1' n2' = KaratsubaNums {splitter = splitter, h1 = h1, l1 = l1, h2 = h2, l2 = l2}
             where

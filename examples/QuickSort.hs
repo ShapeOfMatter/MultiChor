@@ -24,10 +24,9 @@ cabal run quicksort
 
 module QuickSort where
 
-import Control.Concurrent.Async (mapConcurrently_)
-
-import Choreography 
+import Choreography
 import Choreography.Network.Local
+import Control.Concurrent.Async (mapConcurrently_)
 import GHC.TypeLits (KnownSymbol)
 
 reference :: [Int] -> [Int]
@@ -37,16 +36,19 @@ reference (x : xs) = smaller ++ [x] ++ bigger
     smaller = reference [a | a <- xs, a <= x]
     bigger = reference [a | a <- xs, a > x]
 
-
-
 $(mkLoc "primary")
 $(mkLoc "worker1")
 $(mkLoc "worker2")
+
 type Participants = ["primary", "worker1", "worker2"]
 
-quicksort :: (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps)
-          => Member a ps -> Member b ps -> Member c ps
-          -> Located '[a] [Int] -> Choreo ps IO (Located '[a] [Int])
+quicksort ::
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps) =>
+  Member a ps ->
+  Member b ps ->
+  Member c ps ->
+  Located '[a] [Int] ->
+  Choreo ps IO (Located '[a] [Int])
 quicksort a b c lst = do
   isEmpty <- a `locally` \un -> pure (null (un singleton lst))
   broadcast (a, isEmpty) >>= \case

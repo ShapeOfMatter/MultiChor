@@ -45,14 +45,14 @@ Bob's balance: 5
 
 module Bank2PC where
 
-import Choreography
 import CLI
+import Choreography
 import Control.Monad (unless)
 import Data (TestArgs, reference)
 import Data.List (intercalate, transpose)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
-import Data.Proxy (Proxy(Proxy))
+import Data.Proxy (Proxy (Proxy))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
@@ -61,6 +61,7 @@ $(mkLoc "client")
 $(mkLoc "coordinator")
 $(mkLoc "alice")
 $(mkLoc "bob")
+
 type Participants = ["client", "coordinator", "alice", "bob"]
 
 type State = (Located '["alice"] Int, Located '["bob"] Int)
@@ -70,23 +71,29 @@ type Action = (String, Int)
 type Transaction = [Action]
 
 newtype Args p q = Args [Transaction] deriving (Eq, Show, Read)
+
 instance (KnownSymbol p, KnownSymbol q) => TestArgs (Args p q) [[String]] where
- reference (Args tx) = addCoordinator . transpose $ showAll <$> ref start tx
-   where start = (, 0) <$> [symbolVal (Proxy @p), symbolVal (Proxy @q)]
-         ref _ [] = []
-         ref state (t:ts) = let (s', r) = refAs state t
-                                s'' = if r then s' else state
-                            in (r, s'') : ref s'' ts
-         refAs state [] = (state, True)
-         refAs state (a:as) = let (s', r) = refA state a
-                              in if r then refAs s' as else (state, False)
-         refA state (name, amount) = let (otherL, (_, s):otherR) = ((== name) . fst) `break` state
-                                         s' = s + amount
-                                     in (otherL ++ ((name, s'):otherR), 0 <= s')
-         showAll :: (Bool, [(String, Int)]) -> [String]
-         showAll (clnt, servers) = show clnt : (show . snd <$> servers)
-         addCoordinator (clnt:servers) = clnt : [] : servers
-         addCoordinator _ = error "this can't happen, right? I could enforce it by types, but it's a core..."
+  reference (Args tx) = addCoordinator . transpose $ showAll <$> ref start tx
+    where
+      start = (,0) <$> [symbolVal (Proxy @p), symbolVal (Proxy @q)]
+      ref _ [] = []
+      ref state (t : ts) =
+        let (s', r) = refAs state t
+            s'' = if r then s' else state
+         in (r, s'') : ref s'' ts
+      refAs state [] = (state, True)
+      refAs state (a : as) =
+        let (s', r) = refA state a
+         in if r then refAs s' as else (state, False)
+      refA state (name, amount) =
+        let (otherL, (_, s) : otherR) = ((== name) . fst) `break` state
+            s' = s + amount
+         in (otherL ++ ((name, s') : otherR), 0 <= s')
+      showAll :: (Bool, [(String, Int)]) -> [String]
+      showAll (clnt, servers) = show clnt : (show . snd <$> servers)
+      addCoordinator (clnt : servers) = clnt : [] : servers
+      addCoordinator _ = error "this can't happen, right? I could enforce it by types, but it's a core..."
+
 instance (KnownSymbol p, KnownSymbol q) => Arbitrary (Args p q) where
   arbitrary = (Args . (++ [[]]) <$>) . listOf . listOf1 $ (,) <$> elements [symbolVal $ Proxy @p, symbolVal $ Proxy @q] <*> arbitrary
 
@@ -98,7 +105,7 @@ validate name balance tx = foldl (\(valid, i) (_, amount) -> (let next = i + amo
     actions = filter (\(n, _) -> n == name) tx
 
 render :: Transaction -> String
-render txns = intercalate ";" $ (\(a,b) -> a ++ " " ++ show b) <$> txns
+render txns = intercalate ";" $ (\(a, b) -> a ++ " " ++ show b) <$> txns
 
 -- | `parse` converts the user input into a transaction
 parse :: String -> Transaction
@@ -118,10 +125,11 @@ parse s = tx
 -- then it will decide whether to commit the transaction or not.
 -- If the transaction is committed, it will update the state.
 -- Otherwise, it will keep the state unchanged.
-handleTransaction :: (Monad m) =>
-                     State ->
-                     Located '["coordinator"] Transaction  ->
-                     Choreo Participants m (Located '["coordinator"] Bool, State)
+handleTransaction ::
+  (Monad m) =>
+  State ->
+  Located '["coordinator"] Transaction ->
+  Choreo Participants m (Located '["coordinator"] Bool, State)
 handleTransaction (aliceBalance, bobBalance) tx = do
   -- Voting Phase
   txa <- (coordinator, tx) ~> alice @@ nobody
@@ -144,8 +152,12 @@ handleTransaction (aliceBalance, bobBalance) tx = do
 -- | `bank` loops forever and handles transactions.
 bank :: State -> Choreo Participants (CLI m) ()
 bank state = do
-  tx <- (client, parse <$> getstr "Command? (alice|bob {amount};)+"
-        ) -~> coordinator @@ nobody
+  tx <-
+    ( client,
+      parse <$> getstr "Command? (alice|bob {amount};)+"
+      )
+      -~> coordinator
+      @@ nobody
   (committed, state') <- handleTransaction state tx
   committed' <- (coordinator, committed) ~> client @@ nobody
   client `locally_` \un -> putOutput "Committed?" (un client committed')

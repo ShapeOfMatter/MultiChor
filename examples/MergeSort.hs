@@ -39,13 +39,15 @@ divide xs = splitAt lhx xs
 $(mkLoc "primary")
 $(mkLoc "worker1")
 $(mkLoc "worker2")
+
 type Participants = ["primary", "worker1", "worker2"]
 
-sort :: (KnownSymbol a
-        ,KnownSymbol c
-        ,KnownSymbol b
-        ,KnownSymbols ps
-        ) =>
+sort ::
+  ( KnownSymbol a,
+    KnownSymbol c,
+    KnownSymbol b,
+    KnownSymbols ps
+  ) =>
   Member a ps ->
   Member b ps ->
   Member c ps ->
@@ -67,11 +69,12 @@ sort a b c lst = do
     False -> do
       return lst
 
-merge :: (KnownSymbol a
-         ,KnownSymbol c
-         ,KnownSymbol b
-         ,KnownSymbols ps
-         ) =>
+merge ::
+  ( KnownSymbol a,
+    KnownSymbol c,
+    KnownSymbol b,
+    KnownSymbols ps
+  ) =>
   Member a ps ->
   Member b ps ->
   Member c ps ->
@@ -112,9 +115,10 @@ mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
   lst <- primary `_locally` return [1, 6, 5, 3, 4, 2, 7, 8]
   sorted <- sort primary worker1 worker2 lst
-  _ <- primary `locally` \un -> do
-    print (un primary sorted)
-    return ()
+  _ <-
+    primary `locally` \un -> do
+      print (un primary sorted)
+      return ()
   return ()
 
 main :: IO ()

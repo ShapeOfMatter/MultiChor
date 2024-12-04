@@ -36,9 +36,9 @@ This sample uses [`System.Random`](https://hackage.haskell.org/package/random-1.
 
 module DiffieHellman where
 
+import CLI
 import Choreography
 import Choreography.Network.Http
-import CLI
 import Control.Monad.Cont (MonadIO)
 import System.Environment
 import System.Random
@@ -60,8 +60,9 @@ $(mkLoc "bob")
 
 type Participants = ["alice", "bob"]
 
-diffieHellman :: (MonadIO m) =>
-                 Choreo Participants (CLI m) ()
+diffieHellman ::
+  (MonadIO m) =>
+  Choreo Participants (CLI m) ()
 diffieHellman = do
   -- wait for alice to initiate the process
   _ <- alice `_locally` getstr "enter to start key exchange..."
@@ -90,11 +91,11 @@ diffieHellman = do
 
   -- compute shared key
   alice `locally_` \un ->
-      let s = un alice b'' ^ un alice a `mod` un alice pa
-       in putOutput "alice's shared key:" s
+    let s = un alice b'' ^ un alice a `mod` un alice pa
+     in putOutput "alice's shared key:" s
   bob `locally_` \un ->
-      let s = un bob a'' ^ un bob b `mod` un bob pb
-      in putOutput "bob's shared key:" s
+    let s = un bob a'' ^ un bob b `mod` un bob pb
+     in putOutput "bob's shared key:" s
 
 main :: IO ()
 main = do

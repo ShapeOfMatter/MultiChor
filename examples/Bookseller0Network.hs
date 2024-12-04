@@ -13,13 +13,12 @@ the protocol.
 Same as [`bookseller-1-simple`](../bookseller-1-simple) but with `cabal run bookseller-0-network`.
 -}
 
+import CLI
 import Choreography.Network
 import Choreography.Network.Http
-import CLI
+import Data (deliveryDateOf, priceOf)
 import Data.Time
 import System.Environment
-
-import Data (deliveryDateOf, priceOf)
 
 buyer :: Network (CLI m) ()
 buyer = do
@@ -28,13 +27,13 @@ buyer = do
   send title ["seller"]
   price <- recv "seller"
   if price <= budget
-  then do
-    send True ["seller"]
-    (deliveryDate :: Day) <- recv "seller"
-    run $ putOutput "The book will be delivered on:" deliveryDate
-  else do
-    send False ["seller"]
-    run $ putNote "The book's price is out of the budget"
+    then do
+      send True ["seller"]
+      (deliveryDate :: Day) <- recv "seller"
+      run $ putOutput "The book will be delivered on:" deliveryDate
+    else do
+      send False ["seller"]
+      run $ putNote "The book's price is out of the budget"
 
 seller :: Network (CLI m) ()
 seller = do
@@ -43,10 +42,10 @@ seller = do
   send (database `priceOf` title) ["buyer"]
   decision <- recv "buyer"
   if decision
-  then do
-    send (database `deliveryDateOf` title) ["buyer"]
-  else do
-    return ()
+    then do
+      send (database `deliveryDateOf` title) ["buyer"]
+    else do
+      return ()
 
 main :: IO ()
 main = do
@@ -57,6 +56,8 @@ main = do
     _ -> error "unknown party"
   return ()
   where
-    cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
-                       , ("seller", ("localhost", 4343))
-                       ]
+    cfg =
+      mkHttpConfig
+        [ ("buyer", ("localhost", 4242)),
+          ("seller", ("localhost", 4343))
+        ]

@@ -39,6 +39,7 @@ import System.Environment
 $(mkLoc "client")
 $(mkLoc "primary")
 $(mkLoc "backup")
+
 type Participants = ["client", "primary", "backup"]
 
 type State = Map String String
@@ -93,11 +94,13 @@ primaryBackupReplicationStrategy request (primaryStateRef, backupStateRef) = do
   broadcast (primary, request) >>= \case
     Put _ _ -> do
       request' <- (primary, request) ~> backup @@ nobody
-      _ <- (backup,
-        \un ->
-          handleRequest (un backup request') (un backup backupStateRef)
-        )
-        ~~> primary @@ nobody
+      _ <-
+        ( backup,
+          \un ->
+            handleRequest (un backup request') (un backup backupStateRef)
+          )
+          ~~> primary
+          @@ nobody
       return ()
     _ -> do
       return ()

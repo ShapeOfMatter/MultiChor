@@ -167,4 +167,3 @@ enclave ::
 infix 4 `enclave`
 
 enclave proof ch = toFreer $ Enclave proof ch
-

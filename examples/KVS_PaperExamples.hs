@@ -1,9 +1,9 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-
 # Example: Simple client-server key-value store
@@ -39,6 +39,7 @@ $(mkLoc "client")
 $(mkLoc "server")
 $(mkLoc "primary")
 $(mkLoc "backup")
+
 type Participants2 = ["client", "primary", "backup"]
 
 type Participants = ["client", "server"]
@@ -91,21 +92,21 @@ kvs request stateRef = do
   -- send the response back to the client
   (server, response) ~> client @@ nobody
 
-
-handlePutBackup :: Located '["backup"] (IORef State)
-                -> Request
-                -> Choreo Participants2 IO ()
+handlePutBackup ::
+  Located '["backup"] (IORef State) ->
+  Request ->
+  Choreo Participants2 IO ()
 handlePutBackup backupStateRef nakedRequest = case nakedRequest of
-    -- if the request is a `PUT`, forward the request to the backup node
-    Put _ _ -> do
-      --request'' <- locally \un -> nakedRequest -- (primary, request') ~> backup @@ nobody
-      ack <-
-        backup `locally` \un -> do
-          handleRequest nakedRequest (un backup backupStateRef)
-      _ <- (backup, ack) ~> primary @@ nobody
-      return ()
-    _ -> do
-      return ()
+  -- if the request is a `PUT`, forward the request to the backup node
+  Put _ _ -> do
+    -- request'' <- locally \un -> nakedRequest -- (primary, request') ~> backup @@ nobody
+    ack <-
+      backup `locally` \un -> do
+        handleRequest nakedRequest (un backup backupStateRef)
+    _ <- (backup, ack) ~> primary @@ nobody
+    return ()
+  _ -> do
+    return ()
 
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 -- If the request is a `PUT`, it will forward the request to the backup node.
@@ -129,23 +130,25 @@ kvs2 request (primaryStateRef, backupStateRef) = do
   (primary, response) ~> client @@ nobody
 
 type Servers = ["primary", "backup"]
+
 servers :: Subset Servers Participants2
 servers = primary @@ backup @@ nobody
 
-handlePutBackup3 :: Located '["backup"] (IORef State)
-                -> Request
-                -> Choreo Servers IO ()
+handlePutBackup3 ::
+  Located '["backup"] (IORef State) ->
+  Request ->
+  Choreo Servers IO ()
 handlePutBackup3 backupStateRef nakedRequest = case nakedRequest of
-    -- if the request is a `PUT`, forward the request to the backup node
-    Put _ _ -> do
-      --request'' <- locally \un -> nakedRequest -- (primary, request') ~> backup @@ nobody
-      ack <-
-        backup `locally` \un -> do
-          handleRequest nakedRequest (un backup backupStateRef)
-      _ <- (backup, ack) ~> primary @@ nobody
-      return ()
-    _ -> do
-      return ()
+  -- if the request is a `PUT`, forward the request to the backup node
+  Put _ _ -> do
+    -- request'' <- locally \un -> nakedRequest -- (primary, request') ~> backup @@ nobody
+    ack <-
+      backup `locally` \un -> do
+        handleRequest nakedRequest (un backup backupStateRef)
+    _ <- (backup, ack) ~> primary @@ nobody
+    return ()
+  _ -> do
+    return ()
 
 -- | `kvs` is a choreography that processes a single request located at the client and returns the response.
 -- If the request is a `PUT`, it will forward the request to the backup node.
@@ -167,8 +170,6 @@ kvs3 request (primaryStateRef, backupStateRef) = do
 
   -- send response to client
   (primary, response) ~> client @@ nobody
-
-
 
 -- | `mainChoreo` is a choreography that serves as the entry point of the program.
 -- It initializes the state and loops forever.

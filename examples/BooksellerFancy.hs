@@ -20,7 +20,9 @@ $(mkLoc "seller")
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: forall supporters {m}. (KnownSymbols supporters) =>
+bookseller ::
+  forall supporters {m}.
+  (KnownSymbols supporters) =>
   (Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)) ->
   Choreo ("buyer" ': "seller" ': supporters) (CLI m) ()
 bookseller mkDecision = do
@@ -34,13 +36,14 @@ bookseller mkDecision = do
   decision <- enclave transactors $ mkDecision price
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
-  _ <- enclave buyerAndSeller $
-    broadcast (buyer, flatten explicitSubset allOf decision) >>= \case
-      True -> do
-        deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
-        buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
-      False -> do
-        buyer `_locally_` putNote "The book's price is out of the budget"
+  _ <-
+    enclave buyerAndSeller $
+      broadcast (buyer, flatten explicitSubset allOf decision) >>= \case
+        True -> do
+          deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
+          buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
+        False -> do
+          buyer `_locally_` putNote "The book's price is out of the budget"
 
   return ()
   where

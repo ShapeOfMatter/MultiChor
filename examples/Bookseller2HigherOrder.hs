@@ -1,6 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds      #-}
-{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
@@ -53,12 +53,11 @@ but with buyer2's contribution, now it can.
 
 module Bookseller2HigherOrder where
 
+import CLI
 import Choreography
 import Choreography.Network.Http
-import System.Environment
-
-import CLI
 import Data (deliveryDateOf, priceOf)
+import System.Environment
 
 $(mkLoc "buyer")
 $(mkLoc "seller")
@@ -68,8 +67,9 @@ type Participants = ["buyer", "seller", "buyer2"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
-bookseller :: (Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool))
-              -> Choreo Participants (CLI m) ()
+bookseller ::
+  (Located '["buyer"] Int -> Choreo Participants (CLI m) (Located '["buyer"] Bool)) ->
+  Choreo Participants (CLI m) ()
 bookseller mkDecision = do
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
   title <- (buyer, getstr "Enter the title of the book to buy:") -~> seller @@ nobody
@@ -82,10 +82,9 @@ bookseller mkDecision = do
 
   -- if the buyer decides to buy the book, the seller sends the delivery date to the buyer
   broadcast (buyer, decision) >>= \case
-    True  -> do
+    True -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> buyer @@ nobody
       buyer `locally_` \un -> putstr "The book will be delivered on:" $ show (un buyer deliveryDate)
-
     False -> do
       buyer `_locally_` putNote "The book's price is out of the budget"
 
@@ -107,7 +106,7 @@ main :: IO ()
 main = do
   [loc] <- getArgs
   _ <- case loc of
-    "buyer"  -> runCLIIO $ runChoreography cfg choreo "buyer"
+    "buyer" -> runCLIIO $ runChoreography cfg choreo "buyer"
     "seller" -> runCLIIO $ runChoreography cfg choreo "seller"
     "buyer2" -> runCLIIO $ runChoreography cfg choreo "buyer2"
     _ -> error "unknown party"
@@ -115,7 +114,9 @@ main = do
   where
     choreo = bookseller mkDecision2
 
-    cfg = mkHttpConfig [ ("buyer",  ("localhost", 4242))
-                       , ("seller", ("localhost", 4343))
-                       , ("buyer2", ("localhost", 4444))
-                       ]
+    cfg =
+      mkHttpConfig
+        [ ("buyer", ("localhost", 4242)),
+          ("seller", ("localhost", 4343)),
+          ("buyer2", ("localhost", 4444))
+        ]
