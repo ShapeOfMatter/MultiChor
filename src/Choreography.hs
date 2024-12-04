@@ -1,3 +1,5 @@
+-- | This is just a wrapper module to allow more concise imports.
+--     For documentation, you should probably start in "Choreography.Core".
 module Choreography
   ( module Choreography.Core,
     module Choreography.Choreography,
@@ -21,6 +23,6 @@ import Choreography.Network
 import Choreography.Polymorphism
 import Control.Monad.IO.Class (MonadIO)
 
--- | Run a choreography with a message transport backend.
+-- | Run a choreography with a message transport backend...
 runChoreography :: (Backend config, MonadIO m, KnownSymbols ps) => config -> Choreo ps m a -> LocTm -> m a
 runChoreography cfg choreo l = runNetwork cfg l (epp choreo l)

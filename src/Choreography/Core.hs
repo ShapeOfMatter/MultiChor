@@ -1,19 +1,27 @@
 -- | This module defines `Choreo`, the monad for writing choreographies,
 --   and the closely related `Located` data type.
+--   Not everything here is user-friendly; this is were we declare the foundational concepts.
+--   These get repackaged in more convienent ways in "Choreography.Choreography"
+--   and "Choreography.Choreography.Batteries".
 module Choreography.Core
-  ( broadcast',
+  ( -- * The `Choreo` monad and its operators
     Choreo,
+    broadcast',
     -- , ChoreoSig(..)  I can't think of any reasons why we _should_ export this, nor any reason why we shouldn't...
+    locally',
     congruently',
     enclave,
+
+    -- * Running choreographies
     epp,
-    flatten,
-    locally',
-    Located (),
-    othersForget,
     runChoreo,
+
+    -- * Located values
+    Located (),
     Unwrap,
     Unwraps,
+    flatten,
+    othersForget,
     wrap, -- consider renaming or removing.
   )
 where
@@ -35,10 +43,15 @@ wrap :: a -> Located l a
 wrap = Wrap
 
 -- | Unwraps values known to the specified party.
+--   You should not be able to build such a function in normal code;
+--   these functions are afforded only for use in "local" computation.
 type Unwrap (q :: LocTy) = forall ls a. Member q ls -> Located ls a -> a
 
 -- | Unwraps values known to the specified list of parties.
---   Could be dangerous if the list is empty, but the API is designed so that no value of type `Unwraps '[]` will ever actually get evaluated.
+--   You should not be able to build such a function in normal code;
+--   these functions are afforded only for use in "local" computation.
+--   (Could be dangerous if the list is empty,
+--   but the API is designed so that no value of type `Unwraps '[]` will ever actually get evaluated.)
 type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
 
 -- | Unwrap a `Located` value.
@@ -82,9 +95,13 @@ data ChoreoSig (ps :: [LocTy]) m a where
     ChoreoSig ps m (Located ls b)
 
 -- | Monad for writing choreographies.
+--     `ps` is the "census", the list of parties who are present in (that part of) the choreography.
+--     `m` is the local monad afforded to parties by `locally'`.
 type Choreo ps m = Freer (ChoreoSig ps m)
 
 -- | Run a `Choreo` monad with centralized semantics.
+--   This basically pretends that the choreography is a single-threaded program and runs it all at once,
+--   ignoring all the location aspects.
 runChoreo :: forall p ps b m. (Monad m) => Choreo (p ': ps) m b -> m b
 runChoreo = interpFreer handler
   where
@@ -100,7 +117,17 @@ runChoreo = interpFreer handler
       TyCons -> wrap <$> runChoreo c
 
 -- | Endpoint projection.
-epp :: forall ps b m. (Monad m, KnownSymbols ps) => Choreo ps m b -> LocTm -> Network m b
+epp ::
+  forall ps b m.
+  (Monad m, KnownSymbols ps) =>
+  -- | A choreography
+  Choreo ps m b ->
+  -- | A `String` identifying a party.
+  --   At present there is no enforcement that the party will actually be in the census of the choreography;
+  --   some bugs may be possible if it is not.
+  LocTm ->
+  -- | Returns the implementation of the party's role in the choreography.
+  Network m b
 epp c l' = interpFreer handler c
   where
     handler :: ChoreoSig ps m a -> Network m a
@@ -124,6 +151,8 @@ epp c l' = interpFreer handler c
       | otherwise = pure Empty
 
 -- | Access to the inner "local" monad.
+--   Since the type of `locally'` restricts the census to a single party, you'll usually want to use
+--   `Choreography.Choreography.locally` instead.
 locally' ::
   (KnownSymbol l) =>
   -- | The local action(s), which can use an unwraper function.

@@ -1,5 +1,8 @@
 -- | This module defines the freer monad `Freer`, which allows manipulating
--- effectful computations algebraically.
+--   effectful computations algebraically.
+--
+--   It is unlikely you need this, except maybe to define your own backends or something.
+--   We may hide/remove it in future versions.
 module Control.Monad.Freer where
 
 import Control.Monad ((>=>))

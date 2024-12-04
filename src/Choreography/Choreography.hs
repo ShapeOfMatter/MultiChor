@@ -1,3 +1,4 @@
+-- | Operations for writing choreographies.
 module Choreography.Choreography where
 
 import Choreography.Core
@@ -5,15 +6,14 @@ import Choreography.Locations
 import Choreography.Locations.Batteries (ExplicitMember (..))
 import GHC.TypeLits
 
--- * Computation _per se_
+-- * Computation /per se/
 
 -- | Perform a local computation at a given location.
 locally ::
   (KnownSymbol (l :: LocTy)) =>
   -- | Location performing the local computation.
   Member l ps ->
-  -- | The local computation given a constrained
-  --   unwrap funciton.
+  -- | The local computation, which can use a constrained unwrap function.
   (Unwrap l -> m a) ->
   Choreo ps m (Located '[l] a)
 
@@ -21,7 +21,7 @@ infix 4 `locally`
 
 locally l m = enclave (l @@ nobody) $ locally' m
 
--- | Perform the exact same computation in replicate at multiple locations.
+-- | Perform the exact same pure computation in replicate at multiple locations.
 --   The computation can not use anything local to an individual party, including their identity.
 congruently ::
   forall ls a ps m.
@@ -77,9 +77,12 @@ broadcast s = broadcast' (presentToSend s) (ownsMessagePayload s, structMessageP
 (~>) ::
   (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps) =>
   -- | The message argument can take three forms:
-  --     `(Member sender census, wrapped owners a)` where the sender is explicitly listed in owners,
-  --     `(Member sender owners, Subset owners census, wrapped owners a)`, or
-  --     `(Member sender census, (Member sender owners, wrapped owners a)`.
+  --
+  --   >  (Member sender census, wrapped owners a) -- where sender is explicitly listed in owners
+  --
+  --   >  (Member sender owners, Subset owners census, wrapped owners a)
+  --
+  --   >  (Member sender census, (Member sender owners, wrapped owners a)
   s ->
   -- | The recipients.
   Subset ls' ps ->
@@ -93,7 +96,7 @@ s ~> rs = do
 
 -- * Enclaves
 
--- | Lift a choreography of involving fewer parties into the larger party space.
+-- | Lift a choreography involving fewer parties into the larger party space.
 --   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
 enclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
 

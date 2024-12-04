@@ -14,7 +14,7 @@ import GHC.TypeLits
 
 -- | A mapping, accessed by `Member` terms, from types (`Symbol`s) to values.
 --   The types of the values depend on the indexing type; this relation is expressed by the type-level function `f`.
---   If the types of the values _don't_ depend on the index, use `Quire`.
+--   If the types of the values /don't/ depend on the index, use `Quire`.
 --   If the types vary only in that they are `Located` at the indexing party, use `Faceted`.
 --   `PIndexed` generalizes those two types in a way that's not usually necessary when writing choreographies.
 newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
@@ -24,6 +24,8 @@ type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
 -- | Sequence computations indexed by parties.
 --   Converts a `PIndexed` of computations into a computation yielding a `PIndexed`.
 --   Strongly analogous to 'Data.Traversable.sequence'.
+--   In most cases, the [choreographic functions](#g:choreographicfunctions) below will be easier to use
+--   than messing around with `Data.Functor.Compose.Compose`.
 sequenceP ::
   forall b (ls :: [LocTy]) m.
   (KnownSymbols ls, Monad m) =>
@@ -128,7 +130,7 @@ unsafeFacet (_ : as) (Later l) = unsafeFacet as l
 unsafeFacet [] _ = error "The provided list isn't long enough to use as a Faceted over the intended parties."
 -}
 
--- * Choreographic functions
+-- * #choreographicfunctions# Choreographic functions
 
 -- | Perform a local computation at all of a list of parties, yielding a `Faceted`.
 parallel ::

@@ -1,3 +1,4 @@
+-- | A zoo of helpful derived functions for writing choreographies.
 module Choreography.Choreography.Batteries where
 
 import Choreography.Choreography
@@ -6,7 +7,7 @@ import Choreography.Locations
 import Control.Monad (void)
 import GHC.TypeLits
 
--- * Computation _per se_
+-- * Computation /per se/
 
 -- | Perform a local computation, yielding nothing.
 locally_ ::

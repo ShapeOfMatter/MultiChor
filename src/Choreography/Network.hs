@@ -2,6 +2,8 @@
 -- individual nodes in a distributed system with explicit sends and receives.
 -- To run a `Network` program, we provide a `runNetwork` function that supports
 -- multiple message transport backends.
+-- Two such backends are provided in "Choreography.Network.Http" and "Choreography.Network.Local",
+-- and there should be enough tools here for you to write more as needed.
 module Choreography.Network where
 
 import Choreography.Locations (LocTm)

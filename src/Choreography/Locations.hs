@@ -1,8 +1,11 @@
--- | This module defines locations and functions/relations pertaining to type-level lists of locations.
+-- | This module defines locations (AKA parties)
+--   and functions/relations pertaining to type-level lists of locations.
 module Choreography.Locations where
 
 import Data.Proxy (Proxy (..))
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
+
+-- * Type aliases
 
 -- | Term-level locations.
 type LocTm = String
@@ -12,20 +15,22 @@ type LocTy = Symbol
 
 -- * Membership and Subset proofs
 
--- These are frequently used both for proofs *per se* and to indentify individuals in lists of locations.
+-- | A term-level proof that a `LocTy` is a member of a @[LocTy]@.
+--   These are frequently used both for proofs /per se/ and to identify individuals in lists of locations.
 --
--- For example: `players :: Subset players census` is a proof that the type-level list `players`  is a subset of `census`,
--- and it can also be used as a **term-level** identifier for the **type-level** `players`, similar to how a `proxy` might be used.
-
--- | A term-level proof that a `LocTy` is a member of a `[LocTy]`.
---   Pattern matching on such these values is like pattern matching on a successor-based `Nat`;
---   in this sense a `Member x xs` is an index into `xs` at which `x` can be found.
+--   For example: @player :: Member players census@ is a proof that the type-level `Symbol`, @player@, is in @census@,
+--   and it can also be used as a __term-level__ identifier for the __type-level__ @player@,
+--   similar to how a @proxy@ might be used.
+--
+--   Pattern matching on these values is like pattern matching on a successor-based @Nat@;
+--   in this sense a @Member x xs@ is an index into @xs@ at which @x@ can be found.
 data Member (x :: k) (xs :: [k]) where
   First :: forall xs x xs'. (xs ~ (x ': xs')) => Member x (x ': xs')
   Later :: Member x xs -> Member x (y ': xs)
 
 -- | A term level proof that one type-level list represents a subset of another,
 --   embodied by a total function from proof-of-membership in the sublist to proof-of-membership in the superlist.
+--   (If you make one with a partial funciton, all bets are off.)
 newtype Subset xs ys = Subset
   { -- | Convert a proof of membership in the sublist to a proof of membership in the superlist.
     -- Frequently used to show that a location is part of a larger set of locations.
@@ -53,10 +58,13 @@ consSet = Subset Later
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
--- | Cons an element to the subset in a `Subset` value; requires proof that the new head element is already a member of the superset.
+-- | Cons an element to the subset in a `Subset` value;
+--   requires proof that the new head element is already a member of the superset.
 --   Used like `:` for subset proofs.
---   Suppose you have (alice :: Member "Alice" census) and we want a subset proof with alice in the census then we can do:
---   >>> proof :: Subset '["Alice"]  census  = alice @@ nobody
+--   Suppose you have @(alice :: Member "Alice" census)@
+--   and we want a /subset/ proof instead of membership; we can write:
+--
+--   >>> proof :: Subset '["Alice"] census = alice @@ nobody
 (@@) :: Member x ys -> Subset xs ys -> Subset (x ': xs) ys
 
 infixr 5 @@
@@ -83,27 +91,29 @@ toLocs _ = case tySpine @ls of -- this could be golfed by Quire, if that were de
 
 -- * Handling type-level lists literals
 
--- `KnownSymobls` constraints will often need to be declared in user code,
--- but using `tySpine` should only be neccessary
+-- $Handling
+--
+-- `KnownSymbols` constraints will often need to be declared in user code,
+-- but using `tySpine` should only be necessary
 -- when the behavior of the choreography depends on the structure of the type-level lists.
--- Most of the time the functions in `Choreography.Polymorphism` should do this for you.
+-- Most of the time the functions in "Choreography.Polymorphism" should do this for you.
 
 -- | Term-level markers of the spine/structure of a type-level list.
 --   Pattern matching on them recovers both the spine of the list and, if applicable,
---   `KnownSymbol[s]` instances for the head and tail.
+--   `KnownSymbol`[@s@] instances for the head and tail.
 data TySpine ps where
   -- | Denotes that the list has a head and tail, and exposes `KnownSymbol` and `KnownSymbols` constraints respectively.
   TyCons :: (KnownSymbol h, KnownSymbols ts) => TySpine (h ': ts)
   -- | Denotes that the list is empty.
   TyNil :: TySpine '[]
 
--- | The type-level-list version of GHC.TypeList.KnownSymbol.
+-- | The type-level-list version of `GHC.TypeList.KnownSymbol`.
 --   Denotes that both the spine of the list and each of its elements is known at compile-time.
---   This knowlege is typically recovered by recursively pattern-matching on `tySpine @ls`.
+--   This knowlege is typically recovered by recursively pattern-matching on @tySpine \@ls@.
 class KnownSymbols ls where
-  -- | Pattern matching on `tySpine @ls` will normally have two cases, for when `ls` is empty or not.
-  --   Contextual knowlege may let one or the other case be skipped.
-  --   Within those casese, the knowlege afforded by `tySpine`'s constructors can be used.
+  -- | Pattern matching on @tySpine \@ls@ will normally have two cases, for when @ls@ is empty or not.
+  --   Contextual knowledge may let one or the other case be skipped.
+  --   Within those cases, the knowledge afforded by `tySpine`'s constructors can be used.
   tySpine :: TySpine ls
 
 instance KnownSymbols '[] where

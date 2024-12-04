@@ -1,10 +1,11 @@
--- | This module defines locations and functions/relations pertaining to type-level lists of locations.
---   Additionally introduces `PIndexed` and `Quire`.
+-- | Additional functions/relations pertaining to locations and type-level lists of locations.
 module Choreography.Locations.Batteries where
 
 import Choreography.Locations
 import GHC.TypeLits (KnownSymbol)
 import Language.Haskell.TH
+
+-- * Misc
 
 -- | Quickly build membership proofs, when the membership can be directly observed by GHC.
 class ExplicitMember (x :: k) (xs :: [k]) where
@@ -30,7 +31,7 @@ instance {-# OVERLAPS #-} ExplicitSubset '[] ys where
 allOf :: forall ps. Subset ps ps
 allOf = refl
 
--- | Any element `p` is a member of the list `'[p]`.
+-- | Any element @p@ is a member of the list @'[p]@.
 singleton :: forall p. Member p (p ': '[])
 singleton = First
 
@@ -54,6 +55,8 @@ listedFifth = inSuper (consSuper refl) listedForth
 listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p5 ': p6 ': ps)
 listedSixth = inSuper (consSuper refl) listedFifth
 
+-- * Context manipulation
+
 -- | Use any membership proof to to safely call code that only works on a non-empy list.
 quorum1 ::
   forall ps p a.
@@ -64,6 +67,8 @@ quorum1 ::
 quorum1 p a = case (p, tySpine @ps) of
   (First, TyCons) -> a
   (Later _, TyCons) -> a
+
+-- * Template Haskell
 
 -- | Declare a proof-value with the given string as the variable name, proving that that string is a member of any list in which it explicitly apprears.
 mkLoc :: String -> Q [Dec]
