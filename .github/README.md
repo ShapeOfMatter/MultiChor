@@ -51,6 +51,9 @@ Run
 ormolu --mode check $(git ls-files '*.hs') 2>&1 | wc -l
 ```
 to check for unformatted files; if you're all set then it will just print `0`.
+You should also run `cabal check`, to detect any less common config issues,
+and inspect the output of `cabal haddock choreography` for any warnings.
+
 
 ## Examples
 

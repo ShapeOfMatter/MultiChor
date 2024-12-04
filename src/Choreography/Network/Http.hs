@@ -18,24 +18,22 @@ import Servant.API
 import Servant.Client (BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM)
 import Servant.Server (Handler, Server, serve)
 
--- * Servant API
-
-type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
-
 -- * Http configuration
 
--- | The HTTP backend configuration specifies how locations are mapped to
--- network hosts and ports.
+-- | A backend for running `Network` behaviors over HTTP.
+--   The configuration specifies how locations are mapped to network hosts and ports.
 newtype HttpConfig = HttpConfig
   { locToUrl :: HashMap LocTm BaseUrl
   }
 
+-- | The address of a party/location.
 type Host = String
 
+-- | The port of a party/location.
 type Port = Int
 
 -- | Create a HTTP backend configuration from a association list that maps
--- locations to network hosts and ports.
+--   locations to network hosts and ports.
 mkHttpConfig :: [(LocTm, (Host, Port))] -> HttpConfig
 mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
   where
@@ -48,13 +46,16 @@ mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
           baseUrlPath = ""
         }
 
+-- | The list of locations known to a backend.
 locs :: HttpConfig -> [LocTm]
 locs = HashMap.keys . locToUrl
 
 -- * Receiving channels
 
+-- | The channels a location uses to recieve messages from various peers.
 type RecvChans = HashMap LocTm (Chan String)
 
+-- | Make the channels that will be used to recieve messages.
 mkRecvChans :: HttpConfig -> IO RecvChans
 mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
   where
@@ -68,6 +69,10 @@ mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
 
 -- * HTTP backend
 
+-- | A "Servant.API" API.
+type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
+
+-- | Run a `Network` behavior, using the provided HTTP backend.
 runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings

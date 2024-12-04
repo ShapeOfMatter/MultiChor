@@ -95,9 +95,9 @@ data ChoreoSig (ps :: [LocTy]) m a where
     ChoreoSig ps m (Located ls b)
 
 -- | Monad for writing choreographies.
---     `ps` is the "census", the list of parties who are present in (that part of) the choreography.
---     `m` is the local monad afforded to parties by `locally'`.
-type Choreo ps m = Freer (ChoreoSig ps m)
+--     @ps@ is the "census", the list of parties who are present in (that part of) the choreography.
+--     @m@ is the local monad afforded to parties by `locally'`.
+type Choreo ps m = Freer (ChoreoSig ps m) -- Haddock will complain about not knowning where ChoreoSig is. IDK how to fix it; maybe we should just export
 
 -- | Run a `Choreo` monad with centralized semantics.
 --   This basically pretends that the choreography is a single-threaded program and runs it all at once,

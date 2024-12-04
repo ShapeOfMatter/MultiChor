@@ -14,10 +14,13 @@ import Data.HashMap.Strict qualified as HashMap
 -- from other locations.
 type MsgBuf = HashMap LocTm (Chan String)
 
+-- | A backend for running choreographies using [Haskell threads](https://hackage.haskell.org/package/base/docs/Control-Concurrent.html)
+--   as the locations and buffered `Control.Concurrent.Chan.Chan` channels for communication.
 newtype LocalConfig = LocalConfig
   { locToBuf :: HashMap LocTm MsgBuf
   }
 
+-- | Make a channel for each of the listed locations, on which messages from that location can be recieved.
 newEmptyMsgBuf :: [LocTm] -> IO MsgBuf
 newEmptyMsgBuf = foldM f HashMap.empty
   where
@@ -25,6 +28,8 @@ newEmptyMsgBuf = foldM f HashMap.empty
       chan <- newChan
       pure (HashMap.insert loc chan hash)
 
+-- | Make a local backend for the listed parties.
+--   Make just the one backend and then have all your threads use the same one.
 mkLocalConfig :: [LocTm] -> IO LocalConfig
 mkLocalConfig ls = LocalConfig <$> foldM f HashMap.empty ls
   where
@@ -32,9 +37,12 @@ mkLocalConfig ls = LocalConfig <$> foldM f HashMap.empty ls
       buf <- newEmptyMsgBuf ls
       pure (HashMap.insert loc buf hash)
 
+-- | List the parties known to the backend.
 locs :: LocalConfig -> [LocTm]
 locs = HashMap.keys . locToBuf
 
+-- | Run a `Network` behavior using the channels in a `LocalConfig` for communication.
+--   Call this inside a concurrent thread.
 runNetworkLocal :: (MonadIO m) => LocalConfig -> LocTm -> Network m a -> m a
 runNetworkLocal cfg self = interpFreer handler
   where

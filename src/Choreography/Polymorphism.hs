@@ -1,3 +1,4 @@
+-- | Types, functions, and structures for writing choreographies with variable numbers of participants.
 module Choreography.Polymorphism where
 
 import Choreography.Choreography
@@ -13,12 +14,13 @@ import GHC.TypeLits
 -- * The root abstraction
 
 -- | A mapping, accessed by `Member` terms, from types (`Symbol`s) to values.
---   The types of the values depend on the indexing type; this relation is expressed by the type-level function `f`.
+--   The types of the values depend on the indexing type; this relation is expressed by the type-level function @f@.
 --   If the types of the values /don't/ depend on the index, use `Quire`.
 --   If the types vary only in that they are `Located` at the indexing party, use `Faceted`.
 --   `PIndexed` generalizes those two types in a way that's not usually necessary when writing choreographies.
 newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
 
+-- | An impredicative quantified type. Wrapping it up in `PIndexed` wherever possible will avoid a lot of type errors and headache.
 type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
 
 -- | Sequence computations indexed by parties.
@@ -112,6 +114,7 @@ instance forall parties a. (KnownSymbols parties, Show a) => Show (Quire parties
 -- | A unified representation of possibly-distinct homogeneous values owned by many parties.
 type Faceted parties common a = PIndexed parties (Facet a common)
 
+-- | Repackages `Located` with the type arguments correctly arranged for use with `PIndexed`.
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
 -- | Get a `Located` value of a `Faceted` at a given location.

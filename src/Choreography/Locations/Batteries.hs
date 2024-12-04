@@ -37,21 +37,28 @@ singleton = First
 
 -- * Easy indexing with `Member` objects.
 
+-- | A `Member` value for the first item in a list.
+--   Note that type-applicaiton is different than with `First`, to which this is otherwise redundant.
 listedFirst :: forall p1 ps. Member p1 (p1 ': ps) -- Can we replace all of these with something using off-the-shelf type-level Nats?
-listedFirst = First -- Additionally, note that type-applicaiton is different than with `First`.
+listedFirst = First
 
+-- | A `Member` value for the second item in a list.
 listedSecond :: forall p2 p1 ps. Member p2 (p1 ': p2 ': ps)
 listedSecond = inSuper (consSuper refl) listedFirst
 
+-- | A `Member` value for the third item in a list.
 listedThird :: forall p3 p2 p1 ps. Member p3 (p1 ': p2 ': p3 ': ps)
 listedThird = inSuper (consSuper refl) listedSecond
 
+-- | A `Member` value for the forth item in a list.
 listedForth :: forall p4 p3 p2 p1 ps. Member p4 (p1 ': p2 ': p3 ': p4 ': ps)
 listedForth = inSuper (consSuper refl) listedThird
 
+-- | A `Member` value for the fifth item in a list.
 listedFifth :: forall p5 p4 p3 p2 p1 ps. Member p5 (p1 ': p2 ': p3 ': p4 ': p5 ': ps)
 listedFifth = inSuper (consSuper refl) listedForth
 
+-- | A `Member` value for the sixth item in a list.
 listedSixth :: forall p6 p5 p4 p3 p2 p1 ps. Member p6 (p1 ': p2 ': p3 ': p4 ': p5 ': p6 ': ps)
 listedSixth = inSuper (consSuper refl) listedFifth
 
