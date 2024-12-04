@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               MultiChor
-version:            0.0.0.1
+version:            1.0.0.0
 license-files:
     , LICENSE
     , LICENSE.inherited
