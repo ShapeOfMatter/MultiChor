@@ -39,5 +39,69 @@ but the API is incompatible and can express more kinds of choreographic behavior
 
 ## Examples
 
-Check the source repository for many example choreographies.
+Consider the choreography `game`:
 
+```haskell
+{- A simple black-jack-style game. The dealer gives everyone a card, face up. Each player may
+ - request a second card. Then the dealer reveals one more card that applies to everyone. Each
+ - player individually wins if the sum of their cards (modulo 21) is greater than 19.  -}
+game :: forall players m. (KnownSymbols players) => Choreo ("dealer" ': players) (CLI m) ()
+game = do
+  let players = consSuper (refl @players)
+      dealer = listedFirst @"dealer"
+      everyone = refl @("dealer" ': players)
+  hand1 <-
+    ( fanIn everyone \(player :: Member player players) -> do
+        card1 <- locally dealer (\_ -> getInput ("Enter random card for " ++ toLocTm player))
+        (dealer, card1) ~> everyone
+      )
+      >>= naked everyone
+  wantsNextCard <- parallel players \_ _ -> do
+    putNote $ "All cards on the table: " ++ show hand1
+    getInput "I'll ask for another? [True/False]"
+  hand2 <- fanOut \(player :: Member player players) ->
+    enclave (inSuper players player @@ dealer @@ nobody) do
+      let dealer' = listedSecond @"dealer"
+      choice <- broadcast (listedFirst @player, localize player wantsNextCard)
+      if choice
+        then do
+          cd2 <- locally dealer' (\_ -> getInput (toLocTm player ++ "'s second card:"))
+          card2 <- broadcast (dealer', cd2)
+          return [getLeaf hand1 player, card2]
+        else return [getLeaf hand1 player]
+  tblCrd <- locally dealer (\_ -> getInput "Enter a single card for everyone:")
+  tableCard <- (dealer, tblCrd) ~> players
+  void $ parallel players \player un -> do
+    let hand = un player tableCard : viewFacet un player hand2
+    putNote $ "My hand: " ++ show hand
+    putOutput "My win result:" $ sum hand > card 19
+```
+
+The dealer gives everyone a card and each player may request a second card,
+        then the dealer reveals one more card that applies to everyone.
+        Each player individually wins if the sum of their cards is greater than 19.
+        (A modulo-21 step is hidden inside the \inlinecode{instance Num Card}).
+        Some parts of this could be written more concisely using helper functions afforded by \MultiChor;
+        we avoid introducing those here.
+        The monad \inlinecode{CLI m} is basically just \inlinecode{IO}.
+        On lines~3--5 we declare \inlinecode{Subset} and \inlinecode{Member} proofs so we can refer to parties at the term level.
+        On lines~6--9 the dealer deals each player a card that's visible to everyone.
+        \inlinecode{fanIn} returns a \inlinecode{Quire} that's located at the recipients;
+        since in this case that's \inlinecode{everyone}, we immediately unwrap it with \inlinecode{naked} for easy use later.
+        On lines~10--12 the players decide in \inlinecode{parallel} if they each want an additional card;
+        \inlinecode{wantsNextCard} has type \inlinecode{Faceted players '[] Bool}.
+        In contrast, \inlinecode{hand2} (line~13) has type \inlinecode{Faceted players '["dealer"] [Card]}
+        because the dealer knows what cards they're giving all the players, but each player only knows their own card.
+        To do this efficiently, we enter an enclave on line~14
+        with just \inlinecode{"dealer"} and \inlinecode{player} (the loop variable of the \inlinecode{fanOut}).
+        and then \inlinecode{broadcast} \inlinecode{player}'s value of \inlinecode{wantsNextCard} to just those two participants,
+        resulting in \inlinecode{choice :: Bool} on line~16.
+        Either way, we include the player's card from \inlinecode{hand1} in their value of \inlinecode{hand2}.
+        On lines~22--23 the dealer reveals a common card to all players with a simple multicast,
+        and then the players observe that they have won or lost in parallel.
+        Although \inlinecode{putOutput} returns \inlinecode{()}, \inlinecode{parallel} wraps that in a \inlinecode{Faceted},
+        so we use the normal \inlinecode{void} to throw it away.
+
+Check the source repository for many more example choreographies.
+You can also read the preprint of [_Efficient, Portable, Census-Polymorphic Choreographic Programming_](https://arxiv.org/abs/2412.02107)
+for more theoretical discussion of choreographic programming _à la_ MultiChor.
