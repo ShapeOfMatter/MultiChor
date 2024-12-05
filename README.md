@@ -77,30 +77,23 @@ game = do
     putOutput "My win result:" $ sum hand > card 19
 ```
 
-The dealer gives everyone a card and each player may request a second card,
-        then the dealer reveals one more card that applies to everyone.
-        Each player individually wins if the sum of their cards is greater than 19.
-        (A modulo-21 step is hidden inside the \inlinecode{instance Num Card}).
-        Some parts of this could be written more concisely using helper functions afforded by \MultiChor;
-        we avoid introducing those here.
-        The monad \inlinecode{CLI m} is basically just \inlinecode{IO}.
-        On lines~3--5 we declare \inlinecode{Subset} and \inlinecode{Member} proofs so we can refer to parties at the term level.
-        On lines~6--9 the dealer deals each player a card that's visible to everyone.
-        \inlinecode{fanIn} returns a \inlinecode{Quire} that's located at the recipients;
-        since in this case that's \inlinecode{everyone}, we immediately unwrap it with \inlinecode{naked} for easy use later.
-        On lines~10--12 the players decide in \inlinecode{parallel} if they each want an additional card;
-        \inlinecode{wantsNextCard} has type \inlinecode{Faceted players '[] Bool}.
-        In contrast, \inlinecode{hand2} (line~13) has type \inlinecode{Faceted players '["dealer"] [Card]}
-        because the dealer knows what cards they're giving all the players, but each player only knows their own card.
-        To do this efficiently, we enter an enclave on line~14
-        with just \inlinecode{"dealer"} and \inlinecode{player} (the loop variable of the \inlinecode{fanOut}).
-        and then \inlinecode{broadcast} \inlinecode{player}'s value of \inlinecode{wantsNextCard} to just those two participants,
-        resulting in \inlinecode{choice :: Bool} on line~16.
-        Either way, we include the player's card from \inlinecode{hand1} in their value of \inlinecode{hand2}.
-        On lines~22--23 the dealer reveals a common card to all players with a simple multicast,
-        and then the players observe that they have won or lost in parallel.
-        Although \inlinecode{putOutput} returns \inlinecode{()}, \inlinecode{parallel} wraps that in a \inlinecode{Faceted},
-        so we use the normal \inlinecode{void} to throw it away.
+The type signature tells us that this choreography (computation in the `Choreo` monad)
+involves a partially-polymorphic list of participants;
+the first of whom is specifically `"dealer"` and the rest of whom are represented collectively in the type variable `players`.
+All parties can perform computations in a local monad, in this case `CLI m`
+(the details of `CLI` are orthogonal to choreographic programming; it's basically just `IO`).
+The return type `()` indicates that this choreography doesn't yield any values; it's just a program.
+The first thing we do is declare the values `players`, `dealer`, and `everyone`;
+these are term-level identifiers for the type level parties, but they're also proofs of subset or membership that
+attest that the respective parties are valid to participate in the choreography.
+`hand1` has type `Quire players Card`; since these cards are supposed to be dealt face down, they're known to everyone.
+To accomplish this, we use a `fanIn` loop in which the dealer selects a card for each player and sends it to everyone.
+`wantsNextCard` is the result of a parallel computation (CLI interaction);
+it's type is `Faceted players '[] Bool`.
+The computation of `hand2` is private between each player and the dealer, so we `fanOut` over the players
+and then `enclave` a sub-choreography involving only the given player and `"dealer"`.
+The `broadcast` inside the enclave shares that player's value of `wantsNextCard` with everyone _who's present_, which is just `"dealer"`.
+At the end, the players each observer if they've won or lost in parallel.
 
 Check the source repository for many more example choreographies.
 You can also read the preprint of [_Efficient, Portable, Census-Polymorphic Choreographic Programming_](https://arxiv.org/abs/2412.02107)
