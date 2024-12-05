@@ -71,48 +71,6 @@ common lib-dependent
     import: basic-config
     build-depends: choreography
 
-library examples
-    import: lib-dependent
-    hs-source-dirs:   examples
-    build-depends:
-        , async      >= 2.2  && < 2.3
-        , binary               >= 0.8.9.0 && < 0.10.1.0
-        , containers >= 0.6  && < 0.7
-        , cryptonite           >= 0.10  && < 0.31
-        , finite-field >= 0.10.0 && < 0.11.0
-        , split   >= 0.2  && < 0.3
-        , random  >= 1.2  && < 1.3
-        , time    >= 1.11 && < 1.13
-        , transformers >= 0.5  && < 0.7
-        , QuickCheck >= 2.14 && < 3
-    exposed-modules:
-          Bank2PC
-        , Bookseller0Network
-        , Bookseller1Simple
-        , Bookseller2HigherOrder
-        , Bookseller3LocPoly
-        , BooksellerFancy
-        , CardGame
-        , ChooseTeams
-        , DelegationFig20
-        , DiffieHellman
-        , GMWReal
-        , Karatsuba
-        , KVS1Simple
-        , KVS2PrimaryBackup
-        , KVS3HigherOrder
-        , KVS4LocPoly
-        , KVS5Fig17
-        , KVS6SizePoly
-        , KVS7SimplePoly
-        , Lottery
-        , MergeSort
-        , MPCFake
-        , ObliviousTransfer
-        , QuickSort
-        , RingLeader
-        , CLI
-        , Data
 
 common example
     import: lib-dependent
