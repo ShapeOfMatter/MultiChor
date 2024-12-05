@@ -60,7 +60,7 @@ consSuper sxy = transitive sxy consSet
 
 -- | Cons an element to the subset in a `Subset` value;
 --   requires proof that the new head element is already a member of the superset.
---   Used like `:` for subset proofs.
+--   Used like ":" for subset proofs.
 --   Suppose you have @(alice :: Member "Alice" census)@
 --   and we want a /subset/ proof instead of membership; we can write:
 --
