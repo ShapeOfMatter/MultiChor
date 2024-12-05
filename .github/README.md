@@ -41,7 +41,8 @@ but the API is incompatible and can express more kinds of choreographic behavior
 
 ## QA
 
-Unit test can and should be run frequently with `cabal test`.
+Unit test can and should be run frequently with `cabal test -f test`.
+(The flag test is required to expose the contents of the `examples` dir.)
 
 We use hlint and ormolu, both of which are free and default with hls.
 At present these **are not** set up to run automatically.
@@ -58,4 +59,4 @@ and inspect the output of `cabal haddock` for any warnings.
 ## Examples
 
 Many example choreographies are presented in the [examples](examples) directory.
-
+Cabal will ignore them unless provided with the `-f test` flag.

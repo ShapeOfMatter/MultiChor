@@ -51,7 +51,7 @@ common basic-config
                        ,LiberalTypeSynonyms
                        ,TypeFamilies
 
-library choreography
+library
     import: basic-config
     hs-source-dirs:   src
     exposed-modules:
@@ -69,11 +69,19 @@ library choreography
 
 common lib-dependent
     import: basic-config
-    build-depends: choreography
+    build-depends: MultiChor
 
+Flag test
+  Description: Enable debug support
+  Default:     False
+  Manual:      True
 
 common example
     import: lib-dependent
+    if flag(test)
+      buildable: True
+    else
+      buildable: False
     hs-source-dirs:   examples
     build-depends:
         , async      >= 2.2  && < 2.3
