@@ -11,7 +11,7 @@ import Choreography
 import Choreography.Network.Http
 import Control.Exception (Exception, throwIO)
 import Control.Monad (unless)
-import Control.Monad.IO.Class (MonadIO(liftIO))
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Crypto.Hash (Digest)
 import Crypto.Hash qualified as Crypto
 import Data (TestArgs, reference)

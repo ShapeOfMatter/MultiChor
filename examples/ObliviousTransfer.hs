@@ -9,7 +9,7 @@ module ObliviousTransfer (ot2, ot4, main) where
 import CLI
 import Choreography
 import Choreography.Network.Http
-import Control.Monad.IO.Class (MonadIO(liftIO))
+import Control.Monad.IO.Class (MonadIO (liftIO))
 -- For cryptonite
 
 import Crypto.Hash.Algorithms qualified as HASH

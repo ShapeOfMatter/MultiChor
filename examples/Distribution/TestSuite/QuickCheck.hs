@@ -116,8 +116,8 @@ where
 
 import Data.Bool (bool)
 import Data.Functor ((<&>))
-import qualified Distribution.TestSuite as T
-import qualified Test.QuickCheck as QC
+import Distribution.TestSuite qualified as T
+import Test.QuickCheck qualified as QC
 import Test.QuickCheck.Random (QCGen)
 import Text.Read (readMaybe)
 
@@ -353,7 +353,7 @@ getOptionDescrs TestArgs {..} =
       }
   ]
 
-getModifiers :: QC.Testable a => TestArgs -> a -> QC.Property
+getModifiers :: (QC.Testable a) => TestArgs -> a -> QC.Property
 getModifiers TestArgs {verbosity, noShrinking, verboseShrinking, sizeScale} =
   foldr (.) QC.property $
     snd
@@ -375,12 +375,12 @@ data PropertyTest prop = PropertyTest
     property :: prop
   }
 
-qcTestArgs :: QC.Testable a => TestArgs -> a -> IO QC.Result
+qcTestArgs :: (QC.Testable a) => TestArgs -> a -> IO QC.Result
 qcTestArgs args property = QC.quickCheckWithResult (testArgsToArgs args) (getModifiers args property)
 
 -- | Get a Cabal 'T.Test' with custom 'TestArgs' from a 'PropertyTest' that takes the test arguments and returns a 'QC.testable' value
 getPropertyTestWithUsing ::
-  QC.Testable prop =>
+  (QC.Testable prop) =>
   -- | The arguments for the test
   TestArgs ->
   -- | A property test whose 'property' takes a 'TestArgs' argument
@@ -411,7 +411,7 @@ getPropertyTestWithUsing originalArgs PropertyTest {..} =
 
 -- | Get a Cabal 'T.Test' from a 'PropertyTest' that takes the test arguments and returns a 'QC.Testable' value
 getPropertyTestUsing ::
-  QC.Testable prop =>
+  (QC.Testable prop) =>
   -- | A property test whose 'property' takes a 'TestArgs' argument
   PropertyTest (TestArgs -> prop) ->
   T.Test
@@ -422,7 +422,7 @@ discardingTestArgs test@PropertyTest {property} = test {property = const propert
 
 -- | Get a Cabal 'T.Test' from a 'PropertyTest' with custom 'TestArgs'
 getPropertyTestWith ::
-  QC.Testable prop =>
+  (QC.Testable prop) =>
   -- | The arguments for the test
   TestArgs ->
   PropertyTest prop ->
@@ -430,13 +430,13 @@ getPropertyTestWith ::
 getPropertyTestWith args = getPropertyTestWithUsing args . discardingTestArgs
 
 -- | Get a Cabal 'T.Test' from a 'PropertyTest'
-getPropertyTest :: QC.Testable prop => PropertyTest prop -> T.Test
+getPropertyTest :: (QC.Testable prop) => PropertyTest prop -> T.Test
 getPropertyTest = getPropertyTestWithUsing stdTestArgs . discardingTestArgs
 
 -- | Get a list of 'T.Test's from a list of 'PropertyTest's
-getPropertyTests :: QC.Testable prop => [PropertyTest prop] -> [T.Test]
+getPropertyTests :: (QC.Testable prop) => [PropertyTest prop] -> [T.Test]
 getPropertyTests = (getPropertyTest <$>)
 
 -- | Get a named test group from a list of 'PropertyTest's. These are assumed to be able to run in parallel. See 'T.testGroup' and 'T.Group'.
-propertyTestGroup :: QC.Testable prop => String -> [PropertyTest prop] -> T.Test
+propertyTestGroup :: (QC.Testable prop) => String -> [PropertyTest prop] -> T.Test
 propertyTestGroup name = T.testGroup name . getPropertyTests
