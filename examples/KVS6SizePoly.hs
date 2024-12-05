@@ -79,8 +79,7 @@ naryReplicationStrategy primary backups =
   where
     servers = primary @@ backups
 
-data ReplicationStrategy ps m
-  = forall primary rigging.
+data ReplicationStrategy ps m = forall primary rigging.
   (KnownSymbol primary) =>
   ReplicationStrategy
   { primary :: Member primary ps,
