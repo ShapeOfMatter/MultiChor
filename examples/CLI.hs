@@ -6,7 +6,7 @@
 module CLI where
 
 import Control.Monad (unless)
-import Control.Monad.Cont (MonadIO (liftIO))
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Freer
 import Control.Monad.State (MonadState (get, put), StateT (runStateT), lift)
 import Data.Typeable (Typeable, typeRep)

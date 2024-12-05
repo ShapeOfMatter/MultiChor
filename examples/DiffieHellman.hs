@@ -39,7 +39,7 @@ module DiffieHellman where
 import CLI
 import Choreography
 import Choreography.Network.Http
-import Control.Monad.Cont (MonadIO)
+import Control.Monad.IO.Class (MonadIO)
 import System.Environment
 import System.Random
 
