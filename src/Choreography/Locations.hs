@@ -54,11 +54,11 @@ nobody = Subset \case {}
 consSet :: forall xs x xs'. (xs ~ (x ': xs')) => Subset xs' (x ': xs')
 consSet = Subset Later
 
--- | Cons an element to the superset in a `Subset` value.
+-- | Cons an element to the superset in a t`Subset` value.
 consSuper :: forall xs ys y. Subset xs ys -> Subset xs (y ': ys)
 consSuper sxy = transitive sxy consSet
 
--- | Cons an element to the subset in a `Subset` value;
+-- | Cons an element to the subset in a t`Subset` value;
 --   requires proof that the new head element is already a member of the superset.
 --   Used like ":" for subset proofs.
 --   Suppose you have @(alice :: Member "Alice" census)@

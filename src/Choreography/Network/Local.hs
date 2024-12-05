@@ -41,7 +41,7 @@ mkLocalConfig ls = LocalConfig <$> foldM f HashMap.empty ls
 locs :: LocalConfig -> [LocTm]
 locs = HashMap.keys . locToBuf
 
--- | Run a `Network` behavior using the channels in a `LocalConfig` for communication.
+-- | Run a `Network` behavior using the channels in a t`LocalConfig` for communication.
 --   Call this inside a concurrent thread.
 runNetworkLocal :: (MonadIO m) => LocalConfig -> LocTm -> Network m a -> m a
 runNetworkLocal cfg self = interpFreer handler

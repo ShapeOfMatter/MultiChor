@@ -15,16 +15,16 @@ import GHC.TypeLits
 
 -- | A mapping, accessed by `Member` terms, from types (`Symbol`s) to values.
 --   The types of the values depend on the indexing type; this relation is expressed by the type-level function @f@.
---   If the types of the values /don't/ depend on the index, use `Quire`.
+--   If the types of the values /don't/ depend on the index, use t`Quire`.
 --   If the types vary only in that they are `Located` at the indexing party, use `Faceted`.
---   `PIndexed` generalizes those two types in a way that's not usually necessary when writing choreographies.
+--   t`PIndexed` generalizes those two types in a way that's not usually necessary when writing choreographies.
 newtype PIndexed ls f = PIndexed {pindex :: PIndex ls f}
 
--- | An impredicative quantified type. Wrapping it up in `PIndexed` wherever possible will avoid a lot of type errors and headache.
+-- | An impredicative quantified type. Wrapping it up in t`PIndexed` wherever possible will avoid a lot of type errors and headache.
 type PIndex ls f = forall l. (KnownSymbol l) => Member l ls -> f l
 
 -- | Sequence computations indexed by parties.
---   Converts a `PIndexed` of computations into a computation yielding a `PIndexed`.
+--   Converts a t`PIndexed` of computations into a computation yielding a t`PIndexed`.
 --   Strongly analogous to 'Data.Traversable.sequence'.
 --   In most cases, the [choreographic functions](#g:choreographicfunctions) below will be easier to use
 --   than messing around with `Data.Functor.Compose.Compose`.
@@ -48,34 +48,34 @@ sequenceP (PIndexed f) = case tySpine @ls of
 -- | A collection of values, all of the same type, assigned to each element of the type-level list.
 newtype Quire parties a = Quire {asPIndexed :: PIndexed parties (Const a)}
 
--- | Access a value in a `Quire` by its index.
+-- | Access a value in a t`Quire` by its index.
 getLeaf :: (KnownSymbol p) => Quire parties a -> Member p parties -> a
 getLeaf (Quire (PIndexed q)) p = getConst $ q p
 
--- | Package a function as a `Quire`.
+-- | Package a function as a t`Quire`.
 stackLeaves :: forall ps a. (forall p. (KnownSymbol p) => Member p ps -> a) -> Quire ps a
 stackLeaves f = Quire . PIndexed $ Const . f
 
--- | Get the head item from a `Quire`.
+-- | Get the head item from a t`Quire`.
 qHead :: (KnownSymbol p) => Quire (p ': ps) a -> a
 qHead (Quire (PIndexed f)) = getConst $ f First
 
--- | Get the tail of a `Quire`.
+-- | Get the tail of a t`Quire`.
 qTail :: Quire (p ': ps) a -> Quire ps a
 qTail (Quire (PIndexed f)) = Quire . PIndexed $ f . Later
 
--- | Prepend a value to a `Quire`.
+-- | Prepend a value to a t`Quire`.
 --   The corresponding `Symbol` to bind it to must be provided by type-application if it can't be infered.
 qCons :: forall p ps a. a -> Quire ps a -> Quire (p ': ps) a
 qCons a (Quire (PIndexed f)) = Quire . PIndexed $ \case
   First -> Const a
   Later mps -> f mps
 
--- | An empty `Quire`.
+-- | An empty t`Quire`.
 qNil :: Quire '[] a
 qNil = Quire $ PIndexed \case {}
 
--- | Apply a function to a single item in a `Quire`.
+-- | Apply a function to a single item in a t`Quire`.
 qModify :: forall p ps a. (KnownSymbol p, KnownSymbols ps) => Member p ps -> (a -> a) -> Quire ps a -> Quire ps a
 qModify First f q = f (qHead q) `qCons` qTail q
 qModify (Later m) f q = case tySpine @ps of TyCons -> qHead q `qCons` qModify m f (qTail q)
@@ -114,7 +114,7 @@ instance forall parties a. (KnownSymbols parties, Show a) => Show (Quire parties
 -- | A unified representation of possibly-distinct homogeneous values owned by many parties.
 type Faceted parties common a = PIndexed parties (Facet a common)
 
--- | Repackages `Located` with the type arguments correctly arranged for use with `PIndexed`.
+-- | Repackages `Located` with the type arguments correctly arranged for use with t`PIndexed`.
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
 -- | Get a `Located` value of a `Faceted` at a given location.
@@ -181,7 +181,7 @@ fanIn rs body = do
   (PIndexed x) <- sequenceP (PIndexed $ Compose . (Const <$>) <$> body)
   rs `congruently` \un -> stackLeaves $ \q -> un refl (getConst $ x q)
 
--- | The owner of a `Quire` sends its elements to their respective parties, resulting in a `Faceted`.
+-- | The owner of a t`Quire` sends its elements to their respective parties, resulting in a `Faceted`.
 --   This represents the "scatter" idea common in parallel computing contexts.
 scatter ::
   forall census sender recipients a m.
@@ -193,7 +193,7 @@ scatter ::
 scatter sender recipients values = fanOut \r ->
   (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
 
--- | The many owners of a `Faceted` each send their respective values to a constant list of recipients, resulting in a `Quire`.
+-- | The many owners of a `Faceted` each send their respective values to a constant list of recipients, resulting in a t`Quire`.
 --   This represents the "gather" idea common in parallel computing contexts.
 gather ::
   forall census recipients senders a dontcare m.
