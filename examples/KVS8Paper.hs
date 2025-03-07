@@ -59,16 +59,15 @@ updateState :: IORef State -> String -> String -> IO Response
 lookupState :: IORef State -> String -> IO Response
 hashState :: IORef State -> IO Int
 
-kvs :: (KnownSymbol client, KnownSymbol primary, KnownSymbols backups,
+kvs :: (KnownSymbol client, KnownSymbol primary,
         KnownSymbols servers, KnownSymbols census) =>
        Member client census ->
        Member primary servers ->
-       Subset backups servers ->
        Subset servers census ->
        Faceted servers '[] (IORef State) ->
        Located '[client] Request ->
        Choreo census IO (Located '[client] Response)
-kvs client primary _backups servers stateRefs request = do
+kvs client primary servers stateRefs request = do
   let primary' = inSuper servers primary
   request' <- (client, request) ~> primary' @@ nobody
   requestShared <- (primary', request') ~> servers
@@ -106,11 +105,10 @@ kvsRecursive :: forall (client :: LocTy) (primary :: LocTy) (backups :: [LocTy])
 kvsRecursive = do
   let client = First @(client ': servers)
       primary = First @servers
-      backups = consSuper @backups @backups @primary allOf 
       servers = consSuper @servers @servers @client allOf
   stateRefs <- servers `_parallel` newEmptyState
   let go = do request <- _locally client readRequest
-              response <- kvs client primary backups servers stateRefs request
+              response <- kvs client primary servers stateRefs request
               broadcast (client, response) >>= \case
                 Stopped -> return ()
                 response' -> do _locally_ client $ putOutput "Recieved:" response'
