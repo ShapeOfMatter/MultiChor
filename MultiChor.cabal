@@ -132,6 +132,13 @@ Test-Suite testExamples
                  , QuickSort
                  , RingLeader
 
+executable play-game
+    import: example
+    main-is:          CardGame.hs
+    ghc-options:
+      -main-is CardGame
+    other-modules:
+      Data
 --executable bank-2pc
 --    import: example
 --    main-is:          Bank2PC.hs

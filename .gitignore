@@ -3,3 +3,4 @@ dist-newstyle
 fourmolu.yaml
 paper/
 report.html
+cabal.project.local*

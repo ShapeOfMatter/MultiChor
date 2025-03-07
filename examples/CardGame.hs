@@ -6,8 +6,11 @@ module CardGame where
 
 import CLI
 import Choreography
+import Choreography.Network.Local (mkLocalConfig)
+import Control.Concurrent.Async (mapConcurrently)
 import Control.Monad (void)
 import Data (TestArgs, reference)
+import Data.Foldable (forM_)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 _modulo :: Int -> Int
@@ -83,3 +86,39 @@ game = do
     let hand = un player tableCard : viewFacet un player hand2
     putNote $ "My hand: " ++ show hand
     putOutput "My win result:" $ sum hand > card 19
+
+
+main :: IO ()
+main = forM_ [1..100000 :: Integer] $ pretend . asArgs
+  where asArgs :: Integer -> Args
+        asArgs i = let a = i `mod` 11
+                       b = fromInteger $ i `mod` 223
+                       c = fromInteger . (1 +) $ i `mod` 23
+                       d = 0 == (i `mod` 2)
+                       e = 0 == (i `mod` 3)
+                       f = 0 /= (i `mod` 5)
+                   in Args (fromInteger <$> (take c . drop b) [i, i + i + a ..]) (d, e, f)
+
+pretend :: Args -> IO ()
+pretend args@(CardGame.Args deck (c1, c2, c3)) = do
+  let situation =
+        [ ("dealer", show <$> cycle deck),
+          ("player1", [show c1]),
+          ("player2", [show c2]),
+          ("player3", [show c3])
+        ]
+  config <- mkLocalConfig [l | (l, _) <- situation]
+  result@[[], [r1], [r2], [r3]] <-
+    mapConcurrently
+      ( \(name, inputs) ->
+          fst
+            <$> runCLIStateful
+              inputs
+              (runChoreography config (CardGame.game @'["player1", "player2", "player3"]) name)
+      )
+      situation
+  if (read r1, read r2, read r3) == reference args
+    then return ()
+    else do putStrLn "error!"
+            print args
+            print result
