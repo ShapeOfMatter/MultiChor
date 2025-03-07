@@ -21,6 +21,7 @@ import Distribution.TestSuite.QuickCheck
 import GMWReal qualified
 import KVS5Fig17 qualified
 import KVS6SizePoly qualified
+import KVS8Paper qualified
 import Lottery qualified
 import MPCFake qualified
 import Test.QuickCheck
@@ -392,6 +393,31 @@ tests' =
                     )
             (responsesB, ()) <- runCLIStateful (show <$> requests) $ runChoreo (KVS6SizePoly.kvs strategy2 client)
             return $ responsesA === responsesB
+        },
+    getNormalPT
+      PropertyTest
+        { name = "kvs-8-paper",
+          tags = [],
+          property = \args@(KVS8Paper.Args requests) -> ioProperty do
+            let situation =
+                  [ ("clientAlice", show <$> requests),
+                    ("primaryBob", []),
+                    ("backup1", []),
+                    ("backup2", []),
+                    ("backup3", []),
+                    ("backup4", []),
+                    ("backup5", [])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [_, [endState], [], [], [], [], []] <-
+              mapConcurrently
+                ( \(name, inputs) ->
+                    fst <$> runCLIStateful inputs (runChoreography config (
+                        KVS8Paper.kvsRecursive @"clientAlice" @"primaryBob" @'["backup1", "backup2", "backup3", "backup4", "backup5"]
+                      ) name)
+                )
+                situation
+            return $ read endState === reference args
         },
     getNormalPT
       PropertyTest
