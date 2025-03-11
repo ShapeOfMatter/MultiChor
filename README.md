@@ -17,7 +17,7 @@ but the API is incompatible and can express more kinds of choreographic behavior
   - `a` is the returned value, typically this will be a `Located` or `Faceted` value as described below.
 - MultiChor is an _embedded_ DSL, as interoperable with the rest of the Haskell ecosystem as any other monad.
   In particular, MultiChor gets recursion, polymorphism, and location-polymorphism "for free" as features of Haskell!
-- MultiChor uses enclaves, and multiply-located values to achieve excellent expressivity and efficient Knowledge of Choice management.
+- MultiChor uses conclaves, and multiply-located values to achieve excellent expressivity and efficient Knowledge of Choice management.
   - A value of type `Located ls a` is a single `a` known to all the parties listed in `ls`.
     In a well-typed choreography, other parties, who may not know the `a`, will never attempt to use it.
   - In the expression `(s, v) ~> rs`, a sender `s` sends the value `v` to _all_ of the recipients in `rs`, resulting in a `Located rs v`.
@@ -60,7 +60,7 @@ game = do
     putNote $ "All cards on the table: " ++ show hand1
     getInput "I'll ask for another? [True/False]"
   hand2 <- fanOut \(player :: Member player players) ->
-    enclave (inSuper players player @@ dealer @@ nobody) do
+    conclave (inSuper players player @@ dealer @@ nobody) do
       let dealer' = listedSecond @"dealer"
       choice <- broadcast (listedFirst @player, localize player wantsNextCard)
       if choice
@@ -91,8 +91,8 @@ To accomplish this, we use a `fanIn` loop in which the dealer selects a card for
 `wantsNextCard` is the result of a parallel computation (CLI interaction);
 it's type is `Faceted players '[] Bool`.
 The computation of `hand2` is private between each player and the dealer, so we `fanOut` over the players
-and then `enclave` a sub-choreography involving only the given player and `"dealer"`.
-The `broadcast` inside the enclave shares that player's value of `wantsNextCard` with everyone _who's present_, which is just `"dealer"`.
+and then `conclave` a sub-choreography involving only the given player and `"dealer"`.
+The `broadcast` inside the conclave shares that player's value of `wantsNextCard` with everyone _who's present_, which is just `"dealer"`.
 At the end, the players each observer if they've won or lost in parallel.
 
 Check the source repository for many more example choreographies.

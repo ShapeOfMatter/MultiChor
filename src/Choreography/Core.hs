@@ -10,7 +10,7 @@ module Choreography.Core
     -- , ChoreoSig(..)  I can't think of any reasons why we _should_ export this, nor any reason why we shouldn't...
     locally',
     congruently',
-    enclave,
+    conclave,
 
     -- * Running choreographies
     epp,
@@ -88,7 +88,7 @@ data ChoreoSig (ps :: [LocTy]) m a where
     Member l ps -> -- from
     (Member l ls, Located ls a) -> -- value
     ChoreoSig ps m a
-  Enclave ::
+  Conclave ::
     (KnownSymbols ls) =>
     Subset ls ps ->
     Choreo ls m b ->
@@ -112,7 +112,7 @@ runChoreo = interpFreer handler
           unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
        in pure . f $ unwraps
     handler (Broadcast _ (p, a)) = pure $ unwrap p a
-    handler (Enclave (_ :: Subset ls (p ': ps)) c) = case tySpine @ls of
+    handler (Conclave (_ :: Subset ls (p ': ps)) c) = case tySpine @ls of
       TyNil -> pure Empty
       TyCons -> wrap <$> runChoreo c
 
@@ -146,7 +146,7 @@ epp c l' = interpFreer handler c
           send (unwrap l a) otherRecipients
           pure . unwrap l $ a
         else recv sender
-    handler (Enclave proof ch)
+    handler (Conclave proof ch)
       | l' `elem` toLocs proof = wrap <$> epp ch l'
       | otherwise = pure Empty
 
@@ -187,12 +187,12 @@ broadcast' l a = toFreer (Broadcast l a)
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   Adds a `Located ls` layer to the return type.
-enclave ::
+conclave ::
   (KnownSymbols ls) =>
   Subset ls ps ->
   Choreo ls m a ->
   Choreo ps m (Located ls a)
 
-infix 4 `enclave`
+infix 4 `conclave`
 
-enclave proof ch = toFreer $ Enclave proof ch
+conclave proof ch = toFreer $ Conclave proof ch

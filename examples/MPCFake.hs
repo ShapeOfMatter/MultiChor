@@ -141,5 +141,5 @@ mpc ::
 mpc circuit = do
   let parties = consSuper refl
   outputWire <- computeWire trusted3rdParty parties circuit
-  result <- enclave parties $ reveal outputWire
+  result <- conclave parties $ reveal outputWire
   parties `parallel_` \p un -> putOutput "The resulting bit:" $ un p result

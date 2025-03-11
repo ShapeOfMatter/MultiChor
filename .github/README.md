@@ -17,11 +17,11 @@ but the API is incompatible and can express more kinds of choreographic behavior
   - `a` is the returned value, typically this will be a `Located` or `Faceted` value as described below.
 - MultiChor is an _embedded_ DSL, as interoperable with the rest of the Haskell ecosystem as any other monad.
   In particular, MultiChor gets recursion, polymorphism, and location-polymorphism "for free" as features of Haskell!
-- MultiChor uses enclaves, and multiply-located values to achieve excellent expressivity and efficient Knowledge of Choice management.
+- MultiChor uses conclaves, and multiply-located values to achieve excellent expressivity and efficient Knowledge of Choice management.
   - A value of type `Located ls a` is a single `a` known to all the parties listed in `ls`.
     In a well-typed choreography, other parties, who may not know the `a`, will never attempt to use it.
   - In the expression `(s, v) ~> rs`, a sender `s` sends the value `v` to _all_ of the recipients in `rs`, resulting in a `Located rs v`.
-  - For easy branching in choreographies, the primitives `enclave` and `naked` combine to form `cond`.
+  - For easy branching in choreographies, the primitives `conclave` and `naked` combine to form `cond`.
     ``(parties, guard) `cond` (\g -> c)`` unwraps a `Located parties g` for use as a naked `g` in the conditional choreography `c`.
 - Safe handing of parties, party-sets, and located values is enforced using term-level proof objects.
   In particular, instead of specifying the party `"alice"` in a choreography as a `String` or a `Proxy "alice"`,

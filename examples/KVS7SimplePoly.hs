@@ -66,7 +66,7 @@ kvs ::
   Choreo ("client" ': "primary" ': backups) IO (Located '["client"] Response)
 kvs request stateRefs = do
   request' <- (client, request) ~> primary @@ nobody
-  response <- enclave (primary @@ backups) (handleRequest request' stateRefs)
+  response <- conclave (primary @@ backups) (handleRequest request' stateRefs)
   (primary, flatten (First @@ nobody) (First @@ nobody) response) ~> client @@ nobody
   where
     client :: forall ps. Member "client" ("client" ': ps)

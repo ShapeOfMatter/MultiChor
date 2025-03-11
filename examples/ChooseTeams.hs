@@ -37,7 +37,7 @@ game = do
   numbers <- fanIn players \p ->
     if toLocTm p `elem` red
       then (p, Just <$> getInput @Int "A number to send:") -~> players
-      else enclave players $ return Nothing
+      else conclave players $ return Nothing
   parallel_ players \p un ->
     when (toLocTm p `elem` blue) $
       putOutput "Numbers recieved:" $

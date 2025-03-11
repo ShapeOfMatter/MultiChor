@@ -88,7 +88,7 @@ setup = do
 -- If the request is a `PUT`, it will forward the request to the backup node.
 kvs :: Choreo Participants (CLI m) ()
 kvs = do
-  handler <- enclaveToAll servers setup
+  handler <- conclaveToAll servers setup
   request <- (client, getInput "Enter the `read`able Request:") -~> primary @@ backup @@ nobody
   response <- primary @@ backup @@ nobody `congruently` \un -> un refl handler $ un refl request
   response' <- (primary, response) ~> client @@ nobody

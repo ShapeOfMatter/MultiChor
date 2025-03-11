@@ -107,9 +107,9 @@ infix 4 *~>
   x <- l @@ nobody `congruently` \uns -> m $ uns . (@@ nobody)
   (l, x) ~> ls'
 
--- * Enclaves
+-- * Conclaves
 
--- | Conditionally execute choreographies based on a located value. Automatically enclaves.
+-- | Conditionally execute choreographies based on a located value. Automatically conclaves.
 cond ::
   (KnownSymbols ls) =>
   -- | Tuple: Proof all the parties involved know the branch-guard
@@ -118,4 +118,4 @@ cond ::
   -- | The body of the conditional as a function from the unwrapped value.
   (a -> Choreo ls m b) ->
   Choreo ps m (Located ls b)
-cond (ls, (owns, a)) c = enclave ls $ naked owns a >>= c
+cond (ls, (owns, a)) c = conclave ls $ naked owns a >>= c

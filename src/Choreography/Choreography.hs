@@ -19,7 +19,7 @@ locally ::
 
 infix 4 `locally`
 
-locally l m = enclave (l @@ nobody) $ locally' m
+locally l m = conclave (l @@ nobody) $ locally' m
 
 -- | Perform the exact same pure computation in replicate at multiple locations.
 --   The computation can not use anything local to an individual party, including their identity.
@@ -32,7 +32,7 @@ congruently ::
 
 infix 4 `congruently`
 
-congruently ls a = enclave ls $ congruently' a
+congruently ls a = conclave ls $ congruently' a
 
 -- | Unwrap a value known to the entire census.
 naked ::
@@ -91,22 +91,22 @@ broadcast s = broadcast' (presentToSend s) (ownsMessagePayload s, structMessageP
 infix 4 ~>
 
 s ~> rs = do
-  x :: a <- enclave (presentToSend s @@ rs) $ broadcast' First (ownsMessagePayload s, structMessagePayload s)
+  x :: a <- conclave (presentToSend s @@ rs) $ broadcast' First (ownsMessagePayload s, structMessagePayload s)
   congruently rs (\un -> un consSet x)
 
--- * Enclaves
+-- * Conclaves
 
 -- | Lift a choreography involving fewer parties into the larger party space.
---   This version, where the returned value is Located at the entire enclave, does not add a Located layer.
-enclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
+--   This version, where the returned value is Located at the entire conclave, does not add a Located layer.
+conclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
 
-infix 4 `enclaveToAll`
+infix 4 `conclaveToAll`
 
-enclaveToAll = (`enclaveTo` (refl @ls))
+conclaveToAll = (`conclaveTo` (refl @ls))
 
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   This version, where the returned value is already Located, does not add a Located layer.
-enclaveTo ::
+conclaveTo ::
   forall ls a rs ps m.
   (KnownSymbols ls) =>
   Subset ls ps ->
@@ -114,6 +114,6 @@ enclaveTo ::
   Choreo ls m (Located rs a) ->
   Choreo ps m (Located rs a)
 
-infix 4 `enclaveTo`
+infix 4 `conclaveTo`
 
-enclaveTo subcensus recipients ch = flatten recipients (refl @rs) <$> (subcensus `enclave` ch)
+conclaveTo subcensus recipients ch = flatten recipients (refl @rs) <$> (subcensus `conclave` ch)

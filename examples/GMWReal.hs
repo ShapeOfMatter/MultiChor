@@ -123,7 +123,7 @@ fAnd uShares vShares = do
                 u_i = viewFacet un p_i uShares
              in pure (xor [u_i, a_ij], a_ij)
           -- localize p_j vSHares is party j's share of v
-          enclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
+          conclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
     locally p_j \un -> pure $ xor $ un singleton b_i_s
   parallel (allOf @parties) \p_i un ->
     let computeShare u v a_js b = xor $ [u && v, b] ++ toList (qModify p_i (const False) a_js)

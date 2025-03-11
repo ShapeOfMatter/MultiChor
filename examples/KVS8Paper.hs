@@ -71,7 +71,7 @@ kvs client primary servers stateRefs request = do
   let primary' = inSuper servers primary
   request' <- (client, request) ~> primary' @@ nobody
   requestShared <- (primary', request') ~> servers
-  response' <- enclaveTo servers (primary @@ nobody) do
+  response' <- conclaveTo servers (primary @@ nobody) do
     naked allOf requestShared >>= \case
       Put key val -> do
         responses <- parallel allOf \sr un ->
@@ -83,7 +83,7 @@ kvs client primary servers stateRefs request = do
                        lookupState (viewFacet un primary stateRefs) key
       Stop        -> _locally primary $ return Stopped
   response <- (primary', response') ~> client @@ nobody
-  _ <- enclave servers $ naked allOf requestShared >>= \case
+  _ <- conclave servers $ naked allOf requestShared >>= \case
       Put _ _ -> do
         fingerprints' <- parallel allOf \sr un ->
                            hashState $ viewFacet un sr stateRefs
