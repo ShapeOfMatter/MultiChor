@@ -46,15 +46,11 @@ readRequest = do
       Nothing -> putNote "Invalid command" >> readRequest
 
 -----------------------------------------------------------------------
-data Request = Put String String | Get String | Stop
-data Response = Found String | NotFound | Stopped
-
+data Request = Put String String | Get String | Stop; data Response = Found String | NotFound | Stopped
 type State = Map String String
 
-newEmptyState :: IO (IORef State)
--- | updateState returns the value previously stored under the key,
---   or `NotFound`.
---   Has a small chance of randomly saving the wrong value!
+newEmptyState :: IO (IORef State)  -- updateState returns the value previously stored under the key, or
+                                   -- `NotFound`. Has a small chance of randomly saving the wrong value!
 updateState :: IORef State -> String -> String -> IO Response
 lookupState :: IORef State -> String -> IO Response
 hashState :: IORef State -> IO Int
@@ -74,14 +70,16 @@ kvs client primary servers stateRefs request = do
   response' <- conclave servers do
     naked allOf requestShared >>= \case
       Put key val -> do
-        responses <- parallel allOf \sr un ->
-                       updateState (viewFacet un sr stateRefs) key val
+        responses <- parallel allOf ( \sr un -> updateState
+                                  (viewFacet un sr stateRefs)
+                                  key val )
         _ack <- fanIn (primary @@ nobody) \sr -> do
                   ack <- locally sr \_ -> pure ()
                   (sr, ack) ~> (primary @@ nobody)
         return $ localize primary responses
-      Get key     -> locally primary \un ->
-                       lookupState (viewFacet un primary stateRefs) key
+      Get key -> locally primary ( \un -> lookupState
+                             (viewFacet un primary stateRefs)
+                             key )
       Stop        -> locally primary \_ -> return Stopped
   response <- (primary',
                flatten (primary @@ nobody) refl response'
@@ -89,14 +87,14 @@ kvs client primary servers stateRefs request = do
   _ <- conclave servers do
     naked allOf requestShared >>= \case
       Put _ _ -> do
-        fingerprints' <- parallel allOf \sr un ->
-                           hashState $ viewFacet un sr stateRefs
-        fingerprints <- gather allOf (primary @@ nobody) fingerprints'
+        hash' <- parallel allOf \sr un ->
+                   hashState $ viewFacet un sr stateRefs
+        hashes <- gather allOf (primary @@ nobody) hash'
         let check = (1 <) . length . nub . toList
         needsReSynch <- locally primary \un ->
-                          pure $ check $ un singleton fingerprints
+                          pure $ check $ un singleton hashes
         broadcast (primary, needsReSynch) >>= \case
-          True -> resynch stateRefs  -- This could take a while!
+          True -> resynch stateRefs  -- Could take a while!
           False -> return ()
       _ -> return ()
   return response
