@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving #-}
 module KVS8Paper where
 
 import Prelude hiding (IO)
@@ -46,14 +47,13 @@ readRequest = do
 
 -----------------------------------------------------------------------
 data Request = Put String String | Get String | Stop
-  deriving (Eq, Ord, Read, Show)
 data Response = Found String | NotFound | Stopped
-  deriving (Eq, Ord, Read, Show)
 
 type State = Map String String
 
 newEmptyState :: IO (IORef State)
--- | Returns the value previously stored under the key, or `NotFound`.
+-- | updateState returns the value previously stored under the key,
+--   or `NotFound`.
 --   Has a small chance of randomly saving the wrong value!
 updateState :: IORef State -> String -> String -> IO Response
 lookupState :: IORef State -> String -> IO Response
@@ -71,26 +71,30 @@ kvs client primary servers stateRefs request = do
   let primary' = inSuper servers primary
   request' <- (client, request) ~> primary' @@ nobody
   requestShared <- (primary', request') ~> servers
-  response' <- conclaveTo servers (primary @@ nobody) do
+  response' <- conclave servers do
     naked allOf requestShared >>= \case
       Put key val -> do
         responses <- parallel allOf \sr un ->
                        updateState (viewFacet un sr stateRefs) key val
-        _ack <- fanIn (primary @@ nobody) \sr ->
-                  (sr, pure ()) -~> (primary @@ nobody)
+        _ack <- fanIn (primary @@ nobody) \sr -> do
+                  ack <- locally sr \_ -> pure ()
+                  (sr, ack) ~> (primary @@ nobody)
         return $ localize primary responses
       Get key     -> locally primary \un ->
                        lookupState (viewFacet un primary stateRefs) key
-      Stop        -> _locally primary $ return Stopped
-  response <- (primary', response') ~> client @@ nobody
-  _ <- conclave servers $ naked allOf requestShared >>= \case
+      Stop        -> locally primary \_ -> return Stopped
+  response <- (primary',
+               flatten (primary @@ nobody) refl response'
+              ) ~> client @@ nobody
+  _ <- conclave servers do
+    naked allOf requestShared >>= \case
       Put _ _ -> do
         fingerprints' <- parallel allOf \sr un ->
                            hashState $ viewFacet un sr stateRefs
         fingerprints <- gather allOf (primary @@ nobody) fingerprints'
         let check = (1 <) . length . nub . toList
-        needsReSynch <- congruently (primary @@ nobody) \un ->
-                          check $ un allOf fingerprints
+        needsReSynch <- locally primary \un ->
+                          pure $ check $ un singleton fingerprints
         broadcast (primary, needsReSynch) >>= \case
           True -> resynch stateRefs  -- This could take a while!
           False -> return ()
@@ -124,6 +128,17 @@ resynch stateRefs = do
                                         in fst . maximumBy (compare `on` snd) . Map.toList <$> asMapToVotes
   -- If we want to model the possibility that this is also failable, then we could do that too...
   parallel_ allOf \sr un -> liftIO $ IORef.writeIORef (viewFacet un sr stateRefs) (un sr votedState)
+
+deriving instance Eq Request
+deriving instance Ord Request
+deriving instance Read Request
+deriving instance Show Request
+deriving instance Eq Response
+deriving instance Ord Response
+deriving instance Read Response
+deriving instance Show Response
+
+
 
 newtype Args = Args [Request] deriving (Eq, Ord, Read, Show)
 
