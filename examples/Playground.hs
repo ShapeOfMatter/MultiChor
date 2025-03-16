@@ -1,20 +1,13 @@
 module Playground where
 
-import CLI (CLI, getInput, putOutput, getstr, runCLIIO, runCLIStateful)
+import CLI (CLI, getInput, putOutput, getstr, runCLIIO)
 import Choreography
 import Choreography.Network.Http (mkHttpConfig)
-import Choreography.Network.Local (mkLocalConfig)
-import Control.Concurrent.Async (mapConcurrently)
 import Data (TestArgs(reference))
-import Distribution.TestSuite (Test)
-import Distribution.TestSuite.QuickCheck hiding (TestArgs)
 import System.Environment (getArgs)
 import Test.QuickCheck
   ( Arbitrary,
     arbitrary,
-    Testable,
-    ioProperty,
-    (===),
   )
 
 
@@ -36,6 +29,7 @@ main = do
   _ <- case loc of
     "alpha" -> runCLIIO $ runChoreography config choreography "alpha"
     "beta" -> runCLIIO $ runChoreography config choreography "beta"
+    "-" -> runCLIIO $ runChoreo choreography
     _ -> error "unknown party"
   return ()
   where
@@ -58,29 +52,3 @@ instance TestArgs Args (String, Int) where
 
 instance Arbitrary Args where
   arbitrary = Args <$> arbitrary <*> arbitrary
-
-tests :: IO [Test]
-tests = return [
-    getNormalPT
-      PropertyTest
-        { name = "tautology",
-          tags = [],
-          property = \args@Args{foo, bar} -> ioProperty do
-            let situation =
-                  [ ("alpha", [show foo]),
-                    ("beta",  ["", show bar])
-                  ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
-            [([bar'], ()), ([foo'], ())] <-
-              mapConcurrently
-                ( \(name, inputs) ->
-                    runCLIStateful inputs $
-                      runChoreography config choreography name
-                )
-                situation
-            return $ (read bar', read foo') === reference args
-        }
-  ]
-  where getNormalPT :: (Testable prop) => PropertyTest prop -> Test
-        getNormalPT = getPropertyTestWith stdTestArgs{verbosity = Verbose}
-

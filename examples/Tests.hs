@@ -24,6 +24,7 @@ import KVS6SizePoly qualified
 import KVS8Paper qualified
 import Lottery qualified
 import MPCFake qualified
+import Playground qualified
 import Test.QuickCheck
   ( Positive,
     Testable,
@@ -623,6 +624,25 @@ tests' =
                 )
                 situation
             return $ (read r1, read r2, read r3, read r4) === reference args
+        },
+    getNormalPT
+      PropertyTest
+        { name = "tautology",
+          tags = [],
+          property = \args@(Playground.Args foo bar) -> ioProperty do
+            let situation =
+                  [ ("alpha", [show foo]),
+                    ("beta",  ["", show bar])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [([bar'], ()), ([foo'], ())] <-
+              mapConcurrently
+                ( \(name, inputs) ->
+                    runCLIStateful inputs $
+                      runChoreography config Playground.choreography name
+                )
+                situation
+            return $ (read bar', read foo') === reference args
         },
     getPropertyTestWith
       (stdTestArgs {verbosity = Verbose, maxSuccess = 100, maxSize = 10})

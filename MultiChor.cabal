@@ -130,6 +130,7 @@ Test-Suite testExamples
                  , MergeSort
                  , MPCFake
                  , ObliviousTransfer
+                 , Playground
                  , QuickSort
                  , RingLeader
 
@@ -244,13 +245,6 @@ executable ring-leader
     main-is:          RingLeader.hs
     ghc-options:
       -main-is RingLeader
-
-
-Test-Suite playgroundTest
-    import: example
-    type:             detailed-0.9
-    test-module:      Playground
-    other-modules: Data
 
 executable playground
     import: example
