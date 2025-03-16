@@ -244,3 +244,18 @@ executable play-game
 --    main-is:          RingLeader.hs
 --    ghc-options:
 --      -main-is RingLeader
+
+
+Test-Suite playgroundTest
+    import: example
+    type:             detailed-0.9
+    test-module:      Playground
+    other-modules: Data
+
+executable playground
+    import: example
+    main-is: Playground.hs
+    ghc-options:
+      -main-is Playground
+    other-modules: Data
+
