@@ -140,110 +140,110 @@ executable play-game
       -main-is CardGame
     other-modules:
       Data
---executable bank-2pc
---    import: example
---    main-is:          Bank2PC.hs
---    ghc-options:
---      -main-is Bank2PC
---
---executable lottery
---    import: example
---    main-is:          Lottery.hs
---    ghc-options:
---      -main-is Lottery
---
---
---executable bookseller-0-network
---    import: example
---    main-is:          Bookseller0Network.hs
---    ghc-options:
---      -main-is Bookseller0Network
---
---executable bookseller-1-simple
---    import: example
---    main-is:          Bookseller1Simple.hs
---    ghc-options:
---      -main-is Bookseller1Simple
---
---executable bookseller-2-higher-order
---    import: example
---    main-is:          Bookseller2HigherOrder.hs
---    ghc-options:
---      -main-is Bookseller2HigherOrder
---
---executable bookseller-3-loc-poly
---    import: example
---    main-is:          Bookseller3LocPoly.hs
---    ghc-options:
---      -main-is Bookseller3LocPoly
---
---executable diffiehellman
---    import: example
---    main-is:          DiffieHellman.hs
---    ghc-options:
---      -main-is DiffieHellman
---
---executable gmw-real
---    import: example
---    main-is:          GMWReal.hs
---    ghc-options:
---      -main-is GMWReal
---    other-modules:
---      ObliviousTransfer
---
---executable karatsuba
---    import: example
---    main-is:          Karatsuba.hs
---    ghc-options:
---      -main-is Karatsuba
---
---executable kvs1
---    import: example
---    main-is:          KVS1Simple.hs
---    ghc-options:
---      -main-is KVS1Simple
---
---executable kvs2
---    import: example
---    main-is:          KVS2PrimaryBackup.hs
---    ghc-options:
---      -main-is KVS2PrimaryBackup
---
---executable kvs3
---    import: example
---    main-is:          KVS3HigherOrder.hs
---    ghc-options:
---      -main-is KVS3HigherOrder
---
---executable kvs4
---    import: example
---    main-is:          KVS4LocPoly.hs
---    ghc-options:
---      -main-is KVS4LocPoly
---
---executable mergesort
---    import: example
---    main-is:          MergeSort.hs
---    ghc-options:
---      -main-is MergeSort
---
---executable oblivious-transfer
---    import: example
---    main-is:          ObliviousTransfer.hs
---    ghc-options:
---      -main-is ObliviousTransfer
---
---executable quicksort
---    import: example
---    main-is:          QuickSort.hs
---    ghc-options:
---      -main-is QuickSort
---
---executable ring-leader
---    import: example
---    main-is:          RingLeader.hs
---    ghc-options:
---      -main-is RingLeader
+executable bank-2pc
+    import: example
+    main-is:          Bank2PC.hs
+    ghc-options:
+      -main-is Bank2PC
+
+executable lottery
+    import: example
+    main-is:          Lottery.hs
+    ghc-options:
+      -main-is Lottery
+
+
+executable bookseller-0-network
+    import: example
+    main-is:          Bookseller0Network.hs
+    ghc-options:
+      -main-is Bookseller0Network
+
+executable bookseller-1-simple
+    import: example
+    main-is:          Bookseller1Simple.hs
+    ghc-options:
+      -main-is Bookseller1Simple
+
+executable bookseller-2-higher-order
+    import: example
+    main-is:          Bookseller2HigherOrder.hs
+    ghc-options:
+      -main-is Bookseller2HigherOrder
+
+executable bookseller-3-loc-poly
+    import: example
+    main-is:          Bookseller3LocPoly.hs
+    ghc-options:
+      -main-is Bookseller3LocPoly
+
+executable diffiehellman
+    import: example
+    main-is:          DiffieHellman.hs
+    ghc-options:
+      -main-is DiffieHellman
+
+executable gmw-real
+    import: example
+    main-is:          GMWReal.hs
+    ghc-options:
+      -main-is GMWReal
+    other-modules:
+      ObliviousTransfer
+
+executable karatsuba
+    import: example
+    main-is:          Karatsuba.hs
+    ghc-options:
+      -main-is Karatsuba
+
+executable kvs1
+    import: example
+    main-is:          KVS1Simple.hs
+    ghc-options:
+      -main-is KVS1Simple
+
+executable kvs2
+    import: example
+    main-is:          KVS2PrimaryBackup.hs
+    ghc-options:
+      -main-is KVS2PrimaryBackup
+
+executable kvs3
+    import: example
+    main-is:          KVS3HigherOrder.hs
+    ghc-options:
+      -main-is KVS3HigherOrder
+
+executable kvs4
+    import: example
+    main-is:          KVS4LocPoly.hs
+    ghc-options:
+      -main-is KVS4LocPoly
+
+executable mergesort
+    import: example
+    main-is:          MergeSort.hs
+    ghc-options:
+      -main-is MergeSort
+
+executable oblivious-transfer
+    import: example
+    main-is:          ObliviousTransfer.hs
+    ghc-options:
+      -main-is ObliviousTransfer
+
+executable quicksort
+    import: example
+    main-is:          QuickSort.hs
+    ghc-options:
+      -main-is QuickSort
+
+executable ring-leader
+    import: example
+    main-is:          RingLeader.hs
+    ghc-options:
+      -main-is RingLeader
 
 
 Test-Suite playgroundTest
