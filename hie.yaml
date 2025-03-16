@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:MultiChor"
+
+    - path: "examples"
+      component: "MultiChor:test:testExamples"
