@@ -35,11 +35,18 @@ textbooks =
       }
   ]
 
+unsafeQuietHead :: [a] -> a
+unsafeQuietHead [] = error "Someone called head on an empty list"
+unsafeQuietHead (x:_) = x
+unsafeQuietTail :: [a] -> [a]
+unsafeQuietTail [] = error "Someone called tail on an empty list"
+unsafeQuietTail (_:xs) = xs
+
 priceOf :: Database -> String -> Int
-priceOf books title = price $ head $ filter ((== title) . name) books
+priceOf books title = price $ unsafeQuietHead $ filter ((== title) . name) books
 
 deliveryDateOf :: Database -> String -> Day
-deliveryDateOf books title = deliverable $ head $ filter ((== title) . name) books
+deliveryDateOf books title = deliverable $ unsafeQuietHead $ filter ((== title) . name) books
 
 data BooksellerArgs = BooksellerArgs
   { books :: Database,

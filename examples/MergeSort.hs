@@ -30,6 +30,7 @@ module MergeSort where
 
 import Choreography
 import Choreography.Network.Http
+import Data (unsafeQuietHead, unsafeQuietTail)
 import GHC.TypeLits (KnownSymbol)
 import System.Environment
 
@@ -90,22 +91,22 @@ merge a b c lhs rhs = do
       rhsHasElements <- c `locally` \un -> do return $ not (null (un singleton rhs))
       broadcast (c, rhsHasElements) >>= \case
         True -> do
-          rhsHeadAtC <- c `locally` \un -> do return $ head (un singleton rhs)
+          rhsHeadAtC <- c `locally` \un -> do return $ unsafeQuietHead (un singleton rhs)
           rhsHeadAtB <- (c, rhsHeadAtC) ~> b @@ nobody
-          takeLhs <- b `locally` \un -> do return $ head (un singleton lhs) <= un singleton rhsHeadAtB
+          takeLhs <- b `locally` \un -> do return $ unsafeQuietHead (un singleton lhs) <= un singleton rhsHeadAtB
           broadcast (b, takeLhs) >>= \case
             True -> do
-              -- take (head lhs) and merge the rest
-              lhs' <- b `locally` \un -> do return $ tail (un singleton lhs)
+              -- take (unsafeQuietHead lhs) and merge the rest
+              lhs' <- b `locally` \un -> do return $ unsafeQuietTail (un singleton lhs)
               merged <- merge a b c lhs' rhs
-              lhsHeadAtB <- b `locally` \un -> do return $ head (un singleton lhs)
+              lhsHeadAtB <- b `locally` \un -> do return $ unsafeQuietHead (un singleton lhs)
               lhsHeadAtA <- (b, lhsHeadAtB) ~> a @@ nobody
               a `locally` \un -> do return $ un singleton lhsHeadAtA : un singleton merged
             False -> do
-              -- take (head rhs) and merge the rest
-              rhs' <- c `locally` \un -> do return $ tail (un singleton rhs)
+              -- take (unsafeQuietHead rhs) and merge the rest
+              rhs' <- c `locally` \un -> do return $ unsafeQuietTail (un singleton rhs)
               merged <- merge a b c lhs rhs'
-              rhsHeadAtC' <- c `locally` \un -> do return $ head (un singleton rhs)
+              rhsHeadAtC' <- c `locally` \un -> do return $ unsafeQuietHead (un singleton rhs)
               rhsHeadAtA <- (c, rhsHeadAtC') ~> a @@ nobody
               a `locally` \un -> do return $ un singleton rhsHeadAtA : un singleton merged
         False -> do

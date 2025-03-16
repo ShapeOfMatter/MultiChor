@@ -98,6 +98,7 @@ common example
           , QuickCheck >= 2.14 && < 3
       other-modules: Distribution.TestSuite.QuickCheck
                    , CLI
+                   , Data
     else
       buildable: False
 
@@ -105,8 +106,7 @@ Test-Suite testExamples
     import: example
     type:             detailed-0.9
     test-module:      Tests
-    other-modules: Data
-                 , Bank2PC
+    other-modules: Bank2PC
                  , Bookseller0Network
                  , Bookseller1Simple
                  , Bookseller2HigherOrder
@@ -139,8 +139,6 @@ executable play-game
     main-is:          CardGame.hs
     ghc-options:
       -main-is CardGame
-    other-modules:
-      Data
 executable bank-2pc
     import: example
     main-is:          Bank2PC.hs
@@ -251,5 +249,4 @@ executable playground
     main-is: Playground.hs
     ghc-options:
       -main-is Playground
-    other-modules: Data
 

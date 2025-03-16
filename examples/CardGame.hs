@@ -9,7 +9,7 @@ import Choreography
 import Choreography.Network.Local (mkLocalConfig)
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Monad (void)
-import Data (TestArgs, reference)
+import Data (TestArgs, unsafeQuietHead, unsafeQuietTail, reference)
 import Data.Foldable (forM_)
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
@@ -43,10 +43,10 @@ data Args = Args
 instance TestArgs Args (Bool, Bool, Bool) where
   reference Args {deck, choices = (c1, c2, c3)} =
     let h11 : h21 : h31 : deck1 = cycle deck -- should just use State
-        (h12, deck12) = if c1 then ([h11, head deck1], tail deck1) else ([h11], deck1)
-        (h22, deck22) = if c2 then ([h21, head deck12], tail deck12) else ([h21], deck12)
-        (h32, deck32) = if c3 then ([h31, head deck22], tail deck22) else ([h31], deck22)
-        common = head deck32
+        (h12, deck12) = if c1 then ([h11, unsafeQuietHead deck1], unsafeQuietTail deck1) else ([h11], deck1)
+        (h22, deck22) = if c2 then ([h21, unsafeQuietHead deck12], unsafeQuietTail deck12) else ([h21], deck12)
+        (h32, deck32) = if c3 then ([h31, unsafeQuietHead deck22], unsafeQuietTail deck22) else ([h31], deck22)
+        common = unsafeQuietHead deck32
         [win1, win2, win3] = (> card 19) . sum . (common :) <$> [h12, h22, h32]
      in (win1, win2, win3)
 

@@ -29,6 +29,7 @@ module QuickSort where
 import Choreography
 import Choreography.Network.Local
 import Control.Concurrent.Async (mapConcurrently_)
+import Data (unsafeQuietHead)
 import GHC.TypeLits (KnownSymbol)
 
 reference :: [Int] -> [Int]
@@ -63,7 +64,7 @@ quicksort a b c lst = do
       bigger <- (a, \un -> let x : xs = un singleton lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
       bigger' <- quicksort c a b bigger
       bigger'' <- (c, bigger') ~> a @@ nobody
-      a `locally` \un -> pure $ un singleton smaller'' ++ [head (un singleton lst)] ++ un singleton bigger''
+      a `locally` \un -> pure $ un singleton smaller'' ++ [unsafeQuietHead (un singleton lst)] ++ un singleton bigger''
 
 mainChoreo :: Choreo Participants IO ()
 mainChoreo = do
