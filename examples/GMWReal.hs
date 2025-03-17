@@ -8,7 +8,7 @@ module GMWReal where
 import CLI
 import Choreography
 import Choreography.Network.Http
-import Control.Monad (void)
+import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Random.Types qualified as CRT
 import Data (TestArgs, reference)
@@ -20,12 +20,6 @@ import ObliviousTransfer
 import System.Environment
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
-
-$(mkLoc "trusted3rdParty")
-$(mkLoc "p1")
-$(mkLoc "p2")
-$(mkLoc "p3")
-$(mkLoc "p4")
 
 xor :: (Foldable f) => f Bool -> Bool
 xor = foldr1 (/=)
@@ -41,6 +35,12 @@ instance Show (Circuit ps) where
   show (LitWire b) = "LitWire " ++ show b
   show (AndGate left right) = "(" ++ show left ++ ") AND (" ++ show right ++ ")"
   show (XorGate left right) = "(" ++ show left ++ ") XOR (" ++ show right ++ ")"
+
+-- creates type aliases and semi-useful membership proofs
+$(mkLoc "p1")
+$(mkLoc "p2")
+$(mkLoc "p3")
+$(mkLoc "p4")
 
 instance Arbitrary (Circuit '["p1", "p2", "p3", "p4"]) where
   arbitrary = do
@@ -142,7 +142,7 @@ gmw ::
 gmw circuit = case circuit of
   InputWire p -> do
     -- process a secret input value from party p
-    value :: Located '[p] Bool <- _locally p $ getInput "Enter a secret input value:"
+    value :: Located '[p] Bool <- _locally p $ getInput "Enter a secret input value [True|False]:"
     secretShare p value
   LitWire b -> do
     -- process a publicly-known literal value
@@ -179,19 +179,30 @@ mpcmany ::
 mpcmany circuit = do
   mpc circuit
 
-type Clients = '["p1", "p2"] -- , "p3", "p4"]
+type Clients = '[
+     "p1"
+    ,"p2"
+    --,"p3"
+    --,"p4"
+  ]
 
 main :: IO ()
 main = do
-  let circuit :: Circuit Clients = AndGate (LitWire True) (LitWire True)
+  let circuit :: Circuit Clients = AndGate (InputWire p1) (InputWire p2)
+      choreo = do parallel_ (  p1
+                             @@ p2
+                             -- @@ p3
+                             -- @@ p4
+                             @@ nobody)  -- This step prevents problems with the order in which the clients come online.
+                             (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                  forever $ mpcmany @Clients circuit
   [loc] <- getArgs
-  delivery <- case loc of
-    "p1" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p1"
-    "p2" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p2"
-    --    "p3" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p3"
-    --    "p4" -> runCLIIO $ runChoreography cfg (mpcmany @Clients circuit) "p4"
+  case loc of
+    "p1" -> runCLIIO $ runChoreography cfg (choreo) "p1"
+    "p2" -> runCLIIO $ runChoreography cfg (choreo) "p2"
+    --    "p3" -> runCLIIO $ runChoreography cfg (choreo) "p3"
+    --    "p4" -> runCLIIO $ runChoreography cfg (choreo) "p4"
     _ -> error "unknown party"
-  print delivery
   where
     cfg =
       mkHttpConfig
