@@ -116,7 +116,7 @@ kvsRecursive = do
               response <- kvs client primary servers stateRefs request
               broadcast (client, response) >>= \case
                 Stopped -> return ()
-                response' -> do _locally_ client $ putOutput "Recieved:" response'
+                response' -> do _locally_ client $ putOutput "Received:" response'
                                 go
   go
   locally_ (inSuper servers primary) \un -> (liftIO $ IORef.readIORef $ viewFacet un primary stateRefs) >>= putOutput "Ending state:"
