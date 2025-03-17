@@ -220,6 +220,12 @@ executable kvs4
     ghc-options:
       -main-is KVS4LocPoly
 
+executable kvs8
+    import: example
+    main-is:          KVS8Paper.hs
+    ghc-options:
+      -main-is KVS8Paper
+
 executable mergesort
     import: example
     main-is:          MergeSort.hs

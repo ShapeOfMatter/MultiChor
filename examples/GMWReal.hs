@@ -189,11 +189,7 @@ type Clients = '[
 main :: IO ()
 main = do
   let circuit :: Circuit Clients = AndGate (InputWire p1) (InputWire p2)
-      choreo = do parallel_ (  p1
-                             @@ p2
-                             -- @@ p3
-                             -- @@ p4
-                             @@ nobody)  -- This step prevents problems with the order in which the clients come online.
+      choreo = do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
                              (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
                   forever $ mpcmany @Clients circuit
   [loc] <- getArgs
@@ -208,6 +204,6 @@ main = do
       mkHttpConfig
         [ ("p1", ("localhost", 4242)),
           ("p2", ("localhost", 4343))
-          --                       , ("p3", ("localhost", 4344))
-          --                       , ("p4", ("localhost", 4345))
+          , ("p3", ("localhost", 4344))
+          , ("p4", ("localhost", 4345))
         ]

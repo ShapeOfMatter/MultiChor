@@ -5,6 +5,8 @@ import Prelude hiding (IO)
 import Prelude qualified
 import CLI
 import Choreography
+import Choreography.Network.Http
+import Control.Monad (void, when)
 import Control.Monad.IO.Class (liftIO)
 import Data (TestArgs, reference)
 import Data.Foldable (toList, maximumBy)
@@ -15,6 +17,7 @@ import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.TypeLits (KnownSymbol)
+import System.Environment
 import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)
 import Text.Read (readMaybe)
@@ -157,23 +160,28 @@ instance Arbitrary Args where
             ]
 
 
-{-main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "client" -> runChoreography config primaryBackupChoreo "client"
-    "primary" -> runChoreography config primaryBackupChoreo "primary"
-    "backup1" -> runChoreography config primaryBackupChoreo "backup1"
-    "backup2" -> runChoreography config primaryBackupChoreo "backup2"
-    _ -> error "unknown party"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client", ("localhost", 3000)),
-          ("primary", ("localhost", 4000)),
-          ("backup1", ("localhost", 5000)),
-          ("backup2", ("localhost", 6000))
-        ]
+type Backups = '[
+     "b1"
+    --,"b2"
+    --,"b3"
+    --,"b4"
+  ]
 
--}
+main :: Prelude.IO ()
+main = do
+  let choreo = do parallel_ allOf  -- This step prevents problems with the order in which the clients come online.
+                            (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                  kvsRecursive @"client" @"primary" @Backups
+  [loc] <- getArgs
+  () <- when (not $ loc `elem` ("client" : "primary" : toLocs (refl @Backups))) (return $ error "unknown party")
+  runCLIIO $ runChoreography cfg (choreo) loc
+  where
+    cfg =
+      mkHttpConfig
+        [ ("client", ("localhost", 4242)),
+          ("primary", ("localhost", 4343))
+          , ("b1", ("localhost", 4344))
+          , ("b2", ("localhost", 4345))
+          , ("b3", ("localhost", 4345))
+          , ("b4", ("localhost", 4345))
+        ]
