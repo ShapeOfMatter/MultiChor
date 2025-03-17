@@ -41,7 +41,7 @@ mlookup key = maybe NotFound Found . Map.lookup key
 
 readRequest :: IO Request
 readRequest = do
-  line <- getstr "Command?"
+  line <- getstr "Command? (uses Read. All strings must be quoted. Leave blank to stop.)"
   case line of
     [] -> return Stop
     _ -> case readMaybe line of
