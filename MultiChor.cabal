@@ -106,7 +106,8 @@ Test-Suite testExamples
     import: example
     type:             detailed-0.9
     test-module:      Tests
-    other-modules: Bank2PC
+    other-modules: Auction
+                 , Bank2PC
                  , Bookseller0Network
                  , Bookseller1Simple
                  , Bookseller2HigherOrder
@@ -255,4 +256,10 @@ executable playground
     main-is: Playground.hs
     ghc-options:
       -main-is Playground
+
+executable auction
+    import: example
+    main-is: Auction.hs
+    ghc-options:
+      -main-is Auction
 
