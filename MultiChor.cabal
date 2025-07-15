@@ -133,7 +133,6 @@ Test-Suite testExamples
                  , ObliviousTransfer
                  , Playground
                  , QuickSort
-                 , RingLeader
 
 executable play-game
     import: example
@@ -244,12 +243,6 @@ executable quicksort
     main-is:          QuickSort.hs
     ghc-options:
       -main-is QuickSort
-
-executable ring-leader
-    import: example
-    main-is:          RingLeader.hs
-    ghc-options:
-      -main-is RingLeader
 
 executable playground
     import: example
