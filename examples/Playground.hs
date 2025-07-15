@@ -1,10 +1,9 @@
 module Playground where
 
-import CLI (CLI, getInput, putOutput, getstr, runCLIIO)
+import CLI (CLI, getInput, putOutput, getstr)
 import Choreography
-import Choreography.Network.Http (mkHttpConfig)
 import Data (TestArgs(reference))
-import System.Environment (getArgs)
+import EasyMain (easyMain)
 import Test.QuickCheck
   ( Arbitrary,
     arbitrary,
@@ -24,20 +23,7 @@ choreography = do
 
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  _ <- case loc of
-    "alpha" -> runCLIIO $ runChoreography config choreography "alpha"
-    "beta" -> runCLIIO $ runChoreography config choreography "beta"
-    "-" -> runCLIIO $ runChoreo choreography
-    _ -> error "unknown party"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("alpha", ("localhost", 5000)),
-          ("beta", ("localhost", 5001))
-        ]
+main = easyMain choreography
 
 
 

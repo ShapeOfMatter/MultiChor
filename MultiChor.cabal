@@ -99,6 +99,7 @@ common example
       other-modules: Distribution.TestSuite.QuickCheck
                    , CLI
                    , Data
+                   , EasyMain
     else
       buildable: False
 

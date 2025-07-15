@@ -14,7 +14,7 @@ import Choreography
 import Choreography.Network.Local (mkLocalConfig)
 import Control.Concurrent.Async (mapConcurrently)
 import Data (BooksellerArgs (..), reference)
-import Data.List (nub)
+import Data.List (nub, sort)
 import Data.Maybe (maybeToList)
 import DelegationFig20 qualified
 import DiffieHellman qualified
@@ -27,6 +27,7 @@ import KVS8Paper qualified
 import Lottery qualified
 import MPCFake qualified
 import Playground qualified
+import QuickSort qualified
 import Test.QuickCheck
   ( Positive,
     Testable,
@@ -661,7 +662,27 @@ tests' =
         },
     getNormalPT
       PropertyTest
-        { name = "tautology",
+        { name = "quicksort",
+          tags = [],
+          property = \args -> ioProperty do
+            let situation =
+                  [ ("primary", [show args]),
+                    ("worker1",  []),
+                    ("worker2",  [])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [([result], ()), ([], ()), ([], ())] <-
+              mapConcurrently
+                ( \(name, inputs) ->
+                    runCLIStateful inputs $
+                      runChoreography config QuickSort.sort name
+                )
+                situation
+            return $ read @[Int] result === sort args
+        },
+    getNormalPT
+      PropertyTest
+        { name = "playground",
           tags = [],
           property = \args@(Playground.Args foo bar) -> ioProperty do
             let situation =

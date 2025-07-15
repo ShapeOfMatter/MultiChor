@@ -27,17 +27,10 @@ cabal run quicksort
 module QuickSort where
 
 import Choreography
-import Choreography.Network.Local
-import Control.Concurrent.Async (mapConcurrently_)
+import CLI
 import Data (unsafeQuietHead)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
-
-reference :: [Int] -> [Int]
-reference [] = []
-reference (x : xs) = smaller ++ [x] ++ bigger
-  where
-    smaller = reference [a | a <- xs, a <= x]
-    bigger = reference [a | a <- xs, a > x]
 
 $(mkLoc "primary")
 $(mkLoc "worker1")
@@ -46,12 +39,12 @@ $(mkLoc "worker2")
 type Participants = ["primary", "worker1", "worker2"]
 
 quicksort ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps) =>
+  (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps, Monad m) =>
   Member a ps ->
   Member b ps ->
   Member c ps ->
   Located '[a] [Int] ->
-  Choreo ps IO (Located '[a] [Int])
+  Choreo ps m (Located '[a] [Int])
 quicksort a b c lst = do
   isEmpty <- a `locally` \un -> pure (null (un singleton lst))
   broadcast (a, isEmpty) >>= \case
@@ -66,19 +59,11 @@ quicksort a b c lst = do
       bigger'' <- (c, bigger') ~> a @@ nobody
       a `locally` \un -> pure $ un singleton smaller'' ++ [unsafeQuietHead (un singleton lst)] ++ un singleton bigger''
 
-mainChoreo :: Choreo Participants IO ()
-mainChoreo = do
-  lst <- primary `_locally` return [1, 6, 5, 3, 4, 2, 7, 8]
+sort :: Choreo Participants (CLI IO) ()
+sort = do
+  lst <- primary `_locally` getInput "The list of numbers to sort:"
   sorted <- quicksort primary worker1 worker2 lst
-  primary `locally_` \un -> do
-    print (un primary sorted)
-    return ()
-  return ()
+  primary `locally_` \un -> putOutput "Sorted result:" (un singleton sorted)
 
 main :: IO ()
-main = do
-  config <- mkLocalConfig locations
-  mapConcurrently_ (runChoreography config mainChoreo) locations
-  return ()
-  where
-    locations = ["primary", "worker1", "worker2"]
+main = easyMain sort
