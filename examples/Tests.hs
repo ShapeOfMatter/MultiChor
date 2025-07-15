@@ -38,7 +38,7 @@ import Test.QuickCheck
   )
 
 tests :: IO [Test]
-tests = return $ take 4 tests'
+tests = return tests'
 
 normalSettings :: TestArgs
 normalSettings = stdTestArgs {verbosity = Verbose}
