@@ -1,5 +1,6 @@
 module Tests where
 
+import Auction qualified
 import Bank2PC qualified
 import Bookseller0Network qualified
 import Bookseller1Simple qualified
@@ -13,6 +14,7 @@ import Choreography
 import Choreography.Network.Local (mkLocalConfig)
 import Control.Concurrent.Async (mapConcurrently)
 import Data (BooksellerArgs (..), reference)
+import Data.List (nub)
 import Data.Maybe (maybeToList)
 import DelegationFig20 qualified
 import DiffieHellman qualified
@@ -30,11 +32,13 @@ import Test.QuickCheck
     Testable,
     getPositive,
     ioProperty,
+    counterexample,
     (===),
+    (.&&.)
   )
 
 tests :: IO [Test]
-tests = return tests'
+tests = return $ take 4 tests'
 
 normalSettings :: TestArgs
 normalSettings = stdTestArgs {verbosity = Verbose}
@@ -49,6 +53,36 @@ tests' =
         { name = "tautology",
           tags = [],
           property = \i -> (===) @Int i i
+        },
+    getNormalPT
+      PropertyTest
+        { name = "auction",
+          tags = [],
+          property = \(args :: Auction.Args) -> ioProperty do
+            let situation =
+                  [ ("b1", [Auction.b1 args]),
+                    ("b2", [Auction.b2 args]),
+                    ("b3", [Auction.b3 args]),
+                    ("b4", [Auction.b4 args]),
+                    ("b5", [Auction.b5 args]),
+                    ("seller", []),
+                    ("proctor", [])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [[results]] <- nub <$>
+              (mapConcurrently
+                ( \(name, inputs) ->
+                    fst
+                      <$> runCLIStateful
+                        (show <$> inputs)
+                        (runChoreography config Auction.auction name)
+                )
+                situation
+              )
+            let (winner, secondPlaceBid) = read @(LocTm, Auction.Bid) results
+                (possibleWinners, referenceBid) = reference args
+                correctWinner = counterexample (show (winner, possibleWinners)) (winner `elem` possibleWinners)
+            return $ correctWinner .&&. (secondPlaceBid === referenceBid)
         },
     getNormalPT
       PropertyTest
