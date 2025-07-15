@@ -6,7 +6,7 @@ import Choreography.Network.Http
 import Control.Exception.Base (throwIO)
 import Control.Monad (when)
 --import Control.Monad.IO.Class (MonadIO (liftIO))
-import Data (TestArgs, reference)
+import Data (TestArgs, reference, unsafeQuietHead)
 import Data.Foldable (toList)
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
@@ -38,31 +38,44 @@ auction = do
       proctor :: Member Proctor Participants
       proctor = Later First
   ownBid <- _parallel buyers (getInput @Bid "Your bid:")
-  -- The following passes the test case,
-  -- but does _not_ implement the protocol as written!
-  rawBids <- gather buyers (allOf @Participants) ownBid >>= naked allOf
-  let (winner, _) : (_, bid) : _ = sortBy (on (flip compare) snd)
-                                   $ toList
-                                   $ stackLeaves \b -> (toLocTm b, getLeaf rawBids b)
-  parallel_ allOf \_ _ -> putOutput "Result:" (winner, bid)
+  submittedBids <- gather buyers (seller @@ proctor @@ nobody) ownBid
+  orderedBids <- congruently (seller @@ proctor @@ nobody) \un ->
+    let bids = un refl submittedBids
+        collated = stackLeaves \b -> (toLocTm b, getLeaf bids b)
+        sorter a b = compare (snd b) (snd a)
+    in sortBy sorter $ toList collated
+  winners <- conclaveTo (seller @@ proctor @@ nobody) (First @@ nobody) do
+    unique <- congruently' \un ->
+      let ((_, winner) : (_, second) : _) = un refl orderedBids
+      in winner /= second
+    if unique
+      then purely First \un -> 
+        let (winner : second : _) = un First orderedBids
+        in (winner, second)
+      else do
+        winner' <- locally listedSecond \un -> do
+          let winners = fst <$>
+                          (unsafeQuietHead $ groupBy (on (==) snd) $ un listedSecond orderedBids)
+          (winners !!) <$> randomRIO (0, length winners - 1)
+        winner <- broadcast (listedSecond @Proctor, (singleton @Proctor, winner'))
+        purely First \un ->
+          let ((a, bid) : (b, _) : _) = un First orderedBids
+              second = if a == winner then b else a
+          in ((winner, bid), (second, bid))
+  ((wName, _), (_, sBid)) <- broadcast (seller, (singleton @Seller, winners))
+  parallel_ allOf \_ _ -> putOutput "Result:" (wName, sBid)
 
--- to run, call:
--- > cabal run -f test auction -- partyName
+
 main :: IO ()
 main = do
   [loc] <- getArgs
-  when (not $ loc `elem` toLocs (refl @Participants)) $ throwIO $ userError "unknown party"
+  when (not $ loc `elem` toLocs (refl @Buyers)) $ throwIO $ userError "unknown party"
   runCLIIO $ runChoreography config auction loc
   where
     urls = repeat "localhost"
     ports = [5000 :: Int ..]
     config = mkHttpConfig $ zip (toLocs (refl @Participants)) (zip urls ports)
 
-
--- The below stuff is used for testing. To run the unit test, call:
--- > cabal test -f test
--- Notice that `reference` specifies the space of possible correct outputs;
--- it does not verify if the protocol was correclty followed.
 data Args = Args
   { b1 :: Bid
   , b2 :: Bid
