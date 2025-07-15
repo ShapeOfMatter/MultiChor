@@ -26,6 +26,7 @@ import KVS6SizePoly qualified
 import KVS8Paper qualified
 import Lottery qualified
 import MPCFake qualified
+import ObliviousTransfer qualified
 import Playground qualified
 import QuickSort qualified
 import Test.QuickCheck
@@ -659,6 +660,25 @@ tests' =
                 )
                 situation
             return $ (read r1, read r2, read r3, read r4) === reference args
+        },
+    getNormalPT
+      PropertyTest
+        { name = "obliviousTransfer",
+          tags = [],
+          property = \args@(ObliviousTransfer.Args b1 b2 b3 b4 s1 s2) -> ioProperty do
+            let situation =
+                  [ ("A", show <$> [b1, b2, b3, b4]),
+                    ("B", show <$> [s1, s2])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [([], ()), (result, ())] <-
+              mapConcurrently
+                ( \(name, inputs) ->
+                    runCLIStateful inputs $
+                      runChoreography config (ObliviousTransfer.otTest @"A" @"B") name
+                )
+                situation
+            return $ (read @Bool <$> result) === reference args
         },
     getNormalPT
       PropertyTest

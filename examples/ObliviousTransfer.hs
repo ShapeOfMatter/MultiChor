@@ -4,23 +4,25 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module ObliviousTransfer (ot2, ot4, main) where
+module ObliviousTransfer (ot2, ot4, main, Args(Args), otTest) where
 
 import CLI
 import Choreography
-import Choreography.Network.Http
 import Control.Monad.IO.Class (MonadIO (liftIO))
--- For cryptonite
-
 import Crypto.Hash.Algorithms qualified as HASH
 import Crypto.PubKey.RSA qualified as RSA
 import Crypto.PubKey.RSA.OAEP qualified as OAEP
 import Crypto.Random.Types qualified as CRT
+import Data (TestArgs(reference))
 import Data.Bits (shiftL)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 (ByteString, pack)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
-import System.Environment
+import Test.QuickCheck
+  ( Arbitrary,
+    arbitrary,
+  )
 
 -- Helpers for RSA encryption
 genKeyPair :: (CRT.MonadRandom m) => m (RSA.PublicKey, RSA.PrivateKey)
@@ -246,34 +248,42 @@ otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m, CRT.MonadRandom m) => Chor
 otTest = do
   let p1 = listedFirst :: Member p1 '[p1, p2]
   let p2 = listedSecond :: Member p2 '[p1, p2]
-  bb <- p1 `_locally` return (False, True)
-  b1 <- p1 `locally` \un -> pure . fst $ un singleton bb
-  b2 <- p1 `locally` \un -> pure . snd $ un singleton bb
-  s <- p2 `_locally` return False
-  otResultI <- ot2Insecure b1 b2 s
-  p2 `locally_` \un -> putOutput "OT2 insecure output:" $ un singleton otResultI
-  otResult <- ot2 bb s
-  p2 `locally_` \un -> putOutput "OT2 output:" $ un singleton otResult
+  b1 <- p1 `_locally` getInput "The first secret bool:"
+  b2 <- p1 `_locally` getInput "The second secret bool:"
+  bb <- p1 `locally` \un -> pure $ (un singleton b1, un singleton b2)
+  s1 <- p2 `_locally` getInput "The first selection bit (bool):"
+  otResultI <- ot2Insecure b1 b2 s1
+  p2 `locally_` \un -> putOutput "1-of-2 INsecure OT output:" $ un singleton otResultI
+  otResult <- ot2 bb s1
+  p2 `locally_` \un -> putOutput "1-of-2  Secure  OT output:" $ un singleton otResult
 
-  b3 <- p1 `_locally` return False
-  b4 <- p1 `_locally` return True
-  s2 <- p2 `_locally` return False
-  otResultI4 <- ot4Insecure b1 b2 b3 b4 s s2
-  p2 `locally_` \un -> putOutput "OT4 insecure output:" $ un singleton otResultI4
-  otResult4 <- ot4 b1 b2 b3 b4 s s2
-  p2 `locally_` \un -> putOutput "OT4 output:" $ un singleton otResult4
+  b3 <- p1 `_locally` getInput "The third secret bool:"
+  b4 <- p1 `_locally` getInput "The forth secret bool:"
+  s2 <- p2 `_locally` getInput "The second selection bit (bool):"
+  otResultI4 <- ot4Insecure b1 b2 b3 b4 s1 s2
+  p2 `locally_` \un -> putOutput "1-of-4 INsecure OT output:" $ un singleton otResultI4
+  otResult4 <- ot4 b1 b2 b3 b4 s1 s2
+  p2 `locally_` \un -> putOutput "1-of-4  Secure  OT output:" $ un singleton otResult4
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  delivery <- case loc of
-    "client1" -> runCLIIO $ runChoreography cfg (otTest @"client1" @"client2") "client1"
-    "client2" -> runCLIIO $ runChoreography cfg (otTest @"client1" @"client2") "client2"
-    _ -> error "unknown party"
-  print delivery
-  where
-    cfg =
-      mkHttpConfig
-        [ ("client1", ("localhost", 4242)),
-          ("client2", ("localhost", 4343))
-        ]
+main = easyMain @'["A", "B"] otTest
+
+data Args = Args
+  { b1 :: Bool
+  , b2 :: Bool
+  , b3 :: Bool
+  , b4 :: Bool
+  , s1 :: Bool
+  , s2 :: Bool
+  }
+  deriving (Eq, Show, Read)
+
+instance TestArgs Args [Bool] where
+  reference Args{b1, b2, b3, b4, s1, s2} = [result12, result12, result14, result14]
+    where result12 = if s1 then b1 else b2
+          result14 = if s1 then if s2 then b1 else b2
+                           else if s2 then b3 else b4
+
+instance Arbitrary Args where
+  arbitrary = Args <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+

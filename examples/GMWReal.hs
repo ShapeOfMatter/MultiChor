@@ -16,7 +16,7 @@ import Data.Foldable (toList)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
-import ObliviousTransfer
+import ObliviousTransfer hiding (Args)
 import System.Environment
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
