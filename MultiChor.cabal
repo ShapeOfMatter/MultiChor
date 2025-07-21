@@ -129,7 +129,6 @@ Test-Suite testExamples
                  , KVS7SimplePoly
                  , KVS8Paper
                  , Lottery
-                 , MergeSort
                  , MPCFake
                  , ObliviousTransfer
                  , Playground
@@ -232,12 +231,6 @@ executable kvs8
     main-is:          KVS8Paper.hs
     ghc-options:
       -main-is KVS8Paper
-
-executable mergesort
-    import: example
-    main-is:          MergeSort.hs
-    ghc-options:
-      -main-is MergeSort
 
 executable oblivious-transfer
     import: example
