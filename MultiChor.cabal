@@ -183,6 +183,12 @@ executable diffiehellman
     ghc-options:
       -main-is DiffieHellman
 
+executable mpc-fake
+    import: example
+    main-is:          MPCFake.hs
+    ghc-options:
+      -main-is MPCFake
+
 executable gmw-real
     import: example
     main-is:          GMWReal.hs

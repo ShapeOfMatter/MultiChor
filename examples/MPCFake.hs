@@ -7,10 +7,12 @@ module MPCFake where
 
 import CLI
 import Choreography
+import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data (TestArgs, reference)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
@@ -143,3 +145,16 @@ mpc circuit = do
   outputWire <- computeWire trusted3rdParty parties circuit
   result <- conclave parties $ reveal outputWire
   parties `parallel_` \p un -> putOutput "The resulting bit:" $ un p result
+
+
+type Clients = '[
+     "p1"
+    ,"p2"
+    --,"p3"
+    --,"p4"
+  ]
+
+main :: IO ()
+main = easyMain $ do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
+                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                     forever $ mpc @Clients $ AndGate (InputWire p1) (InputWire p2)
