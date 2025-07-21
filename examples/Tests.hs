@@ -29,6 +29,8 @@ import MPCFake qualified
 import ObliviousTransfer qualified
 import Playground qualified
 import QuickSort qualified
+import System.Random (getStdGen, setStdGen, mkStdGen)
+import Test.QuickCheck qualified as QC
 import Test.QuickCheck
   ( Positive,
     Testable,
@@ -40,23 +42,38 @@ import Test.QuickCheck
   )
 
 tests :: IO [Test]
-tests = return tests'
+tests = return $ asTest <$> tests'
 
 normalSettings :: TestArgs
 normalSettings = stdTestArgs {verbosity = Verbose}
 
-getNormalPT :: (Testable prop) => PropertyTest prop -> Test
-getNormalPT = getPropertyTestWith normalSettings
+data MyPropertyTest where
+  MyPT :: forall prop. (Testable prop) => TestArgs -> PropertyTest prop -> MyPropertyTest
 
-tests' :: [Test]
+asTest :: MyPropertyTest -> Test
+asTest (MyPT args pt) = getPropertyTestWith args pt
+
+quickCheckWith :: QC.Args -> MyPropertyTest -> IO ()
+quickCheckWith args (MyPT defaultArgs pt) = QC.quickCheckWith (testArgsToArgs $ argsToTestArgsWith defaultArgs args) (property pt)
+
+quickCheck :: MyPropertyTest -> IO ()
+quickCheck (MyPT args pt) = QC.quickCheckWith (testArgsToArgs args) (property pt)
+
+getTestByName :: String -> MyPropertyTest
+getTestByName name = case [pt | pt@(MyPT _ PropertyTest{name=n}) <- tests', n == name] of
+                           [pt] -> pt
+                           [] -> error $ "No such test as " ++ name
+                           _ -> error $ "Found multiple tests with name " ++ name
+
+tests' :: [MyPropertyTest]
 tests' =
-  [ getNormalPT
+  [ MyPT normalSettings
       PropertyTest
         { name = "tautology",
           tags = [],
           property = \i -> (===) @Int i i
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "auction",
           tags = [],
@@ -86,7 +103,7 @@ tests' =
                 correctWinner = counterexample (show (winner, possibleWinners)) (winner `elem` possibleWinners)
             return $ correctWinner .&&. (secondPlaceBid === referenceBid)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bank-2pc",
           tags = [],
@@ -109,7 +126,7 @@ tests' =
                 situation
             return $ results === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-0-network",
           tags = [],
@@ -126,7 +143,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-1-simple",
           tags = [],
@@ -143,7 +160,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-1-prime",
           tags = [],
@@ -162,7 +179,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-2-higher-order",
           tags = [],
@@ -182,7 +199,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-2-dummy",
           tags = [],
@@ -202,7 +219,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-3-locpoly",
           tags = [],
@@ -222,7 +239,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "bookseller-fancy",
           tags = [],
@@ -244,7 +261,7 @@ tests' =
                 situation
             return $ (read <$> delivery) === maybeToList (reference args)
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "card-game",
           tags = [],
@@ -267,7 +284,7 @@ tests' =
                 situation
             return $ (read r1, read r2, read r3) === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "choose-teams",
           tags = [],
@@ -292,7 +309,7 @@ tests' =
             let [r1, r2, r3, r4, r5] = [concatMap read r | r <- results]
             return $ (r1, r2, r3, r4, r5) === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "delegation-fig20",
           tags = [],
@@ -326,7 +343,7 @@ tests' =
                     }
                     === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest -- This test is kinda dumb, but I don't know how better to express "correctness" of DHKE.
         { name = "diffie-hellman",
           tags = [],
@@ -347,7 +364,7 @@ tests' =
                 situation
             return $ read @Integer a === read @Integer b
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "kvs-5-fig17",
           tags = [],
@@ -373,7 +390,7 @@ tests' =
                     situation
                 return $ read response === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "kvs-6-sizepoly",
           tags = [],
@@ -431,32 +448,15 @@ tests' =
             (responsesB, ()) <- runCLIStateful (show <$> requests) $ runChoreo (KVS6SizePoly.kvs strategy2 client)
             return $ responsesA === responsesB
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "kvs-8-paper",
           tags = [],
-          property = \args@(KVS8Paper.Args requests) -> ioProperty do
-            let situation =
-                  [ ("clientAlice", show <$> requests),
-                    ("primaryBob", []),
-                    ("backup1", []),
-                    ("backup2", []),
-                    ("backup3", []),
-                    ("backup4", []),
-                    ("backup5", [])
-                  ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
-            [_, [endState], [], [], [], [], []] <-
-              mapConcurrently
-                ( \(name, inputs) ->
-                    fst <$> runCLIStateful inputs (runChoreography config (
-                        KVS8Paper.kvsRecursive @"clientAlice" @"primaryBob" @'["backup1", "backup2", "backup3", "backup4", "backup5"]
-                      ) name)
-                )
-                situation
-            return $ read endState === reference args
+          property = ioProperty <$> kvs8Property -- This can fail randombly because the Choreogrphy in question models random failues.
+                                                 -- I've tried to make it easier to debug, but I haven't found a way to keep the choreo doing
+                                                 -- what it's supposed to, and still have a 0% chance of the test failling...
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "lottery",
           tags = [],
@@ -539,7 +539,7 @@ tests' =
                     situation
                 return $ read @Lottery.Fp response === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "lottery-central-semantics", -- We don't have good controls over the sequencing of party-loops or operations in the central semantics;
         -- but at least it's deterministic and this will notice if it breaks!
@@ -637,7 +637,7 @@ tests' =
                       (runChoreo lottery)
                 return $ read @Lottery.Fp response === read centralSemanticsResponse
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "mpc-fake",
           tags = [],
@@ -661,7 +661,7 @@ tests' =
                 situation
             return $ (read r1, read r2, read r3, read r4) === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "obliviousTransfer",
           tags = [],
@@ -680,7 +680,7 @@ tests' =
                 situation
             return $ (read @Bool <$> result) === reference args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "quicksort",
           tags = [],
@@ -700,7 +700,7 @@ tests' =
                 situation
             return $ read @[Int] result === sort args
         },
-    getNormalPT
+    MyPT normalSettings
       PropertyTest
         { name = "playground",
           tags = [],
@@ -719,8 +719,7 @@ tests' =
                 situation
             return $ (read bar', read foo') === reference args
         },
-    getPropertyTestWith
-      (stdTestArgs {verbosity = Verbose, maxSuccess = 100, maxSize = 10})
+    MyPT (stdTestArgs {verbosity = Verbose, maxSuccess = 100, maxSize = 10})
       PropertyTest
         { name = "gmw-real",
           tags = [],
@@ -744,3 +743,29 @@ tests' =
             return $ (read r1, read r2, read r3, read r4) === reference args
         }
   ]
+
+kvs8Property :: (QC.Fixed (QC.Large Int), KVS8Paper.Args) -> IO QC.Property
+kvs8Property = \(QC.Fixed (QC.Large tempGen), args@(KVS8Paper.Args requests)) -> do
+            ambientStdGen <- getStdGen
+            setStdGen $ mkStdGen tempGen
+            let situation =
+                  [ ("clientAlice", show <$> requests),
+                    ("primaryBob", []),
+                    ("backup1", []),
+                    ("backup2", []),
+                    ("backup3", []),
+                    ("backup4", []),
+                    ("backup5", [])
+                  ]
+            config <- mkLocalConfig [l | (l, _) <- situation]
+            [_, [endState], [], [], [], [], []] <-
+              mapConcurrently
+                ( \(name, inputs) ->
+                    fst <$> runCLIStateful inputs (runChoreography config (
+                        KVS8Paper.kvsRecursive @"clientAlice" @"primaryBob" @'["backup1", "backup2", "backup3", "backup4", "backup5"]
+                      ) name)
+                )
+                situation
+            setStdGen ambientStdGen
+            return $ read endState === reference args
+
