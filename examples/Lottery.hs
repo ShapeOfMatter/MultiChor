@@ -8,7 +8,6 @@ module Lottery where
 
 import CLI
 import Choreography
-import Choreography.Network.Http
 import Control.Exception (Exception, throwIO)
 import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO (liftIO))
@@ -20,8 +19,8 @@ import Data.Binary qualified as Binary
 import Data.ByteString (toStrict)
 import Data.FiniteField (primeField)
 import Data.Foldable (toList)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
-import System.Environment (getArgs)
 import System.Random (Random, random, randomIO, randomR, randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryBoundedEnum)
 
@@ -129,28 +128,11 @@ lottery clients servers analyst = do
     hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  let clientProof :: Subset '["client1", "client2"] '["client1", "client2", "server1", "server2", "analyst"]
-      clientProof = explicitSubset
-      serverProof :: Subset '["server1", "server2"] '["client1", "client2", "server1", "server2", "analyst"]
-      serverProof = explicitSubset
-      analystProof :: Member "analyst" '["client1", "client2", "server1", "server2", "analyst"]
-      analystProof = explicitMember
-  _ <- case loc of
-    "client1" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "client1"
-    "client2" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "client2"
-    "server1" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "server1"
-    "server2" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "server2"
-    "analyst" -> runCLIIO $ runChoreography config (lottery clientProof serverProof analystProof) "analyst"
-    _ -> error "unknown party"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client1", ("localhost", 5000)),
-          ("client2", ("localhost", 5001)),
-          ("server1", ("localhost", 5002)),
-          ("server2", ("localhost", 5003)),
-          ("analyst", ("localhost", 5004))
-        ]
+main = easyMain $ lottery clientProof serverProof analystProof
+  where clientProof :: Subset '["client1", "client2"] '["client1", "client2", "server1", "server2", "analyst"]
+        clientProof = explicitSubset
+        serverProof :: Subset '["server1", "server2"] '["client1", "client2", "server1", "server2", "analyst"]
+        serverProof = explicitSubset
+        analystProof :: Member "analyst" '["client1", "client2", "server1", "server2", "analyst"]
+        analystProof = explicitMember
+
