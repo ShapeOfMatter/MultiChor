@@ -7,7 +7,6 @@ module GMWReal where
 
 import CLI
 import Choreography
-import Choreography.Network.Http
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Random.Types qualified as CRT
@@ -15,9 +14,9 @@ import Data (TestArgs, reference)
 import Data.Foldable (toList)
 import Data.Kind (Type)
 import Data.Maybe (fromJust)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import ObliviousTransfer hiding (Args)
-import System.Environment
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
@@ -172,13 +171,6 @@ mpc circuit = do
   result <- reveal outputWire
   void $ _parallel (allOf @parties) $ putOutput "The resulting bit:" result
 
-mpcmany ::
-  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m) =>
-  Circuit parties ->
-  Choreo parties (CLI m) ()
-mpcmany circuit = do
-  mpc circuit
-
 type Clients = '[
      "p1"
     ,"p2"
@@ -187,23 +179,6 @@ type Clients = '[
   ]
 
 main :: IO ()
-main = do
-  let circuit :: Circuit Clients = AndGate (InputWire p1) (InputWire p2)
-      choreo = do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
-                             (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
-                  forever $ mpcmany @Clients circuit
-  [loc] <- getArgs
-  case loc of
-    "p1" -> runCLIIO $ runChoreography cfg (choreo) "p1"
-    "p2" -> runCLIIO $ runChoreography cfg (choreo) "p2"
-    --    "p3" -> runCLIIO $ runChoreography cfg (choreo) "p3"
-    --    "p4" -> runCLIIO $ runChoreography cfg (choreo) "p4"
-    _ -> error "unknown party"
-  where
-    cfg =
-      mkHttpConfig
-        [ ("p1", ("localhost", 4242)),
-          ("p2", ("localhost", 4343))
-          , ("p3", ("localhost", 4344))
-          , ("p4", ("localhost", 4345))
-        ]
+main = easyMain $ do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
+                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                     forever $ mpc @Clients $ AndGate (InputWire p1) (InputWire p2)
