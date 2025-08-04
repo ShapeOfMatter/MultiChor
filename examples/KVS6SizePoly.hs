@@ -176,7 +176,7 @@ naryHumans primary backups =
         [] -> return NotFound
         _ -> return $ Found line
 
-{-main :: IO ()
+main :: IO ()
 main = do
   [loc] <- getArgs
   case loc of

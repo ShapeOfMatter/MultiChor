@@ -126,7 +126,6 @@ Test-Suite testExamples
                  , KVS4LocPoly
                  , KVS5Fig17
                  , KVS6SizePoly
-                 , KVS7SimplePoly
                  , KVS8Paper
                  , Lottery
                  , MPCFake
