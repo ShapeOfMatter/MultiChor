@@ -14,7 +14,7 @@ import Data.HashMap.Strict qualified as HashMap
 import Data.Proxy (Proxy (..))
 import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
 import Network.Wai.Handler.Warp (run)
-import Servant.API
+import Servant.API hiding (Host)
 import Servant.Client (BaseUrl (..), ClientM, Scheme (..), client, mkClientEnv, runClientM)
 import Servant.Server (Handler, Server, serve)
 
