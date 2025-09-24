@@ -56,7 +56,7 @@ instance Arbitrary Args where
   arbitrary =
     Args
       <$> arbitrary
-      <*> listOf1 arbitraryPrintableChar -- Avoiding wierd behavior of CLI on empty outputs :(
+      <*> listOf1 arbitraryPrintableChar -- Avoiding weird behavior of CLI on empty outputs :(
       <*> listOf1 arbitraryPrintableChar
       <*> elements (fst <$> carrollsFunctions)
 
@@ -84,6 +84,6 @@ mainCho = do
   query' <- (alice, query) ~> carroll @@ nobody
   response <- (carroll, \un -> return $ un carroll answerer (un carroll query')) ~~> alice @@ bob @@ nobody
   (_ :: Located '["alice", "bob"] ()) <- cond (explicitSubset, (refl, choice)) \case
-    False -> bob `locally_` \un -> putstr "Recieved:" (un bob response)
-    True -> alice `locally_` \un -> putstr "Recieved:" (un alice response)
+    False -> bob `locally_` \un -> putstr "Received:" (un bob response)
+    True -> alice `locally_` \un -> putstr "Received:" (un alice response)
   return ()

@@ -4,7 +4,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
-# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test
+# attached to it.
 
 # Example: Quicksort
 
@@ -14,7 +15,8 @@ This example implements the three-way concurrent implementation of quicksort.
 
 ## Execution
 
-This choreography will sort the list `[1, 6, 5, 3, 4, 2, 7, 8]`. It uses the local backend and distribute the computation over threads.
+This choreography will sort the list `[1, 6, 5, 3, 4, 2, 7, 8]`. It uses the local backend and
+distribute the computation over threads.
 
 ```bash
 cabal run quicksort

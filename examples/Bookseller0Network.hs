@@ -3,7 +3,7 @@ module Bookseller0Network where
 {-
 # Bookseller as individual network programs
 
-This example implmenets the bookseller protocol as individual network
+This example implements the bookseller protocol as individual network
 programs (non-choreographic way). See
 [`bookseller-1-simple`](../bookseller-1-simple) for a description of
 the protocol.

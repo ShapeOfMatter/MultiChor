@@ -4,13 +4,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
-# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test attached to it.
+# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test
+# attached to it.
 
 # Example: Karatsuba Fast Multiplication
 
 ## Overview
 
-This example implements the three-way concurrent implementation of the Karatsuba fast multiplication algorithm shown in [Object-Oriented Choreographic Programming](https://arxiv.org/abs/2005.09520).
+This example implements the three-way concurrent implementation of the Karatsuba fast multiplication
+algorithm shown in [Object-Oriented Choreographic Programming](https://arxiv.org/abs/2005.09520).
 
 ## Execution
 

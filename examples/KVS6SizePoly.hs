@@ -50,7 +50,7 @@ kvs ReplicationStrategy {setup, primary, handle} client = do
         case response of
           Stopped -> return ()
           _ -> do
-            client `_locally_` putOutput "Recieved:" response
+            client `_locally_` putOutput "Received:" response
             go
   go
 
