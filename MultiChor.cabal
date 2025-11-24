@@ -34,7 +34,7 @@ common basic-config
         , servant-server       >= 0.19 && < 0.21
         , template-haskell     >= 2.18 && < 2.23
         , unordered-containers >= 0.2  && < 0.3
-        , warp                 >= 3.3  && < 3.4
+        , warp                 >= 3.3  && < 3.5
     ghc-options:
       -Wall
       -Wno-incomplete-uni-patterns
