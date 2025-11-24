@@ -122,7 +122,6 @@ Test-Suite testExamples
                  , Karatsuba
                  , KVS1Simple
                  , KVS2PrimaryBackup
-                 , KVS3HigherOrder
                  , KVS5Fig17
                  , KVS6SizePoly
                  , KVS8Paper
@@ -211,12 +210,6 @@ executable kvs2
     main-is:          KVS2PrimaryBackup.hs
     ghc-options:
       -main-is KVS2PrimaryBackup
-
-executable kvs3
-    import: example
-    main-is:          KVS3HigherOrder.hs
-    ghc-options:
-      -main-is KVS3HigherOrder
 
 executable kvs6
     import: example
