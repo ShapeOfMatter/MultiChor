@@ -62,7 +62,8 @@ instance Arbitrary Args where
       <$> ((,,,,) <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
       <*> ((,,) <$> arbitrary <*> arbitrary <*> arbitrary)
 
--- | Federated Lottery example from DPrio https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
+-- | Federated Lottery example from DPrio
+-- https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
 lottery ::
   forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
   ( KnownSymbols clients,

@@ -5,7 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
-This is an implementation of the choreogrpahy shown in fig17 of We Know I Know You Know.
+This is an implementation of the choreography shown in fig17 of We Know I Know You Know.
 -}
 
 module KVS5Fig17 where
@@ -69,7 +69,7 @@ handlers =
 defaultHandler :: String -> String
 defaultHandler = const "No Handler"
 
--- | `handleRequest` handle a request. Since we don't have a way of locking paralell state, this is a mock.
+-- | `handleRequest` handle a request. Since we don't have a way of locking parallel state, this is a mock.
 handleRequest :: (String -> Response) -> Request -> Response
 handleRequest handler request = case request of
   Put key value -> show key ++ " saved as " ++ show value ++ "."
@@ -92,7 +92,7 @@ kvs = do
   request <- (client, getInput "Enter the `read`able Request:") -~> primary @@ backup @@ nobody
   response <- primary @@ backup @@ nobody `congruently` \un -> un refl handler $ un refl request
   response' <- (primary, response) ~> client @@ nobody
-  client `locally_` \un -> putOutput "Recieved:" $ un client response'
+  client `locally_` \un -> putOutput "Received:" $ un client response'
 
 main :: IO ()
 main = do

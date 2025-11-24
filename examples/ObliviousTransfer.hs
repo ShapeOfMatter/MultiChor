@@ -258,7 +258,7 @@ otTest = do
   p2 `locally_` \un -> putOutput "1-of-2  Secure  OT output:" $ un singleton otResult
 
   b3 <- p1 `_locally` getInput "The third secret bool:"
-  b4 <- p1 `_locally` getInput "The forth secret bool:"
+  b4 <- p1 `_locally` getInput "The fourth secret bool:"
   s2 <- p2 `_locally` getInput "The second selection bit (bool):"
   otResultI4 <- ot4Insecure b1 b2 b3 b4 s1 s2
   p2 `locally_` \un -> putOutput "1-of-4 INsecure OT output:" $ un singleton otResultI4

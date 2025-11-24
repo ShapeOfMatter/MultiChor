@@ -40,6 +40,6 @@ game = do
       else conclave players $ return Nothing
   parallel_ players \p un ->
     when (toLocTm p `elem` blue) $
-      putOutput "Numbers recieved:" $
+      putOutput "Numbers received:" $
         catMaybes . toList $
           un p numbers
