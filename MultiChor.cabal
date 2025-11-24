@@ -120,8 +120,6 @@ Test-Suite testExamples
                  , DiffieHellman
                  , GMWReal
                  , Karatsuba
-                 , KVS1Simple
-                 , KVS2PrimaryBackup
                  , KVS5Fig17
                  , KVS6SizePoly
                  , KVS8Paper
@@ -198,18 +196,6 @@ executable karatsuba
     main-is:          Karatsuba.hs
     ghc-options:
       -main-is Karatsuba
-
-executable kvs1
-    import: example
-    main-is:          KVS1Simple.hs
-    ghc-options:
-      -main-is KVS1Simple
-
-executable kvs2
-    import: example
-    main-is:          KVS2PrimaryBackup.hs
-    ghc-options:
-      -main-is KVS2PrimaryBackup
 
 executable kvs6
     import: example
