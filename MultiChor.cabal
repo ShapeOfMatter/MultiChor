@@ -123,7 +123,6 @@ Test-Suite testExamples
                  , KVS1Simple
                  , KVS2PrimaryBackup
                  , KVS3HigherOrder
-                 , KVS4LocPoly
                  , KVS5Fig17
                  , KVS6SizePoly
                  , KVS8Paper
@@ -218,12 +217,6 @@ executable kvs3
     main-is:          KVS3HigherOrder.hs
     ghc-options:
       -main-is KVS3HigherOrder
-
-executable kvs4
-    import: example
-    main-is:          KVS4LocPoly.hs
-    ghc-options:
-      -main-is KVS4LocPoly
 
 executable kvs6
     import: example
