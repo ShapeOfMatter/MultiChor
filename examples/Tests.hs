@@ -21,6 +21,7 @@ import DiffieHellman qualified
 import Distribution.TestSuite (Test)
 import Distribution.TestSuite.QuickCheck
 import GMWReal qualified
+import Karatsuba qualified
 import KVS5Fig17 qualified
 import KVS6SizePoly qualified
 import KVS8Paper qualified
@@ -363,6 +364,42 @@ tests' =
                 )
                 situation
             return $ read @Integer a === read @Integer b
+        },
+    MyPT normalSettings
+      PropertyTest
+        { name = "karatsuba-algo",
+          tags = [],
+          property =
+            \args@Karatsuba.Args
+               { Karatsuba.n1 = n1,
+                 Karatsuba.n2 = n2
+               } -> (Karatsuba.referenceAlgorithm n1 n2) === reference args
+        },
+    MyPT normalSettings
+      PropertyTest
+        { name = "karatsuba-choreo",
+          tags = [],
+          property =
+            \args@Karatsuba.Args
+               { Karatsuba.n1 = n1,
+                 Karatsuba.n2 = n2
+               } -> ioProperty do
+                let situation =
+                      [ ("primary", [show n1, show n2]),
+                        ("worker1", []),
+                        ("worker2", [])
+                      ]
+                config <- mkLocalConfig [l | (l, _) <- situation]
+                [[response], [], []] <-
+                  mapConcurrently
+                    ( \(name, inputs) ->
+                        fst
+                          <$> runCLIStateful
+                            inputs
+                            (runChoreography config Karatsuba.mainChoreo name)
+                    )
+                    situation
+                return $ read response === reference args
         },
     MyPT normalSettings
       PropertyTest

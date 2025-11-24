@@ -4,8 +4,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 {-
-# This example was carried over from earlier work, likely HasChor. It doesn't yet have a unit test
-# attached to it.
+# This example was carried over from HasChor.
 
 # Example: Karatsuba Fast Multiplication
 
@@ -16,26 +15,20 @@ algorithm shown in [Object-Oriented Choreographic Programming](https://arxiv.org
 
 ## Execution
 
-The executable takes two integers as arguments and returns their product. It uses the local backend and distribute the computation over threads.
-
-```bash
-cabal run karatsuba 100 200
-20000
-```
-
-`Reference.h` contains a single-threaded reference implementation of the algorithm.
+The executable takes two integers as arguments and returns their product.
 -}
 
 module Karatsuba where
 
 import Choreography
-import Choreography.Network.Local
-import Control.Concurrent.Async (mapConcurrently_)
+import CLI
+import Data (TestArgs, reference)
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
-import System.Environment
+import Test.QuickCheck (Arbitrary, arbitrary)
 
-reference :: Integer -> Integer -> Integer
-reference n1 n2 =
+referenceAlgorithm :: Integer -> Integer -> Integer
+referenceAlgorithm n1 n2 =
   if n1 < 10 || n2 < 10
     then n1 * n2
     else result
@@ -49,10 +42,22 @@ reference n1 n2 =
     l1 = n1 `mod` splitter
     h2 = n2 `div` splitter
     l2 = n2 `mod` splitter
-    z0 = reference l1 l2
-    z2 = reference h1 h2
-    z1 = reference (l1 + h1) (l2 + h2) - z2 - z0
+    z0 = referenceAlgorithm l1 l2
+    z2 = referenceAlgorithm h1 h2
+    z1 = referenceAlgorithm (l1 + h1) (l2 + h2) - z2 - z0
     result = z2 * splitter * splitter + z1 * splitter + z0
+
+data Args = Args
+  { n1 :: Integer,
+    n2 :: Integer
+  }
+  deriving (Show)
+
+instance Arbitrary Args where
+  arbitrary = Args <$> arbitrary <*> arbitrary
+
+instance TestArgs Args Integer where
+  reference Args {n1, n2} = n1 * n2
 
 $(mkLoc "primary")
 $(mkLoc "worker1")
@@ -75,7 +80,7 @@ karatsuba ::
   Member c Participants ->
   Located '[a] Integer ->
   Located '[a] Integer ->
-  Choreo Participants IO (Located '[a] Integer)
+  Choreo Participants (CLI IO) (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
   done <- a `locally` \un -> return $ un singleton n1 < 10 || un singleton n2 < 10
   broadcast (a, done)
@@ -113,19 +118,13 @@ karatsuba a b c n1 n2 = do
               h2 = n2' `div` splitter
               l2 = n2' `mod` splitter
 
-mainChoreo :: Integer -> Integer -> Choreo Participants IO ()
-mainChoreo n1' n2' = do
-  n1 <- primary `_locally` pure n1'
-  n2 <- primary `_locally` pure n2'
+mainChoreo :: Choreo Participants (CLI IO) ()
+mainChoreo = do
+  n1 <- _locally primary $ getInput "First number:"
+  n2 <- _locally primary $ getInput "Second number:"
   result <- karatsuba primary worker1 worker2 n1 n2
   primary `locally_` \un -> do
-    print (un primary result)
+    putOutput "Result:" (un primary result)
 
 main :: IO ()
-main = do
-  [n1, n2] <- map read <$> getArgs
-  config <- mkLocalConfig locations
-  mapConcurrently_ (runChoreography config (mainChoreo n1 n2)) locations
-  return ()
-  where
-    locations = ["primary", "worker1", "worker2"]
+main = easyMain mainChoreo
