@@ -128,26 +128,29 @@ epp ::
   LocTm ->
   -- | Returns the implementation of the party's role in the choreography.
   Network m b
-epp c l' = interpFreer handler c
+epp c l' = if present then interpFreer handler c
+                      else error (show l' ++ " is not a member of census " ++ show census)
   where
-    handler :: ChoreoSig ps m a -> Network m a
+    census = toLocs (refl @ps)
+    present = l' `elem` census
+    handler :: forall qs a. (KnownSymbols qs) => ChoreoSig qs m a -> Network m a
     handler (Locally m) = run $ m unwrap
     handler (Congruently f) =
-      let unwraps :: forall c ls. Subset ps ls -> Located ls c -> c
-          unwraps = case tySpine @ps of
+      let unwraps :: forall c ls. Subset qs ls -> Located ls c -> c
+          unwraps = case tySpine @qs of
             TyNil -> error "Undefined projection: the census is empty."
             TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
        in pure . f $ unwraps
     handler (Broadcast s (l, a)) = do
       let sender = toLocTm s
-      let otherRecipients = sender `delete` toLocs (refl :: Subset ps ps)
+      let otherRecipients = sender `delete` toLocs (refl @qs)
       if sender == l'
         then do
           send (unwrap l a) otherRecipients
           pure . unwrap l $ a
         else recv sender
     handler (Conclave proof ch)
-      | l' `elem` toLocs proof = wrap <$> epp ch l'
+      | l' `elem` toLocs proof = wrap <$> interpFreer handler ch
       | otherwise = pure Empty
 
 -- | Access to the inner "local" monad.
