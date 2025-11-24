@@ -7,8 +7,8 @@
 
 ## Overview
 
-This example implements the [diffie-hellman key exchange protocol]
-(https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange).
+This example implements the
+[diffie-hellman key exchange protocol](https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange).
 
 In this example, two locations, `alice` and `bob`, exchange the secret key without sending the key
 over the network.

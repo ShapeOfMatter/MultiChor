@@ -47,8 +47,7 @@ Committed
 Alice's balance: 30
 Bob's balance: 5
 Command? (alice|bob {amount};)+   # move 10 from Bob to Alice (Invalid, Bob's account
-                                  # will be negative)
-alice 10; bob -10
+alice 10; bob -10                 # will be negative)
 Not committed
 Alice's balance: 30
 Bob's balance: 5
