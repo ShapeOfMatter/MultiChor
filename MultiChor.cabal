@@ -225,6 +225,12 @@ executable kvs4
     ghc-options:
       -main-is KVS4LocPoly
 
+executable kvs6
+    import: example
+    main-is:          KVS6SizePoly.hs
+    ghc-options:
+      -main-is KVS6SizePoly
+
 executable kvs8
     import: example
     main-is:          KVS8Paper.hs

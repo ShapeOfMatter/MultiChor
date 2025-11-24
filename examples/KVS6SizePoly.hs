@@ -2,13 +2,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-
--}
 
 module KVS6SizePoly where
 
+import Prelude hiding (IO)
+import Prelude qualified
 import CLI
 import Choreography
+import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (toList)
 import Data.IORef (IORef)
@@ -16,6 +17,7 @@ import Data.IORef qualified as IORef
 import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)
 import Text.Read (readMaybe)
@@ -32,14 +34,6 @@ modifyIORef ref f = do
 newIORef :: (MonadIO m) => a -> m (IORef a)
 newIORef = liftIO <$> IORef.newIORef
 
--- $(mkLoc "client")
-
--- $(mkLoc "primary")
-
--- $(mkLoc "backup1")
-
--- $(mkLoc "backup2")
--- type Participants = ["client", "primary", "backup1", "backup2"]
 
 kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
 kvs ReplicationStrategy {setup, primary, handle} client = do
@@ -173,26 +167,12 @@ naryHumans primary backups =
     readResponse r = do
       line <- getstr $ show r ++ ": "
       case line of
-        [] -> return NotFound
+        [] -> return case r of Stop -> Stopped; _ -> NotFound
         _ -> return $ Found line
 
-main :: IO ()
-main = do
-  [loc] <- getArgs
-  case loc of
-    "client" -> runChoreography config primaryBackupChoreo "client"
-    "primary" -> runChoreography config primaryBackupChoreo "primary"
-    "backup1" -> runChoreography config primaryBackupChoreo "backup1"
-    "backup2" -> runChoreography config primaryBackupChoreo "backup2"
-    _ -> error "unknown party"
-  return ()
-  where
-    config =
-      mkHttpConfig
-        [ ("client", ("localhost", 3000)),
-          ("primary", ("localhost", 4000)),
-          ("backup1", ("localhost", 5000)),
-          ("backup2", ("localhost", 6000))
-        ]
 
--}
+main :: Prelude.IO ()
+main = easyMain @'["Client", "Primary", "Backup"] $ do
+          parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
+              (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+          kvs (naryHumans listedSecond (listedThird @@ nobody)) listedFirst
