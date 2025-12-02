@@ -49,6 +49,7 @@ common basic-config
                        ,ImpredicativeTypes
                        ,LambdaCase
                        ,LiberalTypeSynonyms
+                       ,OverloadedLists
                        ,TypeFamilies
 
 library

@@ -47,7 +47,7 @@ instance TestArgs Args (Bool, Bool, Bool) where
         (h22, deck22) = if c2 then ([h21, unsafeQuietHead deck12], unsafeQuietTail deck12) else ([h21], deck12)
         (h32, deck32) = if c3 then ([h31, unsafeQuietHead deck22], unsafeQuietTail deck22) else ([h31], deck22)
         common = unsafeQuietHead deck32
-        [win1, win2, win3] = (> card 19) . sum . (common :) <$> [h12, h22, h32]
+        [win1, win2, win3] :: [Bool] = (> card 19) . sum . (common :) <$> [h12, h22, h32]
      in (win1, win2, win3)
 
 instance Arbitrary Args where
@@ -89,7 +89,7 @@ game = do
 
 
 main :: IO ()
-main = forM_ [1..100000 :: Integer] $ pretend . asArgs
+main = forM_ ([1..100000] :: [Integer]) $ pretend . asArgs
   where asArgs :: Integer -> Args
         asArgs i = let a = i `mod` 11
                        b = fromInteger $ i `mod` 223
@@ -107,8 +107,8 @@ pretend args@(CardGame.Args deck (c1, c2, c3)) = do
           ("player2", [show c2]),
           ("player3", [show c3])
         ]
-  config <- mkLocalConfig [l | (l, _) <- situation]
-  result@[[], [r1], [r2], [r3]] <-
+  config <- mkLocalConfig @'["dealer", "player1", "player2", "player3"]
+  result@[[], [r1], [r2], [r3]] :: [[String]] <-
     mapConcurrently
       ( \(name, inputs) ->
           fst

@@ -2,18 +2,11 @@ module Auction where
 
 import CLI
 import Choreography
-import Choreography.Network.Http
-import Control.Exception.Base (throwIO)
-import Control.Monad (when)
---import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data (TestArgs, reference, unsafeQuietHead)
 import Data.Foldable (toList)
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
---import Data.Map (Map)
---import Data.Map qualified as Map
---import GHC.TypeLits (KnownSymbol)
-import System.Environment (getArgs)
+import EasyMain (easyMain)
 import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary)
 
@@ -67,14 +60,7 @@ auction = do
 
 
 main :: IO ()
-main = do
-  [loc] <- getArgs
-  when (not $ loc `elem` toLocs (refl @Buyers)) $ throwIO $ userError "unknown party"
-  runCLIIO $ runChoreography config auction loc
-  where
-    urls = repeat "localhost"
-    ports = [5000 :: Int ..]
-    config = mkHttpConfig $ zip (toLocs (refl @Participants)) (zip urls ports)
+main = easyMain auction
 
 data Args = Args
   { b1 :: Bid

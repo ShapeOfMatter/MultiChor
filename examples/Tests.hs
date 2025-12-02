@@ -7,7 +7,7 @@ import Bookseller1Simple qualified
 import Bookseller2HigherOrder qualified
 import Bookseller3LocPoly qualified
 import BooksellerFancy qualified
-import CLI (runCLIStateful)
+import CLI (CLI, runCLIStateful)
 import CardGame qualified
 import ChooseTeams qualified
 import Choreography
@@ -88,7 +88,7 @@ tests' =
                     ("seller", []),
                     ("proctor", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [[results]] <- nub <$>
               (mapConcurrently
                 ( \(name, inputs) ->
@@ -115,7 +115,7 @@ tests' =
                     ("alice", []),
                     ("bob", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             results <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -132,11 +132,11 @@ tests' =
         { name = "bookseller-0-network",
           tags = [],
           property = \args@BooksellerArgs {books, choice, budget} -> ioProperty do
-            let situation =
+            let situation :: [(String, [String], Network (CLI IO) '["buyer", "seller"] ())] =
                   [ ("seller", [show books], Bookseller0Network.seller),
                     ("buyer", [show budget, choice], Bookseller0Network.buyer)
                   ]
-            config <- mkLocalConfig [l | (l, _, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ())] <-
               mapConcurrently
                 ( \(name, inputs, process) -> runCLIStateful inputs $ runNetwork config name process
@@ -149,11 +149,11 @@ tests' =
         { name = "bookseller-1-simple",
           tags = [],
           property = \args@BooksellerArgs {books, choice, budget} -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [show budget, choice])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ())] <-
               mapConcurrently
                 ( \(name, inputs) -> runCLIStateful inputs $ runChoreography config Bookseller1Simple.bookseller name
@@ -166,11 +166,11 @@ tests' =
         { name = "bookseller-1-prime",
           tags = [],
           property = \args@BooksellerArgs {books, choice, budget} -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [show budget, choice])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -185,12 +185,12 @@ tests' =
         { name = "bookseller-2-higher-order",
           tags = [],
           property = \args@(BooksellerArgs {books, choice, budget}, contrib :: Positive Int) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [choice, show budget]),
                     ("buyer2", [show $ getPositive contrib])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ()), ([], ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -205,12 +205,12 @@ tests' =
         { name = "bookseller-2-dummy",
           tags = [],
           property = \(args@BooksellerArgs {books, choice, budget}, contrib :: Positive Int) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [choice, show budget]),
                     ("buyer2", [show $ getPositive contrib]) -- buyer2 doesn't get used
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ()), ([], ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -225,12 +225,12 @@ tests' =
         { name = "bookseller-3-locpoly",
           tags = [],
           property = \args@BooksellerArgs {books, choice, budget} -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [show budget, choice])
                   ]
             let buyer :: Member "buyer" '["buyer"] = singleton
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -245,14 +245,14 @@ tests' =
         { name = "bookseller-fancy",
           tags = [],
           property = \args@(BooksellerArgs {books, choice, budget}, contrib :: Positive Int, contrib2 :: Positive Int, contrib3 :: Positive Int) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("seller", [show books]),
                     ("buyer", [choice, show budget]),
                     ("buyer2", [show $ getPositive contrib]),
                     ("buyer3", [show $ getPositive contrib2]),
                     ("buyer4", [show $ getPositive contrib3])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (delivery, ()), ([], ()), ([], ()), ([], ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -267,13 +267,13 @@ tests' =
         { name = "card-game",
           tags = [],
           property = \args@(CardGame.Args deck (c1, c2, c3)) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("dealer", show <$> cycle deck),
                     ("player1", [show c1]),
                     ("player2", [show c2]),
                     ("player3", [show c3])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [[], [r1], [r2], [r3]] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -290,14 +290,14 @@ tests' =
         { name = "choose-teams",
           tags = [],
           property = \args@(ChooseTeams.Args (c2, c4)) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("player1", []),
                     ("player2", [show c2]),
                     ("player3", []),
                     ("player4", [show c4]),
                     ("player5", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             results <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -321,12 +321,12 @@ tests' =
                  DelegationFig20.bobQ = bobQ,
                  DelegationFig20.carrollF = carrollF
                } -> ioProperty do
-                let situation =
+                let situation :: [(String, [String])] =
                       [ ("alice", [show choice, aliceQ]),
                         ("bob", [bobQ]),
                         ("carroll", [carrollF])
                       ]
-                config <- mkLocalConfig [l | (l, _) <- situation]
+                config <- mkLocalConfig
                 [aliceR, bobR, carrollR] <-
                   mapConcurrently
                     ( \(name, inputs) ->
@@ -349,11 +349,11 @@ tests' =
         { name = "diffie-hellman",
           tags = [],
           property = \() -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("alice", [""]),
                     ("bob", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [[a], [b]] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -384,12 +384,12 @@ tests' =
                { Karatsuba.n1 = n1,
                  Karatsuba.n2 = n2
                } -> ioProperty do
-                let situation =
+                let situation :: [(String, [String])] =
                       [ ("primary", [show n1, show n2]),
                         ("worker1", []),
                         ("worker2", [])
                       ]
-                config <- mkLocalConfig [l | (l, _) <- situation]
+                config <- mkLocalConfig
                 [[response], [], []] <-
                   mapConcurrently
                     ( \(name, inputs) ->
@@ -410,12 +410,12 @@ tests' =
                { KVS5Fig17.request = request,
                  KVS5Fig17.handler = handler
                } -> ioProperty do
-                let situation =
+                let situation :: [(String, [String])] =
                       [ ("client", [show request]),
                         ("primary", [handler]),
                         ("backup", [])
                       ]
-                config <- mkLocalConfig [l | (l, _) <- situation]
+                config <- mkLocalConfig
                 [[response], [], []] <-
                   mapConcurrently
                     ( \(name, inputs) ->
@@ -432,7 +432,7 @@ tests' =
         { name = "kvs-6-sizepoly",
           tags = [],
           property = \(KVS6SizePoly.Args requests) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("clientAlice", show <$> requests),
                     ("primaryBob", []),
                     ("backup1", []),
@@ -441,7 +441,7 @@ tests' =
                     ("backup4", []),
                     ("backup5", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             let strategy1 =
                   KVS6SizePoly.naryReplicationStrategy
                     ( explicitMember ::
@@ -544,7 +544,7 @@ tests' =
                            "analyst"
                          ]
                     analystProof = explicitMember
-                let situation =
+                let situation :: [(String, [String])] =
                       [ ("client1", [show c1]),
                         ("client2", [show c2]),
                         ("client3", [show c3]),
@@ -555,7 +555,7 @@ tests' =
                         ("server3", [show s3]),
                         ("analyst", [])
                       ]
-                config <- mkLocalConfig [l | (l, _) <- situation]
+                config <- mkLocalConfig
                 [ [],
                   [],
                   [],
@@ -629,7 +629,7 @@ tests' =
                          ]
                     analystProof = explicitMember
                     lottery = Lottery.lottery clientProof serverProof analystProof
-                let situation =
+                let situation :: [(String, [String])] =
                       [ ("client1", [show c1]),
                         ("client2", [show c2]),
                         ("client3", [show c3]),
@@ -640,7 +640,7 @@ tests' =
                         ("server3", [show s3]),
                         ("analyst", [])
                       ]
-                config <- mkLocalConfig [l | (l, _) <- situation]
+                config <- mkLocalConfig
                 [ [],
                   [],
                   [],
@@ -679,14 +679,14 @@ tests' =
         { name = "mpc-fake",
           tags = [],
           property = \args@(MPCFake.Args circuit p1in p2in p3in p4in) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("trusted3rdParty", []),
                     ("p1", repeat $ show p1in),
                     ("p2", repeat $ show p2in),
                     ("p3", repeat $ show p3in),
                     ("p4", repeat $ show p4in)
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [[], [r1], [r2], [r3], [r4]] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -703,11 +703,11 @@ tests' =
         { name = "obliviousTransfer",
           tags = [],
           property = \args@(ObliviousTransfer.Args b1 b2 b3 b4 s1 s2) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("A", show <$> [b1, b2, b3, b4]),
                     ("B", show <$> [s1, s2])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([], ()), (result, ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -722,12 +722,12 @@ tests' =
         { name = "quicksort",
           tags = [],
           property = \args -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("primary", [show args]),
                     ("worker1",  []),
                     ("worker2",  [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([result], ()), ([], ()), ([], ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -742,11 +742,11 @@ tests' =
         { name = "playground",
           tags = [],
           property = \args@(Playground.Args foo bar) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("alpha", [show foo]),
                     ("beta",  ["", show bar])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [([bar'], ()), ([foo'], ())] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -761,13 +761,13 @@ tests' =
         { name = "gmw-real",
           tags = [],
           property = \args@(GMWReal.Args circuit p1in p2in p3in p4in) -> ioProperty do
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("p1", repeat $ show p1in),
                     ("p2", repeat $ show p2in),
                     ("p3", repeat $ show p3in),
                     ("p4", repeat $ show p4in)
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [[r1], [r2], [r3], [r4]] <-
               mapConcurrently
                 ( \(name, inputs) ->
@@ -785,7 +785,7 @@ kvs8Property :: (QC.Fixed (QC.Large Int), KVS8Paper.Args) -> IO QC.Property
 kvs8Property = \(QC.Fixed (QC.Large tempGen), args@(KVS8Paper.Args requests)) -> do
             ambientStdGen <- getStdGen
             setStdGen $ mkStdGen tempGen
-            let situation =
+            let situation :: [(String, [String])] =
                   [ ("clientAlice", show <$> requests),
                     ("primaryBob", []),
                     ("backup1", []),
@@ -794,7 +794,7 @@ kvs8Property = \(QC.Fixed (QC.Large tempGen), args@(KVS8Paper.Args requests)) ->
                     ("backup4", []),
                     ("backup5", [])
                   ]
-            config <- mkLocalConfig [l | (l, _) <- situation]
+            config <- mkLocalConfig
             [_, [endState], [], [], [], [], []] <-
               mapConcurrently
                 ( \(name, inputs) ->

@@ -120,7 +120,7 @@ fAnd uShares vShares = do
           bb <- locally p_i \un ->
             let a_ij = getLeaf (viewFacet un p_i a_j_s) p_j
                 u_i = viewFacet un p_i uShares
-             in pure (xor [u_i, a_ij], a_ij)
+             in pure (xor @[] [u_i, a_ij], a_ij)
           -- localize p_j vSHares is party j's share of v
           conclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
     locally p_j \un -> pure $ xor $ un singleton b_i_s
@@ -159,7 +159,7 @@ gmw circuit = case circuit of
     -- process an XOR gate
     lResult <- gmw l
     rResult <- gmw r
-    parallel (allOf @parties) \p un -> pure $ xor [viewFacet un p lResult, viewFacet un p rResult]
+    parallel (allOf @parties) \p un -> pure $ xor @[] [viewFacet un p lResult, viewFacet un p rResult]
 
 mpc ::
   forall parties m.

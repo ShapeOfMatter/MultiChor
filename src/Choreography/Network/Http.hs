@@ -1,14 +1,16 @@
 -- | This module implments the HTTP message transport backend for the `Network`
 -- monad.
-module Choreography.Network.Http where
+module Choreography.Network.Http (HttpConfig, mkHttpConfig) where
 
 import Choreography.Locations
 import Choreography.Network hiding (run, send)
+import Choreography.Polymorphism
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Data.Either (lefts)
+import Data.Foldable (toList)
 import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
 import Data.Proxy (Proxy (..))
@@ -22,7 +24,7 @@ import Servant.Server (Handler, Server, serve)
 
 -- | A backend for running `Network` behaviors over HTTP.
 --   The configuration specifies how locations are mapped to network hosts and ports.
-newtype HttpConfig = HttpConfig
+newtype HttpConfig ps = HttpConfig
   { locToUrl :: HashMap LocTm BaseUrl
   }
 
@@ -34,8 +36,8 @@ type Port = Int
 
 -- | Create a HTTP backend configuration from a association list that maps
 --   locations to network hosts and ports.
-mkHttpConfig :: [(LocTm, (Host, Port))] -> HttpConfig
-mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
+mkHttpConfig :: forall ps. (KnownSymbols ps) => Quire ps (Host, Port) -> HttpConfig ps
+mkHttpConfig = HttpConfig . HashMap.fromList . zip (toLocs $ refl @ps) . toList . fmap f
   where
     f :: (Host, Port) -> BaseUrl
     f (host, port) =
@@ -47,7 +49,7 @@ mkHttpConfig = HttpConfig . HashMap.fromList . fmap (fmap f)
         }
 
 -- | The list of locations known to a backend.
-locs :: HttpConfig -> [LocTm]
+locs :: HttpConfig ps -> [LocTm]
 locs = HashMap.keys . locToUrl
 
 -- * Receiving channels
@@ -56,7 +58,7 @@ locs = HashMap.keys . locToUrl
 type RecvChans = HashMap LocTm (Chan String)
 
 -- | Make the channels that will be used to recieve messages.
-mkRecvChans :: HttpConfig -> IO RecvChans
+mkRecvChans :: HttpConfig ps -> IO RecvChans
 mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
   where
     f ::
@@ -73,7 +75,7 @@ mkRecvChans cfg = foldM f HashMap.empty (locs cfg)
 type API = "send" :> Capture "from" LocTm :> ReqBody '[PlainText] String :> PostNoContent
 
 -- | Run a `Network` behavior, using the provided HTTP backend.
-runNetworkHttp :: (MonadIO m) => HttpConfig -> LocTm -> Network m a -> m a
+runNetworkHttp :: (MonadIO m) => HttpConfig ps -> LocTm -> Network m ps a -> m a
 runNetworkHttp cfg self prog = do
   mgr <- liftIO $ newManager defaultManagerSettings
   chans <- liftIO $ mkRecvChans cfg
@@ -83,10 +85,10 @@ runNetworkHttp cfg self prog = do
   liftIO $ killThread recvT
   pure result
   where
-    runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> Network m a -> m a
+    runNetworkMain :: (MonadIO m) => Manager -> RecvChans -> Network m ps a -> m a
     runNetworkMain mgr chans = interpFreer handler
       where
-        handler :: (MonadIO m) => NetworkSig m a -> m a
+        handler :: (MonadIO m) => NetworkSig m ps a -> m a
         handler (Run m) = m
         handler (Send a ls) = liftIO $ do
           res <- mapM (\l -> runClientM (send self $ show a) (mkClientEnv mgr (locToUrl cfg ! l))) ls
@@ -109,7 +111,7 @@ runNetworkHttp cfg self prog = do
           liftIO $ writeChan (chans ! rmt) msg
           pure NoContent
 
-    recvThread :: HttpConfig -> RecvChans -> IO ()
+    recvThread :: HttpConfig ps -> RecvChans -> IO ()
     recvThread cfg' chans = run (baseUrlPort $ locToUrl cfg' ! self) (serve api $ server chans)
 
 instance Backend HttpConfig where

@@ -127,13 +127,13 @@ epp ::
   --   some bugs may be possible if it is not.
   LocTm ->
   -- | Returns the implementation of the party's role in the choreography.
-  Network m b
+  Network m ps b
 epp c l' = if present then interpFreer handler c
                       else error (show l' ++ " is not a member of census " ++ show census)
   where
     census = toLocs (refl @ps)
     present = l' `elem` census
-    handler :: forall qs a. (KnownSymbols qs) => ChoreoSig qs m a -> Network m a
+    handler :: forall qs a. (KnownSymbols qs) => ChoreoSig qs m a -> Network m qs a
     handler (Locally m) = run $ m unwrap
     handler (Congruently f) =
       let unwraps :: forall c ls. Subset qs ls -> Located ls c -> c
@@ -150,7 +150,7 @@ epp c l' = if present then interpFreer handler c
           pure . unwrap l $ a
         else recv sender
     handler (Conclave proof ch)
-      | l' `elem` toLocs proof = wrap <$> interpFreer handler ch
+      | l' `elem` toLocs proof = wrap <$> expand proof (interpFreer handler ch)
       | otherwise = pure Empty
 
 -- | Access to the inner "local" monad.

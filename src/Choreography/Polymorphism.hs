@@ -9,6 +9,7 @@ import Control.Monad (void)
 import Data.Foldable (toList)
 import Data.Functor.Compose (Compose (Compose, getCompose))
 import Data.Functor.Const (Const (Const, getConst))
+import qualified GHC.Exts as EXTS
 import GHC.TypeLits
 
 -- * The root abstraction
@@ -106,6 +107,17 @@ instance forall parties a. (KnownSymbols parties, Eq a) => Eq (Quire parties a) 
 
 instance forall parties a. (KnownSymbols parties, Show a) => Show (Quire parties a) where
   show q = show $ toLocs (refl @parties) `zip` toList q
+
+instance forall parties a. (KnownSymbols parties) => EXTS.IsList (Quire parties a) where
+  type Item (Quire parties a) = (LocTm, a)
+  toList = zip (toLocs $ refl @parties) . toList
+  fromList items = case (tySpine @parties, items) of
+    (TyCons, (name, i) : is) -> let n' = toLocTm (First @parties)
+                                in if name == n'
+                                   then qCons i $ EXTS.fromList is
+                                   else error $ name ++ " is the wrong key for the next item (" ++ n' ++ ") in the Quire."
+    (TyNil, []) -> qNil
+    _ -> error $ "List has wrong number of items (" ++ show (length items) ++ ") for use as a Quire over " ++ show (toLocs $ refl @parties) ++ "."
 
 -- Many more instances are possible...
 

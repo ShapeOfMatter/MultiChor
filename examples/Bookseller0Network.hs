@@ -20,7 +20,7 @@ import Data (deliveryDateOf, priceOf)
 import Data.Time
 import System.Environment
 
-buyer :: Network (CLI m) ()
+buyer :: Network (CLI m) '["buyer", "seller"] ()
 buyer = do
   budget <- run $ getInput @Int "Enter your total budget:"
   title <- run $ getstr "Enter the title of the book to buy:"
@@ -35,7 +35,7 @@ buyer = do
       send False ["seller"]
       run $ putNote "The book's price is out of the budget"
 
-seller :: Network (CLI m) ()
+seller :: Network (CLI m) '["buyer", "seller"] ()
 seller = do
   database <- run $ getInput "Enter the book database (for `Read`):"
   title <- recv "buyer"
