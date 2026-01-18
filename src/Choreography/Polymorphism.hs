@@ -137,13 +137,6 @@ localize l (PIndexed f) = getFacet $ f l
 viewFacet :: (KnownSymbol l) => Unwrap l -> Member l ls -> Faceted ls common a -> a
 viewFacet un l = un First . localize l
 
-{-
-unsafeFacet :: [Maybe a] -> Member l ls -> Facet a common l -- providing this as a helper function is pretty sketchy, if we don't need it delete it.
-unsafeFacet (Just a : _) First = Facet $ wrap a
-unsafeFacet (Nothing : _) First = Empty
-unsafeFacet (_ : as) (Later l) = unsafeFacet as l
-unsafeFacet [] _ = error "The provided list isn't long enough to use as a Faceted over the intended parties."
--}
 
 -- * #choreographicfunctions# Choreographic functions
 
