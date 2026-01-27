@@ -16,12 +16,16 @@ import Choreography.Network.Http
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
+import Data.Membership
 import System.Environment
 import Test.QuickCheck (Arbitrary, arbitrary, elements)
 
-$(mkLoc "client")
-$(mkLoc "primary")
-$(mkLoc "backup")
+client :: forall ps. ExplicitMember "client" ps => Member "client" ps
+client = explicitMember
+primary :: forall ps. ExplicitMember "primary" ps => Member "primary" ps
+primary = explicitMember
+backup :: forall ps. ExplicitMember "backup" ps => Member "backup" ps
+backup = explicitMember
 
 type Servers = ["primary", "backup"]
 

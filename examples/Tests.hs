@@ -16,6 +16,7 @@ import Control.Concurrent.Async (mapConcurrently)
 import Data (BooksellerArgs (..), reference)
 import Data.List (nub, sort)
 import Data.Maybe (maybeToList)
+import Data.Membership
 import DelegationFig20 qualified
 import DiffieHellman qualified
 import Distribution.TestSuite (Test)
@@ -99,7 +100,7 @@ tests' =
                 )
                 situation
               )
-            let (winner, secondPlaceBid) = read @(LocTm, Auction.Bid) results
+            let (winner, secondPlaceBid) = read @(PartyName, Auction.Bid) results
                 (possibleWinners, referenceBid) = reference args
                 correctWinner = counterexample (show (winner, possibleWinners)) (winner `elem` possibleWinners)
             return $ correctWinner .&&. (secondPlaceBid === referenceBid)
@@ -229,7 +230,7 @@ tests' =
                   [ ("seller", [show books]),
                     ("buyer", [show budget, choice])
                   ]
-            let buyer :: Member "buyer" '["buyer"] = singleton
+            let buyer :: Member "buyer" '["buyer"] = alone
             config <- mkLocalConfig
             [([], ()), (delivery, ())] <-
               mapConcurrently

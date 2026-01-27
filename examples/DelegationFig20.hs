@@ -23,11 +23,15 @@ import Choreography
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
+import Data.Membership
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryPrintableChar, elements, listOf1)
 
-$(mkLoc "alice")
-$(mkLoc "bob")
-$(mkLoc "carroll")
+alice :: forall ps. ExplicitMember "alice" ps => Member "alice" ps
+alice = explicitMember
+bob :: forall ps. ExplicitMember "bob" ps => Member "bob" ps
+bob = explicitMember
+carroll :: forall ps. ExplicitMember "carroll" ps => Member "carroll" ps
+carroll = explicitMember
 
 type Participants = ["alice", "bob", "carroll"]
 

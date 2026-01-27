@@ -13,16 +13,20 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
+import Data.Known
+import Data.Membership
 import System.Environment
 
-$(mkLoc "buyer")
-$(mkLoc "seller")
+buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps
+buyer = explicitMember
+seller :: forall ps. ExplicitMember "seller" ps => Member "seller" ps
+seller = explicitMember
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.
 bookseller ::
   forall supporters {m}.
-  (KnownSymbols supporters) =>
+  (Known [Party] supporters) =>
   (Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)) ->
   Choreo ("buyer" ': "seller" ': supporters) (CLI m) ()
 bookseller mkDecision = do
@@ -61,7 +65,7 @@ mkDecision1 price = do
 
 -- | `mkDecision2` asks supporters how much they're willing to contribute and checks
 -- if the buyer's budget is greater than the price of the book minus all supporters' contribution
-mkDecision2 :: forall supporters {m}. (KnownSymbols supporters) => Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)
+mkDecision2 :: forall supporters {m}. (Known [Party] supporters) => Located '["buyer"] Int -> Choreo ("buyer" ': supporters) (CLI m) (Located '["buyer"] Bool)
 mkDecision2 price = do
   budget <- buyer `_locally` getInput "What are you willing to pay?"
 
