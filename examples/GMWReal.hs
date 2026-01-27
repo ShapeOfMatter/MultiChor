@@ -13,7 +13,10 @@ import Crypto.Random.Types qualified as CRT
 import Data (TestArgs, reference)
 import Data.Foldable (toList)
 import Data.Kind (Type)
+import Data.Known
 import Data.Maybe (fromJust)
+import Data.Membership
+import Data.TIndexed
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import ObliviousTransfer hiding (Args)
@@ -23,23 +26,26 @@ import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneo
 xor :: (Foldable f) => f Bool -> Bool
 xor = foldr1 (/=)
 
-data Circuit :: [LocTy] -> Type where
+data Circuit :: [Party] -> Type where
   InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
   LitWire :: Bool -> Circuit ps
   AndGate :: Circuit ps -> Circuit ps -> Circuit ps
   XorGate :: Circuit ps -> Circuit ps -> Circuit ps
 
 instance Show (Circuit ps) where
-  show (InputWire p) = "InputWire<" ++ toLocTm p ++ ">"
+  show (InputWire p) = "InputWire<" ++ toValue p ++ ">"
   show (LitWire b) = "LitWire " ++ show b
   show (AndGate left right) = "(" ++ show left ++ ") AND (" ++ show right ++ ")"
   show (XorGate left right) = "(" ++ show left ++ ") XOR (" ++ show right ++ ")"
 
--- creates type aliases and semi-useful membership proofs
-$(mkLoc "p1")
-$(mkLoc "p2")
-$(mkLoc "p3")
-$(mkLoc "p4")
+p1 :: forall ps. ExplicitMember "p1" ps => Member "p1" ps
+p1 = explicitMember
+p2 :: forall ps. ExplicitMember "p2" ps => Member "p2" ps
+p2 = explicitMember
+p3 :: forall ps. ExplicitMember "p3" ps => Member "p3" ps
+p3 = explicitMember
+p4 :: forall ps. ExplicitMember "p4" ps => Member "p4" ps
+p4 = explicitMember
 
 instance Arbitrary (Circuit '["p1", "p2", "p3", "p4"]) where
   arbitrary = do
@@ -69,33 +75,33 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
   reference Args {circuit, p1in, p2in, p3in, p4in} = (answer, answer, answer, answer)
     where
       recurse c = case c of
-        InputWire p -> fromJust $ toLocTm p `lookup` inputs
+        InputWire p -> fromJust $ toValue p `lookup` inputs
         LitWire b -> b
         AndGate left right -> recurse left && recurse right
         XorGate left right -> recurse left /= recurse right
       inputs = ["p1", "p2", "p3", "p4"] `zip` [p1in, p2in, p3in, p4in]
       answer = recurse circuit
 
-genShares :: forall ps p m. (MonadIO m, KnownSymbols ps) => Member p ps -> Bool -> m (Quire ps Bool)
+genShares :: forall ps p m. (MonadIO m, Known [Party] ps) => Member p ps -> Bool -> m (Quire ps Bool)
 genShares p x = quorum1 p gs'
   where
-    gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)
+    gs' :: forall q qs. (KnownSymbol q, Known [Party] qs) => m (Quire (q ': qs) Bool)
     gs' = do
       freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
       return $ qCons (xor (qCons @q x freeShares)) freeShares
 
 secretShare ::
   forall parties p m.
-  (KnownSymbols parties, KnownSymbol p, MonadIO m) =>
+  (Known [Party] parties, KnownSymbol p, MonadIO m) =>
   Member p parties ->
   Located '[p] Bool ->
   Choreo parties m (Faceted parties '[] Bool)
 secretShare p value = do
-  shares <- locally p \un -> genShares p (un singleton value)
+  shares <- locally p \un -> genShares p (un alone value)
   PIndexed fs <- scatter p (allOf @parties) shares
   return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
 
-reveal :: forall ps m. (KnownSymbols ps) => Faceted ps '[] Bool -> Choreo ps m Bool
+reveal :: forall ps m. (Known [Party] ps) => Faceted ps '[] Bool -> Choreo ps m Bool
 reveal shares = xor <$> (gather ps ps shares >>= naked ps)
   where
     ps = allOf @ps
@@ -103,7 +109,7 @@ reveal shares = xor <$> (gather ps ps shares >>= naked ps)
 -- use OT to do multiplication
 fAnd ::
   forall parties m.
-  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m) =>
+  (Known [Party] parties, MonadIO m, CRT.MonadRandom m) =>
   Faceted parties '[] Bool ->
   Faceted parties '[] Bool ->
   Choreo parties (CLI m) (Faceted parties '[] Bool)
@@ -111,9 +117,9 @@ fAnd uShares vShares = do
   let genBools = sequence $ pure randomIO
   a_j_s :: Faceted parties '[] (Quire parties Bool) <- _parallel (allOf @parties) genBools
   bs :: Faceted parties '[] Bool <- fanOut \p_j -> do
-    let p_j_name = toLocTm p_j
+    let p_j_name = toValue p_j
     b_i_s <- fanIn (p_j @@ nobody) \p_i ->
-      if toLocTm p_i == p_j_name
+      if toValue p_i == p_j_name
         then _locally p_j $ pure False
         else do
           -- bb is the truth table
@@ -123,7 +129,7 @@ fAnd uShares vShares = do
              in pure (xor @[] [u_i, a_ij], a_ij)
           -- localize p_j vSHares is party j's share of v
           conclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
-    locally p_j \un -> pure $ xor $ un singleton b_i_s
+    locally p_j \un -> pure $ xor $ un alone b_i_s
   parallel (allOf @parties) \p_i un ->
     let computeShare u v a_js b = xor $ [u && v, b] ++ toList (qModify p_i (const False) a_js)
      in pure $
@@ -135,7 +141,7 @@ fAnd uShares vShares = do
 
 gmw ::
   forall parties m.
-  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m) =>
+  (Known [Party] parties, MonadIO m, CRT.MonadRandom m) =>
   Circuit parties ->
   Choreo parties (CLI m) (Faceted parties '[] Bool)
 gmw circuit = case circuit of
@@ -163,7 +169,7 @@ gmw circuit = case circuit of
 
 mpc ::
   forall parties m.
-  (KnownSymbols parties, MonadIO m, CRT.MonadRandom m) =>
+  (Known [Party] parties, MonadIO m, CRT.MonadRandom m) =>
   Circuit parties ->
   Choreo parties (CLI m) ()
 mpc circuit = do
@@ -180,5 +186,5 @@ type Clients = '[
 
 main :: IO ()
 main = easyMain $ do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
-                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toValue p ++ " is ready:"))
                      forever $ mpc @Clients $ AndGate (InputWire p1) (InputWire p2)

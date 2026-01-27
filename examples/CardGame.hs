@@ -11,6 +11,9 @@ import Control.Concurrent.Async (mapConcurrently)
 import Control.Monad (void)
 import Data (TestArgs, unsafeQuietHead, unsafeQuietTail, reference)
 import Data.Foldable (forM_)
+import Data.Known
+import Data.Membership
+import Data.TIndexed
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 _modulo :: Int -> Int
@@ -56,14 +59,14 @@ instance Arbitrary Args where
 {- A simple black-jack-style game. The dealer gives everyone a card, face up. Each player may
  - request a second card. Then the dealer reveals one more card that applies to everyone. Each
  - player individually wins if the sum of their cards (modulo 21) is greater than 19.  -}
-game :: forall players m. (KnownSymbols players) => Choreo ("dealer" ': players) (CLI m) ()
+game :: forall players m. (Known [Party] players) => Choreo ("dealer" ': players) (CLI m) ()
 game = do
   let players = consSuper (refl @players)
       dealer = listedFirst @"dealer" -- listedFirst is just First with the type-arguments rearranged.
       everyone = refl @("dealer" ': players)
   hand1 <-
     ( fanIn everyone \(player :: Member player players) -> do
-        card1 <- locally dealer (\_ -> getInput ("Enter random card for " ++ toLocTm player))
+        card1 <- locally dealer (\_ -> getInput ("Enter random card for " ++ toValue player))
         (dealer, card1) ~> everyone
       )
       >>= naked everyone
@@ -76,7 +79,7 @@ game = do
       choice <- broadcast (listedFirst @player, localize player wantsNextCard)
       if choice
         then do
-          cd2 <- locally dealer' (\_ -> getInput (toLocTm player ++ "'s second card:"))
+          cd2 <- locally dealer' (\_ -> getInput (toValue player ++ "'s second card:"))
           card2 <- broadcast (dealer', cd2)
           return [getLeaf hand1 player, card2]
         else return [getLeaf hand1 player]

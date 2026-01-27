@@ -17,6 +17,7 @@ import Data (TestArgs(reference))
 import Data.Bits (shiftL)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 (ByteString, pack)
+import Data.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck
@@ -73,7 +74,7 @@ ot2Insecure b1 b2 s = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
   sr <- (receiver, s) ~> sender @@ nobody
-  (sender, \un -> return $ un singleton $ if un singleton sr then b1 else b2) ~~> receiver @@ nobody
+  (sender, \un -> return $ un alone $ if un alone sr then b1 else b2) ~~> receiver @@ nobody
 
 genKeys :: (CRT.MonadRandom m) => Bool -> m (RSA.PublicKey, RSA.PublicKey, RSA.PrivateKey)
 genKeys s = do
@@ -108,11 +109,11 @@ ot2 bb s = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
 
-  keys <- locally receiver \un -> liftIO $ genKeys $ un singleton s
+  keys <- locally receiver \un -> liftIO $ genKeys $ un alone s
   pks <-
     ( receiver,
       \un ->
-        let (pk1, pk2, _) = un singleton keys
+        let (pk1, pk2, _) = un alone keys
          in return (pk1, pk2)
       )
       ~~> sender
@@ -120,17 +121,17 @@ ot2 bb s = do
   encrypted <-
     ( sender,
       \un ->
-        let (b1, b2) = un singleton bb
-         in liftIO $ encryptS (un singleton pks) b1 b2
+        let (b1, b2) = un alone bb
+         in liftIO $ encryptS (un alone pks) b1 b2
       )
       ~~> receiver
       @@ nobody
   locally receiver \un ->
     liftIO $
       decryptS
-        (un singleton keys)
-        (un singleton s)
-        (un singleton encrypted)
+        (un alone keys)
+        (un alone s)
+        (un alone encrypted)
 
 --------------------------------------------------
 -- 1-out-of-4 Oblivious transfer
@@ -159,7 +160,7 @@ ot4Insecure b1 b2 b3 b4 s1 s2 = do
 
   s1r <- (receiver, s1) ~> sender @@ nobody
   s2r <- (receiver, s2) ~> sender @@ nobody
-  (sender, \un -> return $ un singleton $ select4 (un singleton s1r) (un singleton s2r) b1 b2 b3 b4) ~~> receiver @@ nobody
+  (sender, \un -> return $ un alone $ select4 (un alone s1r) (un alone s2r) b1 b2 b3 b4) ~~> receiver @@ nobody
 
 -- Generate keys for OT, only one has a SK and the rest are fake
 genKeys4 ::
@@ -218,18 +219,18 @@ ot4 b1 b2 b3 b4 s1 s2 = do
   let sender = listedFirst :: Member sender '[sender, receiver]
   let receiver = listedSecond :: Member receiver '[sender, receiver]
 
-  keys <- receiver `locally` \un -> (liftIO $ genKeys4 (un singleton s1) (un singleton s2))
-  pks <- (receiver, \un -> let (pk1, pk2, pk3, pk4, _) = (un singleton keys) in return (pk1, pk2, pk3, pk4)) ~~> sender @@ nobody
+  keys <- receiver `locally` \un -> (liftIO $ genKeys4 (un alone s1) (un alone s2))
+  pks <- (receiver, \un -> let (pk1, pk2, pk3, pk4, _) = (un alone keys) in return (pk1, pk2, pk3, pk4)) ~~> sender @@ nobody
   encrypted <-
     ( sender,
       \un ->
         liftIO $
           enc4
-            (un singleton pks)
-            (un singleton b1)
-            (un singleton b2)
-            (un singleton b3)
-            (un singleton b4)
+            (un alone pks)
+            (un alone b1)
+            (un alone b2)
+            (un alone b3)
+            (un alone b4)
       )
       ~~> receiver
       @@ nobody
@@ -237,10 +238,10 @@ ot4 b1 b2 b3 b4 s1 s2 = do
     receiver `locally` \un ->
       liftIO $
         dec4
-          (un singleton keys)
-          (un singleton s1)
-          (un singleton s2)
-          (un singleton encrypted)
+          (un alone keys)
+          (un alone s1)
+          (un alone s2)
+          (un alone encrypted)
   return decrypted
 
 -- Test function
@@ -250,20 +251,20 @@ otTest = do
   let p2 = listedSecond :: Member p2 '[p1, p2]
   b1 <- p1 `_locally` getInput "The first secret bool:"
   b2 <- p1 `_locally` getInput "The second secret bool:"
-  bb <- p1 `locally` \un -> pure $ (un singleton b1, un singleton b2)
+  bb <- p1 `locally` \un -> pure $ (un alone b1, un alone b2)
   s1 <- p2 `_locally` getInput "The first selection bit (bool):"
   otResultI <- ot2Insecure b1 b2 s1
-  p2 `locally_` \un -> putOutput "1-of-2 INsecure OT output:" $ un singleton otResultI
+  p2 `locally_` \un -> putOutput "1-of-2 INsecure OT output:" $ un alone otResultI
   otResult <- ot2 bb s1
-  p2 `locally_` \un -> putOutput "1-of-2  Secure  OT output:" $ un singleton otResult
+  p2 `locally_` \un -> putOutput "1-of-2  Secure  OT output:" $ un alone otResult
 
   b3 <- p1 `_locally` getInput "The third secret bool:"
   b4 <- p1 `_locally` getInput "The fourth secret bool:"
   s2 <- p2 `_locally` getInput "The second selection bit (bool):"
   otResultI4 <- ot4Insecure b1 b2 b3 b4 s1 s2
-  p2 `locally_` \un -> putOutput "1-of-4 INsecure OT output:" $ un singleton otResultI4
+  p2 `locally_` \un -> putOutput "1-of-4 INsecure OT output:" $ un alone otResultI4
   otResult4 <- ot4 b1 b2 b3 b4 s1 s2
-  p2 `locally_` \un -> putOutput "1-of-4  Secure  OT output:" $ un singleton otResult4
+  p2 `locally_` \un -> putOutput "1-of-4  Secure  OT output:" $ un alone otResult4
 
 main :: IO ()
 main = easyMain @'["A", "B"] otTest

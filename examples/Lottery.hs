@@ -19,6 +19,9 @@ import Data.Binary qualified as Binary
 import Data.ByteString (toStrict)
 import Data.FiniteField (primeField)
 import Data.Foldable (toList)
+import Data.Known
+import Data.Membership
+import Data.TIndexed
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import System.Random (Random, random, randomIO, randomR, randomRIO)
@@ -66,8 +69,8 @@ instance Arbitrary Args where
 -- https://www.semanticscholar.org/paper/DPrio%3A-Efficient-Differential-Privacy-with-High-for-Keeler-Komlo/ae1b2a4e5beaaa850183ad37e0880bb70ae34f4e
 lottery ::
   forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
-  ( KnownSymbols clients,
-    KnownSymbols servers,
+  ( Known [Party] clients,
+    Known [Party] servers,
     KnownSymbol analyst,
     MonadIO m,
     (_serv1 ': _serv2 ': _servTail) ~ servers, -- There must be at least be two servers
@@ -81,9 +84,9 @@ lottery clients servers analyst = do
   secret <- _parallel clients (getInput @Fp "secret:")
   clientShares <-
     clients `parallel` \client un ->
-      ( case tySpine @servers of
-          TyCons -> do
-            -- I guess this explains to GHC that we have KnownSymbols _servTail? IDK
+      ( case tySpine @Party @servers of
+          TyCons _ _ -> do
+            -- I guess this explains to GHC that we have Known [Party] _servTail? IDK
             freeShares <- liftIO $ sequence $ pure $ randomIO @Fp
             return $ (viewFacet un client secret - sum freeShares) `qCons` freeShares
       )
@@ -119,11 +122,11 @@ lottery clients servers analyst = do
           (liftIO $ throwIO CommitmentCheckFailed)
     )
   -- 5) If all the checks are successful, then sum random values to get the random index.
-  ω <- servers `congruently` (\un -> sum (un refl ρ') `mod` length (toLocs clients))
+  ω <- servers `congruently` (\un -> sum (un refl ρ') `mod` length (toValue clients))
   chosenShares <- servers `parallel` (\server un -> pure $ toList (viewFacet un server serverShares) !! un server ω)
   -- Servers forward shares to an analyist.
   allShares <- gather servers (analyst @@ nobody) chosenShares
-  analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un singleton allShares
+  analyst `locally_` \un -> putOutput "The answer is:" $ sum $ un alone allShares
   where
     hash :: Int -> Int -> Digest Crypto.SHA256
     hash ρ ψ = Crypto.hash $ toStrict (Binary.encode ρ <> Binary.encode ψ)

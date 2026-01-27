@@ -5,9 +5,12 @@ import Choreography.Network.Http (mkHttpConfig)
 import Choreography.Network.Local (mkLocalConfig)
 import CLI
 import Control.Concurrent.Async (mapConcurrently_)
+import Data.Known
+import Data.Membership
+import Data.TIndexed
 import System.Environment (getArgs)
 
-easyMain :: forall ps q qs. (ps ~ q ': qs, KnownSymbols ps) => Choreo ps (CLI IO) () -> IO ()
+easyMain :: forall ps q qs. (ps ~ q ': qs, Known [Party] ps) => Choreo ps (CLI IO) () -> IO ()
 easyMain choreography = do
   args <- getArgs
   case args of
@@ -18,7 +21,7 @@ easyMain choreography = do
     [loc] | otherwise -> error $ "Unknown party " ++ loc
     _ -> error $ "Malformed arguments. Expected \"_\" (central semantics), or \"-\" (all parties in threads), or one of " ++ show parties
   where
-    parties = toLocs (refl @ps)
+    parties = toValue (refl @ps)
     config = mkHttpConfig . (("localhost",) <$>) . stackLeaves $ asPort
     asPort :: forall rs. forall r. Member r rs -> Int
     asPort First = 5000

@@ -12,6 +12,8 @@ import Data.Foldable (toList, maximumBy)
 import Data.Function (on)
 import Data.IORef (IORef)
 import Data.IORef qualified as IORef
+import Data.Known
+import Data.Membership
 import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -58,7 +60,7 @@ lookupState :: IORef State -> String -> IO Response
 hashState :: IORef State -> IO Int
 
 kvs :: (KnownSymbol client, KnownSymbol primary,
-        KnownSymbols servers, KnownSymbols census) =>
+        Known [Party] servers, Known [Party] census) =>
        Member client census ->
        Member primary servers ->
        Subset servers census ->
@@ -94,7 +96,7 @@ kvs client primary servers stateRefs request = do
         hashes <- gather allOf (primary @@ nobody) hash'
         let check = (1 <) . length . nub . toList
         needsReSynch <- locally primary \un ->
-                          pure $ check $ un singleton hashes
+                          pure $ check $ un alone hashes
         broadcast (primary, needsReSynch) >>= \case
           True -> resynch stateRefs  -- Could take a while!
           False -> return ()
@@ -103,8 +105,8 @@ kvs client primary servers stateRefs request = do
 
 -----------------------------------------------------------------
 
-kvsRecursive :: forall (client :: LocTy) (primary :: LocTy) (backups :: [LocTy]) servers.
-       (KnownSymbol client, KnownSymbol primary, KnownSymbols backups, servers ~ (primary ': backups)) =>
+kvsRecursive :: forall (client :: Party) (primary :: Party) (backups :: [Party]) servers.
+       (KnownSymbol client, KnownSymbol primary, Known [Party] backups, servers ~ (primary ': backups)) =>
        Choreo (client ': servers) IO ()
 kvsRecursive = do
   let client = First @(client ': servers)
@@ -120,7 +122,7 @@ kvsRecursive = do
   go
   locally_ (inSuper servers primary) \un -> (liftIO $ IORef.readIORef $ viewFacet un primary stateRefs) >>= putOutput "Ending state:"
 
-resynch :: (KnownSymbols servers) => Faceted servers '[] (IORef State) -> Choreo servers IO ()
+resynch :: (Known [Party] servers) => Faceted servers '[] (IORef State) -> Choreo servers IO ()
 resynch stateRefs = do
   allStates <- fanIn allOf \sr -> (sr, \un -> liftIO $ IORef.readIORef (viewFacet un sr stateRefs)) ~~> allOf
   votedState <- congruently allOf \un -> let asBallots = (fmap (`Map.singleton` (1::Int))) <$> un allOf allStates
@@ -168,6 +170,6 @@ type Backups = '[
 
 main :: Prelude.IO ()
 main = easyMain $ do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
-                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toValue p ++ " is ready:"))
                      kvsRecursive @"client" @"primary" @Backups
 

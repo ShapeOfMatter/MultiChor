@@ -63,15 +63,20 @@ import Data (TestArgs, reference)
 import Data.List (intercalate, transpose)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
+import Data.Membership
 import Data.Proxy (Proxy (Proxy))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
 
-$(mkLoc "client")
-$(mkLoc "coordinator")
-$(mkLoc "alice")
-$(mkLoc "bob")
+client :: forall ps. ExplicitMember "client" ps => Member "client" ps
+client = explicitMember
+coordinator :: forall ps. ExplicitMember "coordinator" ps => Member "coordinator" ps
+coordinator = explicitMember
+alice :: forall ps. ExplicitMember "alice" ps => Member "alice" ps
+alice = explicitMember
+bob :: forall ps. ExplicitMember "bob" ps => Member "bob" ps
+bob = explicitMember
 
 type Participants = ["client", "coordinator", "alice", "bob"]
 

@@ -23,6 +23,7 @@ module Karatsuba where
 import Choreography
 import CLI
 import Data (TestArgs, reference)
+import Data.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary)
@@ -59,11 +60,13 @@ instance Arbitrary Args where
 instance TestArgs Args Integer where
   reference Args {n1, n2} = n1 * n2
 
-$(mkLoc "primary")
-$(mkLoc "worker1")
-$(mkLoc "worker2")
-
 type Participants = ["primary", "worker1", "worker2"]
+primary :: forall ps. ExplicitMember "primary" ps => Member "primary" ps
+primary = explicitMember
+worker1 :: forall ps. ExplicitMember "worker1" ps => Member "worker1" ps
+worker1 = explicitMember
+worker2 :: forall ps. ExplicitMember "worker2" ps => Member "worker2" ps
+worker2 = explicitMember
 
 data KaratsubaNums = KaratsubaNums
   { splitter :: Integer,
@@ -82,29 +85,29 @@ karatsuba ::
   Located '[a] Integer ->
   Choreo Participants (CLI IO) (Located '[a] Integer)
 karatsuba a b c n1 n2 = do
-  done <- a `locally` \un -> return $ un singleton n1 < 10 || un singleton n2 < 10
+  done <- a `locally` \un -> return $ un alone n1 < 10 || un alone n2 < 10
   broadcast (a, done)
     >>= \case
       True -> do
-        a `locally` \un -> return $ un singleton n1 * un singleton n2
+        a `locally` \un -> return $ un alone n1 * un alone n2
       False -> do
-        x <- a `locally` \un -> return $ f (un singleton n1) (un singleton n2)
-        l1' <- (a, \un -> return $ l1 (un singleton x)) ~~> b @@ nobody
-        l2' <- (a, \un -> return $ l2 (un singleton x)) ~~> b @@ nobody
-        h1' <- (a, \un -> return $ h1 (un singleton x)) ~~> c @@ nobody
-        h2' <- (a, \un -> return $ h2 (un singleton x)) ~~> c @@ nobody
+        x <- a `locally` \un -> return $ f (un alone n1) (un alone n2)
+        l1' <- (a, \un -> return $ l1 (un alone x)) ~~> b @@ nobody
+        l2' <- (a, \un -> return $ l2 (un alone x)) ~~> b @@ nobody
+        h1' <- (a, \un -> return $ h1 (un alone x)) ~~> c @@ nobody
+        h2' <- (a, \un -> return $ h2 (un alone x)) ~~> c @@ nobody
         z0' <- karatsuba b c a l1' l2'
         z0 <- (b, z0') ~> a @@ nobody
         z2' <- karatsuba c a b h1' h2'
         z2 <- (c, z2') ~> a @@ nobody
-        s1 <- a `locally` \un -> return $ l1 (un singleton x) + h1 (un singleton x)
-        s2 <- a `locally` \un -> return $ l2 (un singleton x) + h2 (un singleton x)
+        s1 <- a `locally` \un -> return $ l1 (un alone x) + h1 (un alone x)
+        s2 <- a `locally` \un -> return $ l2 (un alone x) + h2 (un alone x)
         z1' <- karatsuba a b c s1 s2
-        z1 <- a `locally` \un -> return $ un singleton z1' - un singleton z2 - un singleton z0
+        z1 <- a `locally` \un -> return $ un alone z1' - un alone z2 - un alone z0
         a `locally` \un ->
           return
-            let s = splitter (un singleton x)
-             in (un singleton z2 * s * s) + (un singleton z1 * s) + un singleton z0
+            let s = splitter (un alone x)
+             in (un alone z2 * s * s) + (un alone z1 * s) + un alone z0
         where
           f n1' n2' = KaratsubaNums {splitter = splitter, h1 = h1, l1 = l1, h2 = h2, l2 = l2}
             where

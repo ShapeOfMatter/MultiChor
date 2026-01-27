@@ -3,6 +3,7 @@ module Playground where
 import CLI (CLI, getInput, putOutput, getstr)
 import Choreography
 import Data (TestArgs(reference))
+import Data.Membership
 import EasyMain (easyMain)
 import Test.QuickCheck
   ( Arbitrary,
@@ -16,10 +17,10 @@ choreography = do
       beta  :: Member "beta"  '["alpha", "beta"] = listedSecond
   a <- locally alpha \_ -> getInput @Int "Enter a number for Alpha to send to Beta:"
   _ <- locally beta \_ -> getstr "Press enter for Beta to continute. (Without this you can get problems starting the parties in the wrong order)"
-  a' <- (alpha, (singleton @"alpha", a)) ~> beta @@ nobody
+  a' <- (alpha, (alone @"alpha", a)) ~> beta @@ nobody
   b' <- (beta, \_ -> getInput @String "Enter a word for Beta to send to Alpha (don't forget quotes!):") ~~> alpha @@ nobody
-  locally_ alpha \un -> putOutput "Alpha got:" $ un singleton b'
-  locally_ beta \un -> putOutput "Beta got:" $ un singleton a'
+  locally_ alpha \un -> putOutput "Alpha got:" $ un alone b'
+  locally_ beta \un -> putOutput "Beta got:" $ un alone a'
 
 
 main :: IO ()

@@ -45,6 +45,7 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Control.Monad.IO.Class (MonadIO)
+import Data.Membership
 import System.Environment
 import System.Random
 
@@ -60,10 +61,11 @@ isPrime x = divisors x == [1, x]
 primeNums :: [Integer]
 primeNums = [x | x <- [2 ..], isPrime x]
 
-$(mkLoc "alice")
-$(mkLoc "bob")
-
 type Participants = ["alice", "bob"]
+alice :: forall ps. ExplicitMember "alice" ps => Member "alice" ps
+alice = explicitMember
+bob :: forall ps. ExplicitMember "bob" ps => Member "bob" ps
+bob = explicitMember
 
 diffieHellman ::
   (MonadIO m) =>
