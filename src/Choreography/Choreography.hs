@@ -2,15 +2,16 @@
 module Choreography.Choreography where
 
 import Choreography.Core
-import Choreography.Locations
-import Choreography.Locations.Batteries (ExplicitMember (..))
+import Choreography.Network
+import Data.Known
+import Data.Membership
 import GHC.TypeLits
 
 -- * Computation /per se/
 
 -- | Perform a local computation at a given location.
 locally ::
-  (KnownSymbol (l :: LocTy)) =>
+  (KnownSymbol (l :: Party)) =>
   -- | Location performing the local computation.
   Member l ps ->
   -- | The local computation, which can use a constrained unwrap function.
@@ -25,7 +26,7 @@ locally l m = conclave (l @@ nobody) $ locally' m
 --   The computation can not use anything local to an individual party, including their identity.
 congruently ::
   forall ls a ps m.
-  (KnownSymbols ls) =>
+  (Known [Party] ls) =>
   Subset ls ps ->
   (Unwraps ls -> a) ->
   Choreo ps m (Located ls a)
@@ -36,7 +37,7 @@ congruently ls a = conclave ls $ congruently' a
 
 -- | Unwrap a value known to the entire census.
 naked ::
-  (KnownSymbols ps) =>
+  (Known [Party] ps) =>
   Subset ps qs ->
   Located qs a ->
   Choreo ps m a
@@ -68,14 +69,14 @@ instance (KnownSymbol l) => CanSend (Member l ls, Subset ls ps, Located ls a) l 
 -- | Send a value from one party to the entire census.
 broadcast ::
   forall l a ps ls m s.
-  (Show a, Read a, KnownSymbol l, KnownSymbols ps, CanSend s l a ls ps) =>
+  (Show a, Read a, KnownSymbol l, Known [Party] ps, CanSend s l a ls ps) =>
   s ->
   Choreo ps m a
 broadcast s = broadcast' (presentToSend s) (ownsMessagePayload s, structMessagePayload s)
 
 -- | Communication between a sender and a list of receivers.
 (~>) ::
-  (Show a, Read a, KnownSymbol l, KnownSymbols ls', CanSend s l a ls ps) =>
+  (Show a, Read a, KnownSymbol l, Known [Party] ls', CanSend s l a ls ps) =>
   -- | The message argument can take three forms:
   --
   --   >  (Member sender census, wrapped owners a) -- where sender is explicitly listed in owners
@@ -98,7 +99,7 @@ s ~> rs = do
 
 -- | Lift a choreography involving fewer parties into the larger party space.
 --   This version, where the returned value is Located at the entire conclave, does not add a Located layer.
-conclaveToAll :: forall ls a ps m. (KnownSymbols ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
+conclaveToAll :: forall ls a ps m. (Known [Party] ls) => Subset ls ps -> Choreo ls m (Located ls a) -> Choreo ps m (Located ls a)
 
 infix 4 `conclaveToAll`
 
@@ -108,7 +109,7 @@ conclaveToAll = (`conclaveTo` (refl @ls))
 --   This version, where the returned value is already Located, does not add a Located layer.
 conclaveTo ::
   forall ls a rs ps m.
-  (KnownSymbols ls) =>
+  (Known [Party] ls) =>
   Subset ls ps ->
   Subset rs ls ->
   Choreo ls m (Located rs a) ->

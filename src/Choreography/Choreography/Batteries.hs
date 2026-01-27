@@ -3,8 +3,10 @@ module Choreography.Choreography.Batteries where
 
 import Choreography.Choreography
 import Choreography.Core
-import Choreography.Locations
+import Choreography.Network
 import Control.Monad (void)
+import Data.Known
+import Data.Membership
 import GHC.TypeLits
 
 -- * Computation /per se/
@@ -62,7 +64,7 @@ purely l a =
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, KnownSymbols ls') =>
+  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, Unwrap l -> m a) ->
   -- | A receiver's location.
@@ -78,7 +80,7 @@ infix 4 ~~>
 -- | A variant of `~>` that sends the result of a local action that doesn't use existing `Located` variables.
 (-~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, KnownSymbols ls') =>
+  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, m a) ->
   -- | A receiver's location.
@@ -94,7 +96,7 @@ infix 4 -~>
 -- | A variant of `~>` that doesn't use the local monad.
 (*~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, KnownSymbols ls') =>
+  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, Unwrap l -> a) ->
   -- | A receiver's location.
@@ -111,7 +113,7 @@ infix 4 *~>
 
 -- | Conditionally execute choreographies based on a located value. Automatically conclaves.
 cond ::
-  (KnownSymbols ls) =>
+  (Known [Party] ls) =>
   -- | Tuple: Proof all the parties involved know the branch-guard
   -- and are present, the branch guard
   (Subset ls ps, (Subset ls qs, Located qs a)) ->

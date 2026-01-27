@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               MultiChor
-version:            1.1.0.0
+version:            2.0.0.0
 license-files:
     , LICENSE
     , LICENSE.inherited
@@ -28,6 +28,7 @@ common basic-config
         , base                 >= 4.16 && < 5
         , bytestring           >= 0.11 && < 0.13
         , http-client          >= 0.7  && < 0.8
+        , known-lists          >= 0.0
         , mtl                  >= 2.2.2 && < 3.0
         , servant              >= 0.19 && < 0.21
         , servant-client       >= 0.19 && < 0.21
@@ -60,8 +61,6 @@ library
         Choreography.Choreography
         Choreography.Choreography.Batteries
         Choreography.Core
-        Choreography.Locations
-        Choreography.Locations.Batteries
         Choreography.Network
         Choreography.Network.Http
         Choreography.Network.Local
