@@ -37,7 +37,7 @@ auction = do
   submittedBids <- gather buyers (seller @@ proctor @@ nobody) ownBid
   orderedBids <- congruently (seller @@ proctor @@ nobody) \un ->
     let bids = un refl submittedBids
-        collated = stackLeaves @Buyers \b -> (toValue b, getLeaf bids b)
+        collated = pack @Buyers \b -> (toValue b, bids ! b)
         sorter a b = compare (snd b) (snd a)
     in sortBy sorter $ toList collated
   winners <- conclaveTo (seller @@ proctor @@ nobody) (First @@ nobody) do

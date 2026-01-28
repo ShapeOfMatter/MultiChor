@@ -17,14 +17,14 @@ import Data.Known.TypeIndexed
 -- * Non-congruent parallel located values
 
 -- | A unified representation of possibly-distinct homogeneous values owned by many parties.
-type Faceted parties common a = PIndexed parties (Facet a common)
+type Faceted parties common a = TIndexed parties (Facet a common)
 
--- | Repackages `Located` with the type arguments correctly arranged for use with t`PIndexed`.
+-- | Repackages `Located` with the type arguments correctly arranged for use with t`TIndexed`.
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
 -- | Get a `Located` value of a `Faceted` at a given location.
 localize :: (Known Party l) => Member l ls -> Faceted ls common a -> Located (l ': common) a
-localize l (PIndexed f) = getFacet $ f l
+localize l (TIndexed f) = getFacet $ f l
 
 -- | In a context where unwrapping located values is possible, get the respective value stored in a `Faceted`.
 viewFacet :: (Known Party l) => Unwrap l -> Member l ls -> Faceted ls common a -> a
@@ -41,7 +41,7 @@ parallel ::
   Subset ls ps ->
   -- | The local computation has access to the identity of the party in question,
   --   in additon to the usual unwrapper function.
-  (forall l. (Known Party l) => Member l ls -> Unwrap l -> m a) -> -- Could promote this to PIndexed too, but ergonomics might be worse?
+  (forall l. (Known Party l) => Member l ls -> Unwrap l -> m a) -> -- Could promote this to TIndexed too, but ergonomics might be worse?
   Choreo ps m (Faceted ls '[] a)
 parallel ls m = fanOut \mls -> locally (inSuper ls mls) (m mls)
 
@@ -65,7 +65,7 @@ fanOut ::
   -- | The body.  -- kinda sketchy that rs might not be a subset of ps...
   (forall q. (Known Party q) => Member q qs -> Choreo ps m (Located (q ': rs) a)) ->
   Choreo ps m (Faceted qs rs a)
-fanOut body = sequenceP (PIndexed $ Compose . (Facet <$>) <$> body)
+fanOut body = sequenceT (TIndexed $ Compose . (Facet <$>) <$> body)
 
 -- | Perform a given choreography for each of several parties; the return values are known to recipients but not necessarily to the loop-parties.
 fanIn ::
@@ -74,24 +74,24 @@ fanIn ::
   Subset rs ps ->
   -- | The body.
   (forall q. (Known Party q) => Member q qs -> Choreo ps m (Located rs a)) ->
-  Choreo ps m (Located rs (Quire qs a))
+  Choreo ps m (Located rs (TVec qs a))
 fanIn rs body = do
-  (PIndexed x) <- sequenceP (PIndexed $ Compose . (Const <$>) <$> body)
-  rs `congruently` \un -> stackLeaves $ \q -> un refl (getConst $ x q)
+  (TIndexed x) <- sequenceT (TIndexed $ Compose . (Const <$>) <$> body)
+  rs `congruently` \un -> pack $ \q -> un refl (getConst $ x q)
 
--- | The owner of a t`Quire` sends its elements to their respective parties, resulting in a `Faceted`.
+-- | The owner of a t`TVec` sends its elements to their respective parties, resulting in a `Faceted`.
 --   This represents the "scatter" idea common in parallel computing contexts.
 scatter ::
   forall census sender recipients a m.
   (Known Party sender, Known [Party] recipients, Show a, Read a) =>
   Member sender census ->
   Subset recipients census ->
-  Located '[sender] (Quire recipients a) ->
+  Located '[sender] (TVec recipients a) ->
   Choreo census m (Faceted recipients '[sender] a)
 scatter sender recipients values = fanOut \r ->
-  (sender, \un -> un First values `getLeaf` r) *~> inSuper recipients r @@ sender @@ nobody
+  (sender, \un -> un First values ! r) *~> inSuper recipients r @@ sender @@ nobody
 
--- | The many owners of a `Faceted` each send their respective values to a constant list of recipients, resulting in a t`Quire`.
+-- | The many owners of a `Faceted` each send their respective values to a constant list of recipients, resulting in a t`TVec`.
 --   This represents the "gather" idea common in parallel computing contexts.
 gather ::
   forall census recipients senders a dontcare m.
@@ -99,6 +99,6 @@ gather ::
   Subset senders census ->
   Subset recipients census ->
   Faceted senders dontcare a ->
-  Choreo census m (Located recipients (Quire senders a)) -- could be Faceted senders recipients instead...
-gather senders recipients (PIndexed values) = fanIn recipients \s ->
+  Choreo census m (Located recipients (TVec senders a)) -- could be Faceted senders recipients instead...
+gather senders recipients (TIndexed values) = fanIn recipients \s ->
   (inSuper senders s, getFacet $ values s) ~> recipients

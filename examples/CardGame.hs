@@ -81,8 +81,8 @@ game = do
         then do
           cd2 <- locally dealer' (\_ -> getInput (toValue player ++ "'s second card:"))
           card2 <- broadcast (dealer', cd2)
-          return [getLeaf hand1 player, card2]
-        else return [getLeaf hand1 player]
+          return [hand1 ! player, card2]
+        else return [hand1 ! player]
   tblCrd <- locally dealer (\_ -> getInput "Enter a single card for everyone:")
   tableCard <- (dealer, tblCrd) ~> players
   void $ parallel players \player un -> do

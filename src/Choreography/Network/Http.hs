@@ -13,7 +13,7 @@ import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
 import Data.Known.Knowable
 import Data.Known.Membership
-import Data.Known.TypeIndexed
+import Data.Known.TypeIndexed hiding ((!))
 import Data.Proxy (Proxy (..))
 import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
 import Network.Wai.Handler.Warp (run)
@@ -37,7 +37,7 @@ type Port = Int
 
 -- | Create a HTTP backend configuration from a association list that maps
 --   locations to network hosts and ports.
-mkHttpConfig :: forall ps. (Known [Party] ps) => Quire ps (Host, Port) -> HttpConfig ps
+mkHttpConfig :: forall ps. (Known [Party] ps) => TVec ps (Host, Port) -> HttpConfig ps
 mkHttpConfig = HttpConfig . HashMap.fromList . zip (toValue $ refl @ps) . toList . fmap f
   where
     f :: (Host, Port) -> BaseUrl

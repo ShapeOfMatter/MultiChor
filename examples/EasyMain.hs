@@ -22,7 +22,7 @@ easyMain choreography = do
     _ -> error $ "Malformed arguments. Expected \"_\" (central semantics), or \"-\" (all parties in threads), or one of " ++ show parties
   where
     parties = toValue (refl @ps)
-    config = mkHttpConfig . (("localhost",) <$>) . stackLeaves $ asPort
+    config = mkHttpConfig . (("localhost",) <$>) . pack $ asPort
     asPort :: forall rs. forall r. Member r rs -> Int
     asPort First = 5000
     asPort (Later p') = 1 + asPort p' -- zipWith (\name port -> (name, ("localhost", port))) parties [5000..]

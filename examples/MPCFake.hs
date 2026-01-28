@@ -89,17 +89,17 @@ secretShare ::
   Choreo ps m (Faceted parties '[] Bool)
 secretShare parties p (ownership, value) = do
   shares <- p `locally` \un -> genShares (un ownership value)
-  PIndexed fs <- scatter p parties shares
-  return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
+  TIndexed fs <- scatter p parties shares
+  return $ TIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
   where
     genShares x = case tySpine @Party @parties of
       TyCons _ _ -> gs'
       TyNil -> error "Can't secret-share to zero people."
       where
-        gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (Quire (q ': qs) Bool)
+        gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (TVec (q ': qs) Bool)
         gs' = do
           freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
-          return $ xor (qCons @q x freeShares) `qCons` freeShares
+          return $ xor (tCons @q x freeShares) `tCons` freeShares
 
 reveal ::
   forall ps m.

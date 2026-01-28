@@ -81,13 +81,13 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
       inputs = ["p1", "p2", "p3", "p4"] `zip` [p1in, p2in, p3in, p4in]
       answer = recurse circuit
 
-genShares :: forall ps p m. (MonadIO m, Known [Party] ps) => Member p ps -> Bool -> m (Quire ps Bool)
+genShares :: forall ps p m. (MonadIO m, Known [Party] ps) => Member p ps -> Bool -> m (TVec ps Bool)
 genShares p x = quorum1 p gs'
   where
-    gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (Quire (q ': qs) Bool)
+    gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (TVec (q ': qs) Bool)
     gs' = do
       freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
-      return $ qCons (xor (qCons @q x freeShares)) freeShares
+      return $ tCons (xor (tCons @q x freeShares)) freeShares
 
 secretShare ::
   forall parties p m.
@@ -97,8 +97,8 @@ secretShare ::
   Choreo parties m (Faceted parties '[] Bool)
 secretShare p value = do
   shares <- locally p \un -> genShares p (un alone value)
-  PIndexed fs <- scatter p (allOf @parties) shares
-  return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
+  TIndexed fs <- scatter p (allOf @parties) shares
+  return $ TIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
 
 reveal :: forall ps m. (Known [Party] ps) => Faceted ps '[] Bool -> Choreo ps m Bool
 reveal shares = xor <$> (gather ps ps shares >>= naked ps)
@@ -114,7 +114,7 @@ fAnd ::
   Choreo parties (CLI m) (Faceted parties '[] Bool)
 fAnd uShares vShares = do
   let genBools = sequence $ pure randomIO
-  a_j_s :: Faceted parties '[] (Quire parties Bool) <- _parallel (allOf @parties) genBools
+  a_j_s :: Faceted parties '[] (TVec parties Bool) <- _parallel (allOf @parties) genBools
   bs :: Faceted parties '[] Bool <- fanOut \p_j -> do
     let p_j_name = toValue p_j
     b_i_s <- fanIn (p_j @@ nobody) \p_i ->
@@ -123,14 +123,14 @@ fAnd uShares vShares = do
         else do
           -- bb is the truth table
           bb <- locally p_i \un ->
-            let a_ij = getLeaf (viewFacet un p_i a_j_s) p_j
+            let a_ij = (viewFacet un p_i a_j_s) ! p_j
                 u_i = viewFacet un p_i uShares
              in pure (xor @[] [u_i, a_ij], a_ij)
           -- localize p_j vSHares is party j's share of v
           conclaveTo (p_i @@ p_j @@ nobody) (listedSecond @@ nobody) (ot2 bb $ localize p_j vShares)
     locally p_j \un -> pure $ xor $ un alone b_i_s
   parallel (allOf @parties) \p_i un ->
-    let computeShare u v a_js b = xor $ [u && v, b] ++ toList (qModify p_i (const False) a_js)
+    let computeShare u v a_js b = xor $ [u && v, b] ++ toList (tModify p_i (const False) a_js)
      in pure $
           computeShare
             (viewFacet un p_i uShares)

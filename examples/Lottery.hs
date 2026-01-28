@@ -87,7 +87,7 @@ lottery clients servers analyst = do
           TyCons _ _ -> do
             -- I guess this explains to GHC that we have Known [Party] _servTail? IDK
             freeShares <- liftIO $ sequence $ pure $ randomIO @Fp
-            return $ (viewFacet un client secret - sum freeShares) `qCons` freeShares
+            return $ (viewFacet un client secret - sum freeShares) `tCons` freeShares
       )
   serverShares <-
     fanOut
@@ -98,7 +98,7 @@ lottery clients servers analyst = do
             ( \client -> do
                 serverShare <-
                   inSuper clients client `locally` \un ->
-                    pure $ viewFacet un client clientShares `getLeaf` server
+                    pure $ viewFacet un client clientShares ! server
                 (inSuper clients client, serverShare) ~> inSuper servers server @@ nobody
             )
       )
