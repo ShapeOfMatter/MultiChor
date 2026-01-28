@@ -9,9 +9,9 @@ import Choreography
 import Control.Monad (when)
 import Data (TestArgs, reference)
 import Data.Foldable (toList)
-import Data.Known
+import Data.Known.Knowable
 import Data.Maybe (catMaybes)
-import Data.Membership
+import Data.Known.Membership
 import Test.QuickCheck (Arbitrary, arbitrary)
 
 newtype Args = Args

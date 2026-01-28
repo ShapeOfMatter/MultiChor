@@ -8,8 +8,8 @@ import Control.Monad.Freer
 import Control.Monad.IO.Class
 import Data.HashMap.Strict (HashMap, (!), (!?))
 import Data.HashMap.Strict qualified as HashMap
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 
 -- | Each location is associated with a message buffer which stores messages sent
 -- from other locations.

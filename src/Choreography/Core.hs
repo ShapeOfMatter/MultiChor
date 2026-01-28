@@ -28,8 +28,8 @@ where
 
 import Choreography.Network
 import Control.Monad.Freer
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import Data.List (delete)
 import GHC.TypeLits
 

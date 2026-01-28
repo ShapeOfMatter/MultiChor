@@ -23,7 +23,7 @@ module Karatsuba where
 import Choreography
 import CLI
 import Data (TestArgs, reference)
-import Data.Membership
+import Data.Known.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary)

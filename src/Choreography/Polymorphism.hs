@@ -9,9 +9,9 @@ import Control.Monad (void)
 import Data.Foldable (toList)
 import Data.Functor.Compose (Compose (Compose, getCompose))
 import Data.Functor.Const (Const (Const, getConst))
-import Data.Known
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Knowable
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import GHC.TypeLits
 
 

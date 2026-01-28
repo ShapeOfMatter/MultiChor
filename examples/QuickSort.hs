@@ -31,8 +31,8 @@ module QuickSort where
 import Choreography
 import CLI
 import Data (unsafeQuietHead)
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 

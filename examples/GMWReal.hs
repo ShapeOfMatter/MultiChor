@@ -13,10 +13,10 @@ import Crypto.Random.Types qualified as CRT
 import Data (TestArgs, reference)
 import Data.Foldable (toList)
 import Data.Kind (Type)
-import Data.Known
+import Data.Known.Knowable
 import Data.Maybe (fromJust)
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import ObliviousTransfer hiding (Args)

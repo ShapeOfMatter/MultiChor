@@ -16,7 +16,7 @@ import Choreography.Network.Http
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
-import Data.Membership
+import Data.Known.Membership
 import System.Environment
 import Test.QuickCheck (Arbitrary, arbitrary, elements)
 

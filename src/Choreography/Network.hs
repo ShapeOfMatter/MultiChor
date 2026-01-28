@@ -8,7 +8,7 @@ module Choreography.Network where
 
 import Control.Monad.Freer
 import Control.Monad.IO.Class
-import Data.Membership (Subset)
+import Data.Known.Membership (Subset)
 import GHC.TypeLits
 
 type Party = Symbol

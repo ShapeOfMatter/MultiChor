@@ -5,9 +5,9 @@ import Choreography.Network.Http (mkHttpConfig)
 import Choreography.Network.Local (mkLocalConfig)
 import CLI
 import Control.Concurrent.Async (mapConcurrently_)
-import Data.Known
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Knowable
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import System.Environment (getArgs)
 
 easyMain :: forall ps q qs. (ps ~ q ': qs, Known [Party] ps) => Choreo ps (CLI IO) () -> IO ()

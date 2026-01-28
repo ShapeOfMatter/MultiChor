@@ -11,10 +11,10 @@ import Data.Either (lefts)
 import Data.Foldable (toList)
 import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import Data.Proxy (Proxy (..))
-import Data.TIndexed
+import Data.Known.TypeIndexed
 import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
 import Network.Wai.Handler.Warp (run)
 import Servant.API hiding (Host)

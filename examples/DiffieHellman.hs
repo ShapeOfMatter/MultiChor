@@ -45,7 +45,7 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Control.Monad.IO.Class (MonadIO)
-import Data.Membership
+import Data.Known.Membership
 import System.Environment
 import System.Random
 

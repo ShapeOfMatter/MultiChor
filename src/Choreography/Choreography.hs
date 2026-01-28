@@ -3,8 +3,8 @@ module Choreography.Choreography where
 
 import Choreography.Core
 import Choreography.Network
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import GHC.TypeLits
 
 -- * Computation /per se/

@@ -23,7 +23,7 @@ import Choreography
 import Data (TestArgs, reference)
 import Data.List (sort)
 import Data.Maybe (fromMaybe)
-import Data.Membership
+import Data.Known.Membership
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryPrintableChar, elements, listOf1)
 
 alice :: forall ps. ExplicitMember "alice" ps => Member "alice" ps

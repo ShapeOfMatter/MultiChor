@@ -3,7 +3,7 @@ module Playground where
 import CLI (CLI, getInput, putOutput, getstr)
 import Choreography
 import Data (TestArgs(reference))
-import Data.Membership
+import Data.Known.Membership
 import EasyMain (easyMain)
 import Test.QuickCheck
   ( Arbitrary,

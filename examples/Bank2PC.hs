@@ -63,7 +63,7 @@ import Data (TestArgs, reference)
 import Data.List (intercalate, transpose)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
-import Data.Membership
+import Data.Known.Membership
 import Data.Proxy (Proxy (Proxy))
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)

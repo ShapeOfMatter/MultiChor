@@ -11,9 +11,9 @@ import Control.Concurrent.Async (mapConcurrently)
 import Control.Monad (void)
 import Data (TestArgs, unsafeQuietHead, unsafeQuietTail, reference)
 import Data.Foldable (forM_)
-import Data.Known
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Knowable
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import Test.QuickCheck (Arbitrary, arbitrary, listOf1)
 
 _modulo :: Int -> Int

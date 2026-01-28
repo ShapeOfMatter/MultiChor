@@ -16,7 +16,7 @@ import Control.Concurrent.Async (mapConcurrently)
 import Data (BooksellerArgs (..), reference)
 import Data.List (nub, sort)
 import Data.Maybe (maybeToList)
-import Data.Membership
+import Data.Known.Membership
 import DelegationFig20 qualified
 import DiffieHellman qualified
 import Distribution.TestSuite (Test)

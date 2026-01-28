@@ -5,8 +5,8 @@ import Choreography.Choreography
 import Choreography.Core
 import Choreography.Network
 import Control.Monad (void)
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import GHC.TypeLits
 
 -- * Computation /per se/

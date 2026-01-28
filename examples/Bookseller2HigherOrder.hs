@@ -57,7 +57,7 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
-import Data.Membership
+import Data.Known.Membership
 import System.Environment
 
 type Participants = ["buyer", "seller", "buyer2"]

@@ -18,7 +18,7 @@ import Choreography.Core
 import Choreography.Network
 import Choreography.Polymorphism
 import Control.Monad.IO.Class (MonadIO)
-import Data.Known
+import Data.Known.Knowable
 
 -- | Run a choreography with a message transport backend...
 runChoreography :: (Backend config, MonadIO m, Known [Party] ps) => config ps -> Choreo ps m a -> PartyName -> m a

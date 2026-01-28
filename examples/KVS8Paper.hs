@@ -12,8 +12,8 @@ import Data.Foldable (toList, maximumBy)
 import Data.Function (on)
 import Data.IORef (IORef)
 import Data.IORef qualified as IORef
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map

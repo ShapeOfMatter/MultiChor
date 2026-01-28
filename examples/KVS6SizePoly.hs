@@ -14,11 +14,11 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (toList)
 import Data.IORef (IORef)
 import Data.IORef qualified as IORef
-import Data.Known
+import Data.Known.Knowable
 import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Membership
+import Data.Known.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)

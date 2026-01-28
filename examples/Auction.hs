@@ -5,10 +5,10 @@ import Choreography
 import Data (TestArgs, reference, unsafeQuietHead)
 import Data.Foldable (toList)
 import Data.Function (on)
-import Data.Known
+import Data.Known.Knowable
 import Data.List (groupBy, sortBy)
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import EasyMain (easyMain)
 import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary)

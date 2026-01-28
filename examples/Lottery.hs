@@ -19,9 +19,9 @@ import Data.Binary qualified as Binary
 import Data.ByteString (toStrict)
 import Data.FiniteField (primeField)
 import Data.Foldable (toList)
-import Data.Known
-import Data.Membership
-import Data.TIndexed
+import Data.Known.Knowable
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import System.Random (Random, random, randomIO, randomR, randomRIO)

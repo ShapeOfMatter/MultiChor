@@ -13,8 +13,8 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
-import Data.Known
-import Data.Membership
+import Data.Known.Knowable
+import Data.Known.Membership
 import System.Environment
 
 buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps

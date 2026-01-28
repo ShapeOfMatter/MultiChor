@@ -17,7 +17,7 @@ import Data (TestArgs(reference))
 import Data.Bits (shiftL)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 (ByteString, pack)
-import Data.Membership
+import Data.Known.Membership
 import EasyMain (easyMain)
 import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck
