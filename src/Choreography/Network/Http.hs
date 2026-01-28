@@ -13,8 +13,8 @@ import Data.HashMap.Strict (HashMap, (!))
 import Data.HashMap.Strict qualified as HashMap
 import Data.Known.Knowable
 import Data.Known.Membership
-import Data.Proxy (Proxy (..))
 import Data.Known.TypeIndexed
+import Data.Proxy (Proxy (..))
 import Network.HTTP.Client (Manager, defaultManagerSettings, newManager)
 import Network.Wai.Handler.Warp (run)
 import Servant.API hiding (Host)

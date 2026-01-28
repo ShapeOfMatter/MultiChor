@@ -130,7 +130,7 @@ epp ::
   -- | Returns the implementation of the party's role in the choreography.
   Network m ps b
 epp c l' = if present then interpFreer handler c
-                      else error (show l' ++ " is not a member of census " ++ show census)
+                      else error (show l' <> " is not a member of census " <> show census)
   where
     census = toValue (refl @ps)
     present = l' `elem` census
