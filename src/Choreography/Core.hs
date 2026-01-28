@@ -31,7 +31,6 @@ import Control.Monad.Freer
 import Data.Known.Knowable
 import Data.Known.Membership
 import Data.List (delete)
-import GHC.TypeLits
 
 
 -- | A single value known to many parties.
@@ -78,7 +77,7 @@ othersForget _ (Wrap a) = Wrap a
 
 data ChoreoSig (ps :: [Party]) m a where
   Locally ::
-    (KnownSymbol l) =>
+    (Known Party l) =>
     (Unwrap l -> m a) ->
     ChoreoSig '[l] m a
   Congruently ::
@@ -86,7 +85,7 @@ data ChoreoSig (ps :: [Party]) m a where
     (Unwraps ls -> a) ->
     ChoreoSig ls m a
   Broadcast ::
-    (Show a, Read a, KnownSymbol l) =>
+    (Show a, Read a, Known Party l) =>
     Member l ps -> -- from
     (Member l ls, Located ls a) -> -- value
     ChoreoSig ps m a
@@ -159,7 +158,7 @@ epp c l' = if present then interpFreer handler c
 --   Since the type of `locally'` restricts the census to a single party, you'll usually want to use
 --   `Choreography.Choreography.locally` instead.
 locally' ::
-  (KnownSymbol l) =>
+  (Known Party l) =>
   -- | The local action(s), which can use an unwraper function.
   (Unwrap l -> m a) ->
   Choreo '[l] m a
@@ -179,7 +178,7 @@ congruently' f = toFreer (Congruently f)
 
 -- | Communicate a value to all present parties.
 broadcast' ::
-  (Show a, Read a, KnownSymbol l) =>
+  (Show a, Read a, Known Party l) =>
   -- | Proof the sender is present
   Member l ps ->
   -- | Proof the sender knows the value, the value.

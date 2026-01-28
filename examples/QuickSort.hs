@@ -34,7 +34,6 @@ import Data (unsafeQuietHead)
 import Data.Known.Knowable
 import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 
 type Participants = ["primary", "worker1", "worker2"]
 primary :: forall ps. ExplicitMember "primary" ps => Member "primary" ps
@@ -45,7 +44,7 @@ worker2 :: forall ps. ExplicitMember "worker2" ps => Member "worker2" ps
 worker2 = explicitMember
 
 quicksort ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c, Known [Party] ps, Monad m) =>
+  (Known Party a, Known Party b, Known Party c, Known [Party] ps, Monad m) =>
   Member a ps ->
   Member b ps ->
   Member c ps ->

@@ -20,7 +20,6 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)
 import Text.Read (readMaybe)
 
@@ -37,7 +36,7 @@ newIORef :: (MonadIO m) => a -> m (IORef a)
 newIORef = liftIO <$> IORef.newIORef
 
 
-kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
+kvs :: (Known Party client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
 kvs ReplicationStrategy {setup, primary, handle} client = do
   rigging <- setup
   let go = do
@@ -51,7 +50,7 @@ kvs ReplicationStrategy {setup, primary, handle} client = do
   go
 
 naryReplicationStrategy ::
-  (KnownSymbol primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
+  (Known Party primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   Subset backups ps ->
   ReplicationStrategy ps m
@@ -77,7 +76,7 @@ naryReplicationStrategy primary backups =
 
 data ReplicationStrategy ps m
   = forall primary rigging.
-  (KnownSymbol primary) =>
+  (Known Party primary) =>
   ReplicationStrategy
   { primary :: Member primary ps,
     setup :: Choreo ps m rigging,
@@ -130,7 +129,7 @@ readRequest = do
 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy ::
-  (KnownSymbol primary, Known [Party] ps, MonadIO m) =>
+  (Known Party primary, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   ReplicationStrategy ps m
 nullReplicationStrategy primary =
@@ -144,7 +143,7 @@ nullReplicationStrategy primary =
     }
 
 naryHumans ::
-  (KnownSymbol primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
+  (Known Party primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   Subset backups ps ->
   ReplicationStrategy ps (CLI m)

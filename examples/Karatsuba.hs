@@ -23,9 +23,9 @@ module Karatsuba where
 import Choreography
 import CLI
 import Data (TestArgs, reference)
+import Data.Known.Knowable
 import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary)
 
 referenceAlgorithm :: Integer -> Integer -> Integer
@@ -77,7 +77,7 @@ data KaratsubaNums = KaratsubaNums
   }
 
 karatsuba ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c) =>
+  (Known Party a, Known Party b, Known Party c) =>
   Member a Participants ->
   Member b Participants ->
   Member c Participants ->

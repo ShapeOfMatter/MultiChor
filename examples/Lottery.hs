@@ -23,7 +23,6 @@ import Data.Known.Knowable
 import Data.Known.Membership
 import Data.Known.TypeIndexed
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import System.Random (Random, random, randomIO, randomR, randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, arbitraryBoundedEnum)
 
@@ -71,7 +70,7 @@ lottery ::
   forall clients servers analyst census m _serv1 _serv2 _servTail _client1 _client2 _clientTail.
   ( Known [Party] clients,
     Known [Party] servers,
-    KnownSymbol analyst,
+    Known Party analyst,
     MonadIO m,
     (_serv1 ': _serv2 ': _servTail) ~ servers, -- There must be at least be two servers
     (_client1 ': _client2 ': _clientTail) ~ clients -- There must be at least be two clients

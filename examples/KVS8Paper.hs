@@ -18,7 +18,6 @@ import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)
 import Text.Read (readMaybe)
@@ -59,7 +58,7 @@ updateState :: IORef State -> String -> String -> IO Response
 lookupState :: IORef State -> String -> IO Response
 hashState :: IORef State -> IO Int
 
-kvs :: (KnownSymbol client, KnownSymbol primary,
+kvs :: (Known Party client, Known Party primary,
         Known [Party] servers, Known [Party] census) =>
        Member client census ->
        Member primary servers ->
@@ -106,7 +105,7 @@ kvs client primary servers stateRefs request = do
 -----------------------------------------------------------------
 
 kvsRecursive :: forall (client :: Party) (primary :: Party) (backups :: [Party]) servers.
-       (KnownSymbol client, KnownSymbol primary, Known [Party] backups, servers ~ (primary ': backups)) =>
+       (Known Party client, Known Party primary, Known [Party] backups, servers ~ (primary ': backups)) =>
        Choreo (client ': servers) IO ()
 kvsRecursive = do
   let client = First @(client ': servers)

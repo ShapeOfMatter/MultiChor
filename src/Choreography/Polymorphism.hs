@@ -6,13 +6,11 @@ import Choreography.Choreography.Batteries ((*~>))
 import Choreography.Core
 import Choreography.Network
 import Control.Monad (void)
-import Data.Foldable (toList)
-import Data.Functor.Compose (Compose (Compose, getCompose))
+import Data.Functor.Compose (Compose (Compose))
 import Data.Functor.Const (Const (Const, getConst))
 import Data.Known.Knowable
 import Data.Known.Membership
 import Data.Known.TypeIndexed
-import GHC.TypeLits
 
 
 
@@ -25,11 +23,11 @@ type Faceted parties common a = PIndexed parties (Facet a common)
 newtype Facet a common p = Facet {getFacet :: Located (p ': common) a}
 
 -- | Get a `Located` value of a `Faceted` at a given location.
-localize :: (KnownSymbol l) => Member l ls -> Faceted ls common a -> Located (l ': common) a
+localize :: (Known Party l) => Member l ls -> Faceted ls common a -> Located (l ': common) a
 localize l (PIndexed f) = getFacet $ f l
 
 -- | In a context where unwrapping located values is possible, get the respective value stored in a `Faceted`.
-viewFacet :: (KnownSymbol l) => Unwrap l -> Member l ls -> Faceted ls common a -> a
+viewFacet :: (Known Party l) => Unwrap l -> Member l ls -> Faceted ls common a -> a
 viewFacet un l = un First . localize l
 
 
@@ -43,7 +41,7 @@ parallel ::
   Subset ls ps ->
   -- | The local computation has access to the identity of the party in question,
   --   in additon to the usual unwrapper function.
-  (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m a) -> -- Could promote this to PIndexed too, but ergonomics might be worse?
+  (forall l. (Known Party l) => Member l ls -> Unwrap l -> m a) -> -- Could promote this to PIndexed too, but ergonomics might be worse?
   Choreo ps m (Faceted ls '[] a)
 parallel ls m = fanOut \mls -> locally (inSuper ls mls) (m mls)
 
@@ -52,7 +50,7 @@ parallel_ ::
   forall ls ps m.
   (Known [Party] ls) =>
   Subset ls ps ->
-  (forall l. (KnownSymbol l) => Member l ls -> Unwrap l -> m ()) ->
+  (forall l. (Known Party l) => Member l ls -> Unwrap l -> m ()) ->
   Choreo ps m ()
 parallel_ ls m = void $ parallel ls m
 
@@ -65,7 +63,7 @@ _parallel ls m = parallel ls \_ _ -> m
 fanOut ::
   (Known [Party] qs) =>
   -- | The body.  -- kinda sketchy that rs might not be a subset of ps...
-  (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located (q ': rs) a)) ->
+  (forall q. (Known Party q) => Member q qs -> Choreo ps m (Located (q ': rs) a)) ->
   Choreo ps m (Faceted qs rs a)
 fanOut body = sequenceP (PIndexed $ Compose . (Facet <$>) <$> body)
 
@@ -75,7 +73,7 @@ fanIn ::
   -- | The recipients.
   Subset rs ps ->
   -- | The body.
-  (forall q. (KnownSymbol q) => Member q qs -> Choreo ps m (Located rs a)) ->
+  (forall q. (Known Party q) => Member q qs -> Choreo ps m (Located rs a)) ->
   Choreo ps m (Located rs (Quire qs a))
 fanIn rs body = do
   (PIndexed x) <- sequenceP (PIndexed $ Compose . (Const <$>) <$> body)
@@ -85,7 +83,7 @@ fanIn rs body = do
 --   This represents the "scatter" idea common in parallel computing contexts.
 scatter ::
   forall census sender recipients a m.
-  (KnownSymbol sender, Known [Party] recipients, Show a, Read a) =>
+  (Known Party sender, Known [Party] recipients, Show a, Read a) =>
   Member sender census ->
   Subset recipients census ->
   Located '[sender] (Quire recipients a) ->

@@ -24,7 +24,6 @@ import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
 import Data.Known.Knowable
 import Data.Known.Membership
-import GHC.TypeLits
 import System.Environment
 
 buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps
@@ -36,7 +35,7 @@ seller = explicitMember
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes the name of the buyer as a parameter (`someBuyer`).
-bookseller :: (KnownSymbol a, Known [Party] ps) => Member a ps -> Choreo ("seller" ': ps) (CLI m) ()
+bookseller :: (Known Party a, Known [Party] ps) => Member a ps -> Choreo ("seller" ': ps) (CLI m) ()
 bookseller someBuyer = do
   let theBuyer = inSuper consSet someBuyer
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"

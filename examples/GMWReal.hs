@@ -18,7 +18,6 @@ import Data.Maybe (fromJust)
 import Data.Known.Membership
 import Data.Known.TypeIndexed
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import ObliviousTransfer hiding (Args)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
@@ -27,7 +26,7 @@ xor :: (Foldable f) => f Bool -> Bool
 xor = foldr1 (/=)
 
 data Circuit :: [Party] -> Type where
-  InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
+  InputWire :: (Known Party p) => Member p ps -> Circuit ps
   LitWire :: Bool -> Circuit ps
   AndGate :: Circuit ps -> Circuit ps -> Circuit ps
   XorGate :: Circuit ps -> Circuit ps -> Circuit ps
@@ -85,14 +84,14 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
 genShares :: forall ps p m. (MonadIO m, Known [Party] ps) => Member p ps -> Bool -> m (Quire ps Bool)
 genShares p x = quorum1 p gs'
   where
-    gs' :: forall q qs. (KnownSymbol q, Known [Party] qs) => m (Quire (q ': qs) Bool)
+    gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (Quire (q ': qs) Bool)
     gs' = do
       freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
       return $ qCons (xor (qCons @q x freeShares)) freeShares
 
 secretShare ::
   forall parties p m.
-  (Known [Party] parties, KnownSymbol p, MonadIO m) =>
+  (Known [Party] parties, Known Party p, MonadIO m) =>
   Member p parties ->
   Located '[p] Bool ->
   Choreo parties m (Faceted parties '[] Bool)
@@ -151,7 +150,7 @@ gmw circuit = case circuit of
     secretShare p value
   LitWire b -> do
     -- process a publicly-known literal value
-    let chooseShare :: forall p. (KnownSymbol p) => Member p parties -> Choreo parties (CLI m) (Located '[p] Bool)
+    let chooseShare :: forall p. (Known Party p) => Member p parties -> Choreo parties (CLI m) (Located '[p] Bool)
         chooseShare p = congruently (p @@ nobody) $ \_ -> case p of
           First -> b
           Later _ -> False

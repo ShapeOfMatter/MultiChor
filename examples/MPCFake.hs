@@ -16,7 +16,6 @@ import Data.Maybe (fromJust)
 import Data.Known.Membership
 import Data.Known.TypeIndexed
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
@@ -35,7 +34,7 @@ xor :: (Foldable f) => f Bool -> Bool
 xor = foldr1 (/=)
 
 data Circuit :: [Party] -> Type where
-  InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
+  InputWire :: (Known Party p) => Member p ps -> Circuit ps
   LitWire :: Bool -> Circuit ps
   AndGate :: Circuit ps -> Circuit ps -> Circuit ps
   XorGate :: Circuit ps -> Circuit ps -> Circuit ps
@@ -83,7 +82,7 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
 
 secretShare ::
   forall p parties owners ps m.
-  (Known [Party] parties, KnownSymbol p, MonadIO m) =>
+  (Known [Party] parties, Known Party p, MonadIO m) =>
   Subset parties ps ->
   Member p ps ->
   (Member p owners, Located owners Bool) ->
@@ -97,7 +96,7 @@ secretShare parties p (ownership, value) = do
       TyCons _ _ -> gs'
       TyNil -> error "Can't secret-share to zero people."
       where
-        gs' :: forall q qs. (KnownSymbol q, Known [Party] qs) => m (Quire (q ': qs) Bool)
+        gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (Quire (q ': qs) Bool)
         gs' = do
           freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
           return $ xor (qCons @q x freeShares) `qCons` freeShares
@@ -114,7 +113,7 @@ reveal shares = do
   naked ps value
 
 computeWire ::
-  (Known [Party] ps, Known [Party] parties, KnownSymbol trustedAnd, MonadIO m) =>
+  (Known [Party] ps, Known [Party] parties, Known Party trustedAnd, MonadIO m) =>
   Member trustedAnd ps ->
   Subset parties ps ->
   Circuit parties ->

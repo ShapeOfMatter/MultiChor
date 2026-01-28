@@ -7,13 +7,12 @@ import Choreography.Network
 import Control.Monad (void)
 import Data.Known.Knowable
 import Data.Known.Membership
-import GHC.TypeLits
 
 -- * Computation /per se/
 
 -- | Perform a local computation, yielding nothing.
 locally_ ::
-  (KnownSymbol l) =>
+  (Known Party l) =>
   Member l ps ->
   (Unwrap l -> m ()) ->
   Choreo ps m ()
@@ -24,7 +23,7 @@ locally_ l m = void $ locally l m
 
 -- | Perform a local computation that doesn't need to unwrap any existing `Located` values.
 _locally ::
-  (KnownSymbol l) =>
+  (Known Party l) =>
   Member l ps ->
   m a ->
   Choreo ps m (Located '[l] a)
@@ -34,7 +33,7 @@ infix 4 `_locally`
 _locally l m = locally l $ const m
 
 -- | Perform a local computation that doesn't need to unwrap any existing `Located` values and yields nothing.
-_locally_ :: (KnownSymbol l) => Member l ps -> m () -> Choreo ps m ()
+_locally_ :: (Known Party l) => Member l ps -> m () -> Choreo ps m ()
 
 infix 4 `_locally_`
 
@@ -43,7 +42,7 @@ _locally_ l m = void $ locally l (const m)
 -- | Perform a pure computation at a single location.
 purely ::
   forall l a ps m.
-  (KnownSymbol l) =>
+  (Known Party l) =>
   Member l ps ->
   (Unwrap l -> a) ->
   Choreo ps m (Located '[l] a)
@@ -64,7 +63,7 @@ purely l a =
 -- | A variant of `~>` that sends the result of a local computation.
 (~~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
+  (Show a, Read a, Known Party l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, Unwrap l -> m a) ->
   -- | A receiver's location.
@@ -80,7 +79,7 @@ infix 4 ~~>
 -- | A variant of `~>` that sends the result of a local action that doesn't use existing `Located` variables.
 (-~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
+  (Show a, Read a, Known Party l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, m a) ->
   -- | A receiver's location.
@@ -96,7 +95,7 @@ infix 4 -~>
 -- | A variant of `~>` that doesn't use the local monad.
 (*~>) ::
   forall a l ls' m ps.
-  (Show a, Read a, KnownSymbol l, Known [Party] ls') =>
+  (Show a, Read a, Known Party l, Known [Party] ls') =>
   -- | A pair of a sender's location and a local computation.
   (Member l ps, Unwrap l -> a) ->
   -- | A receiver's location.

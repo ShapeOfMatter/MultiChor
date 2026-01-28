@@ -17,9 +17,9 @@ import Data (TestArgs(reference))
 import Data.Bits (shiftL)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 (ByteString, pack)
+import Data.Known.Knowable
 import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck
   ( Arbitrary,
     arbitrary,
@@ -65,7 +65,7 @@ generateFakePK = do
 --------------------------------------------------
 ot2Insecure ::
   forall sender receiver m.
-  (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+  (Known Party sender, Known Party receiver, MonadIO m) =>
   Located '[sender] Bool ->
   Located '[sender] Bool ->
   Located '[receiver] Bool ->
@@ -101,7 +101,7 @@ decryptS (_, _, sk) s (c1, c2) = if s then decryptRSA sk c1 else decryptRSA sk c
 
 -- One out of two OT
 ot2 ::
-  (KnownSymbol sender, KnownSymbol receiver, MonadIO m, CRT.MonadRandom m) =>
+  (Known Party sender, Known Party receiver, MonadIO m, CRT.MonadRandom m) =>
   Located '[sender] (Bool, Bool) ->
   Located '[receiver] Bool ->
   Choreo '[sender, receiver] (CLI m) (Located '[receiver] Bool)
@@ -146,7 +146,7 @@ select4 s1 s2 v1 v2 v3 v4 = case (s1, s2) of
 
 ot4Insecure ::
   forall sender receiver m.
-  (KnownSymbol sender, KnownSymbol receiver, MonadIO m) =>
+  (Known Party sender, Known Party receiver, MonadIO m) =>
   Located '[sender] Bool -> -- sender
   Located '[sender] Bool -> -- sender
   Located '[sender] Bool -> -- sender
@@ -207,7 +207,7 @@ dec4 (_, _, _, _, sk) s1 s2 (c1, c2, c3, c4) = decryptRSA sk $ select4 s1 s2 c1 
 
 -- One out of two OT
 ot4 ::
-  (KnownSymbol sender, KnownSymbol receiver, MonadIO m, CRT.MonadRandom m) =>
+  (Known Party sender, Known Party receiver, MonadIO m, CRT.MonadRandom m) =>
   Located '[sender] Bool ->
   Located '[sender] Bool ->
   Located '[sender] Bool ->
@@ -245,7 +245,7 @@ ot4 b1 b2 b3 b4 s1 s2 = do
   return decrypted
 
 -- Test function
-otTest :: (KnownSymbol p1, KnownSymbol p2, MonadIO m, CRT.MonadRandom m) => Choreo '[p1, p2] (CLI m) ()
+otTest :: (Known Party p1, Known Party p2, MonadIO m, CRT.MonadRandom m) => Choreo '[p1, p2] (CLI m) ()
 otTest = do
   let p1 = listedFirst :: Member p1 '[p1, p2]
   let p2 = listedSecond :: Member p2 '[p1, p2]
