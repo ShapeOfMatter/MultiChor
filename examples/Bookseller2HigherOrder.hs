@@ -57,13 +57,17 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
+import Data.Known.Membership
 import System.Environment
 
-$(mkLoc "buyer")
-$(mkLoc "seller")
-$(mkLoc "buyer2")
-
 type Participants = ["buyer", "seller", "buyer2"]
+buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps
+buyer = explicitMember
+seller :: forall ps. ExplicitMember "seller" ps => Member "seller" ps
+seller = explicitMember
+buyer2 :: forall ps. ExplicitMember "buyer2" ps => Member "buyer2" ps
+buyer2 = explicitMember
+
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes a choreography `mkDecision` that implements the decision making process.

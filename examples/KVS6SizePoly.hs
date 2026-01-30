@@ -14,11 +14,12 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Foldable (toList)
 import Data.IORef (IORef)
 import Data.IORef qualified as IORef
+import Data.Known.Knowable
 import Data.List (nub)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import Test.QuickCheck (Arbitrary, arbitrary, frequency, listOf)
 import Text.Read (readMaybe)
 
@@ -35,12 +36,12 @@ newIORef :: (MonadIO m) => a -> m (IORef a)
 newIORef = liftIO <$> IORef.newIORef
 
 
-kvs :: (KnownSymbol client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
+kvs :: (Known Party client) => ReplicationStrategy ps (CLI m) -> Member client ps -> Choreo ps (CLI m) ()
 kvs ReplicationStrategy {setup, primary, handle} client = do
   rigging <- setup
   let go = do
         request <- (client, readRequest) -~> primary @@ nobody
-        response <- handle rigging singleton request
+        response <- handle rigging alone request
         case response of
           Stopped -> return ()
           _ -> do
@@ -49,7 +50,7 @@ kvs ReplicationStrategy {setup, primary, handle} client = do
   go
 
 naryReplicationStrategy ::
-  (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m) =>
+  (Known Party primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   Subset backups ps ->
   ReplicationStrategy ps m
@@ -75,7 +76,7 @@ naryReplicationStrategy primary backups =
 
 data ReplicationStrategy ps m
   = forall primary rigging.
-  (KnownSymbol primary) =>
+  (Known Party primary) =>
   ReplicationStrategy
   { primary :: Member primary ps,
     setup :: Choreo ps m rigging,
@@ -128,7 +129,7 @@ readRequest = do
 
 -- | `nullReplicationStrategy` is a replication strategy that does not replicate the state.
 nullReplicationStrategy ::
-  (KnownSymbol primary, KnownSymbols ps, MonadIO m) =>
+  (Known Party primary, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   ReplicationStrategy ps m
 nullReplicationStrategy primary =
@@ -136,13 +137,13 @@ nullReplicationStrategy primary =
     { primary,
       setup = primary `_locally` newIORef (Map.empty :: State),
       handle = \stateRef pHas request ->
-        ( (primary, \un -> handleRequest (un singleton stateRef) (un pHas request)) ~~> refl
+        ( (primary, \un -> handleRequest (un alone stateRef) (un pHas request)) ~~> refl
         )
           >>= naked refl
     }
 
 naryHumans ::
-  (KnownSymbol primary, KnownSymbols backups, KnownSymbols ps, MonadIO m) =>
+  (Known Party primary, Known [Party] backups, Known [Party] ps, MonadIO m) =>
   Member primary ps ->
   Subset backups ps ->
   ReplicationStrategy ps (CLI m)
@@ -153,7 +154,7 @@ naryHumans primary backups =
       handle = \stateRef pHas request -> do
         request' <- (primary, (pHas, request)) ~> backups
         backupResponse <- backups `parallel` \server un -> readResponse (un server request')
-        localResponse <- primary `locally` \un -> handleRequest (un singleton stateRef) (un pHas request)
+        localResponse <- primary `locally` \un -> handleRequest (un alone stateRef) (un pHas request)
         responses <- gather backups (primary @@ nobody) backupResponse
         response <-
           (primary @@ nobody) `congruently` \un ->
@@ -174,5 +175,5 @@ naryHumans primary backups =
 main :: Prelude.IO ()
 main = easyMain @'["Client", "Primary", "Backup"] $ do
           parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
-              (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+              (\p _ -> void $ getstr ("Press enter to indicate " ++ toValue p ++ " is ready:"))
           kvs (naryHumans listedSecond (listedThird @@ nobody)) listedFirst

@@ -31,41 +31,44 @@ module QuickSort where
 import Choreography
 import CLI
 import Data (unsafeQuietHead)
+import Data.Known.Knowable
+import Data.Known.Membership
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
-
-$(mkLoc "primary")
-$(mkLoc "worker1")
-$(mkLoc "worker2")
 
 type Participants = ["primary", "worker1", "worker2"]
+primary :: forall ps. ExplicitMember "primary" ps => Member "primary" ps
+primary = explicitMember
+worker1 :: forall ps. ExplicitMember "worker1" ps => Member "worker1" ps
+worker1 = explicitMember
+worker2 :: forall ps. ExplicitMember "worker2" ps => Member "worker2" ps
+worker2 = explicitMember
 
 quicksort ::
-  (KnownSymbol a, KnownSymbol b, KnownSymbol c, KnownSymbols ps, Monad m) =>
+  (Known Party a, Known Party b, Known Party c, Known [Party] ps, Monad m) =>
   Member a ps ->
   Member b ps ->
   Member c ps ->
   Located '[a] [Int] ->
   Choreo ps m (Located '[a] [Int])
 quicksort a b c lst = do
-  isEmpty <- a `locally` \un -> pure (null (un singleton lst))
+  isEmpty <- a `locally` \un -> pure (null (un alone lst))
   broadcast (a, isEmpty) >>= \case
     True -> do
       a `_locally` pure []
     False -> do
-      smaller <- (a, \un -> let x : xs = un singleton lst in pure [i | i <- xs, i <= x]) ~~> b @@ nobody
+      smaller <- (a, \un -> let x : xs = un alone lst in pure [i | i <- xs, i <= x]) ~~> b @@ nobody
       smaller' <- quicksort b c a smaller
       smaller'' <- (b, smaller') ~> a @@ nobody
-      bigger <- (a, \un -> let x : xs = un singleton lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
+      bigger <- (a, \un -> let x : xs = un alone lst in pure [i | i <- xs, i > x]) ~~> c @@ nobody
       bigger' <- quicksort c a b bigger
       bigger'' <- (c, bigger') ~> a @@ nobody
-      a `locally` \un -> pure $ un singleton smaller'' ++ [unsafeQuietHead (un singleton lst)] ++ un singleton bigger''
+      a `locally` \un -> pure $ un alone smaller'' ++ [unsafeQuietHead (un alone lst)] ++ un alone bigger''
 
 sort :: Choreo Participants (CLI IO) ()
 sort = do
   lst <- primary `_locally` getInput "The list of numbers to sort:"
   sorted <- quicksort primary worker1 worker2 lst
-  primary `locally_` \un -> putOutput "Sorted result:" (un singleton sorted)
+  primary `locally_` \un -> putOutput "Sorted result:" (un alone sorted)
 
 main :: IO ()
 main = easyMain sort

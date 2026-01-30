@@ -11,29 +11,36 @@ import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data (TestArgs, reference)
 import Data.Kind (Type)
+import Data.Known.Knowable
 import Data.Maybe (fromJust)
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import EasyMain (easyMain)
-import GHC.TypeLits (KnownSymbol)
 import System.Random
 import Test.QuickCheck (Arbitrary, arbitrary, chooseInt, elements, getSize, oneof, resize)
 
-$(mkLoc "trusted3rdParty")
-$(mkLoc "p1")
-$(mkLoc "p2")
-$(mkLoc "p3")
-$(mkLoc "p4")
+trusted3rdParty :: forall ps. ExplicitMember "trusted3rdParty" ps => Member "trusted3rdParty" ps
+trusted3rdParty = explicitMember
+p1 :: forall ps. ExplicitMember "p1" ps => Member "p1" ps
+p1 = explicitMember
+p2 :: forall ps. ExplicitMember "p2" ps => Member "p2" ps
+p2 = explicitMember
+p3 :: forall ps. ExplicitMember "p3" ps => Member "p3" ps
+p3 = explicitMember
+p4 :: forall ps. ExplicitMember "p4" ps => Member "p4" ps
+p4 = explicitMember
 
 xor :: (Foldable f) => f Bool -> Bool
 xor = foldr1 (/=)
 
-data Circuit :: [LocTy] -> Type where
-  InputWire :: (KnownSymbol p) => Member p ps -> Circuit ps
+data Circuit :: [Party] -> Type where
+  InputWire :: (Known Party p) => Member p ps -> Circuit ps
   LitWire :: Bool -> Circuit ps
   AndGate :: Circuit ps -> Circuit ps -> Circuit ps
   XorGate :: Circuit ps -> Circuit ps -> Circuit ps
 
 instance Show (Circuit ps) where
-  show (InputWire p) = "InputWire<" ++ toLocTm p ++ ">"
+  show (InputWire p) = "InputWire<" ++ toValue p ++ ">"
   show (LitWire b) = "LitWire " ++ show b
   show (AndGate left right) = "(" ++ show left ++ ") AND (" ++ show right ++ ")"
   show (XorGate left right) = "(" ++ show left ++ ") XOR (" ++ show right ++ ")"
@@ -66,7 +73,7 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
   reference Args {circuit, p1in, p2in, p3in, p4in} = (answer, answer, answer, answer)
     where
       recurse c = case c of
-        InputWire p -> fromJust $ toLocTm p `lookup` inputs
+        InputWire p -> fromJust $ toValue p `lookup` inputs
         LitWire b -> b
         AndGate left right -> recurse left && recurse right
         XorGate left right -> recurse left /= recurse right
@@ -75,28 +82,28 @@ instance TestArgs Args (Bool, Bool, Bool, Bool) where
 
 secretShare ::
   forall p parties owners ps m.
-  (KnownSymbols parties, KnownSymbol p, MonadIO m) =>
+  (Known [Party] parties, Known Party p, MonadIO m) =>
   Subset parties ps ->
   Member p ps ->
   (Member p owners, Located owners Bool) ->
   Choreo ps m (Faceted parties '[] Bool)
 secretShare parties p (ownership, value) = do
   shares <- p `locally` \un -> genShares (un ownership value)
-  PIndexed fs <- scatter p parties shares
-  return $ PIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
+  TIndexed fs <- scatter p parties shares
+  return $ TIndexed $ Facet . othersForget (First @@ nobody) . getFacet . fs
   where
-    genShares x = case tySpine @parties of
-      TyCons -> gs'
+    genShares x = case tySpine @Party @parties of
+      TyCons _ _ -> gs'
       TyNil -> error "Can't secret-share to zero people."
       where
-        gs' :: forall q qs. (KnownSymbol q, KnownSymbols qs) => m (Quire (q ': qs) Bool)
+        gs' :: forall q qs. (Known Party q, Known [Party] qs) => m (TVec (q ': qs) Bool)
         gs' = do
           freeShares <- sequence $ pure $ liftIO randomIO -- generate n-1 random shares
-          return $ xor (qCons @q x freeShares) `qCons` freeShares
+          return $ xor (tCons @q x freeShares) `tCons` freeShares
 
 reveal ::
   forall ps m.
-  (KnownSymbols ps) =>
+  (Known [Party] ps) =>
   Faceted ps '[] Bool ->
   Choreo ps m Bool
 reveal shares = do
@@ -106,7 +113,7 @@ reveal shares = do
   naked ps value
 
 computeWire ::
-  (KnownSymbols ps, KnownSymbols parties, KnownSymbol trustedAnd, MonadIO m) =>
+  (Known [Party] ps, Known [Party] parties, Known Party trustedAnd, MonadIO m) =>
   Member trustedAnd ps ->
   Subset parties ps ->
   Circuit parties ->
@@ -114,10 +121,10 @@ computeWire ::
 computeWire trustedAnd parties circuit = case circuit of
   InputWire p -> do
     value <- inSuper parties p `_locally` getInput "Enter a secret input value:"
-    secretShare parties (inSuper parties p) (singleton, value)
+    secretShare parties (inSuper parties p) (alone, value)
   LitWire b -> do
     let shares = partyNames `zip` (b : repeat False)
-    fanOut \p -> inSuper parties p `_locally` return (fromJust $ toLocTm p `lookup` shares)
+    fanOut \p -> inSuper parties p `_locally` return (fromJust $ toValue p `lookup` shares)
   AndGate l r -> do
     lResult <- compute l
     rResult <- compute r
@@ -127,17 +134,17 @@ computeWire trustedAnd parties circuit = case circuit of
       (trustedAnd @@ nobody) `congruently` \un ->
         let ovs = un refl inputShares
          in xor (fst <$> ovs) && xor (snd <$> ovs)
-    secretShare parties trustedAnd (singleton, outputVal)
+    secretShare parties trustedAnd (alone, outputVal)
   XorGate l r -> do
     lResult <- compute l
     rResult <- compute r
     parties `parallel` \p un -> pure (viewFacet un p lResult /= viewFacet un p rResult)
   where
     compute = computeWire trustedAnd parties
-    partyNames = toLocs parties
+    partyNames = toValue parties
 
 mpc ::
-  (KnownSymbols parties, MonadIO m) =>
+  (Known [Party] parties, MonadIO m) =>
   Circuit parties ->
   Choreo ("trusted3rdParty" ': parties) (CLI m) ()
 mpc circuit = do
@@ -156,5 +163,5 @@ type Clients = '[
 
 main :: IO ()
 main = easyMain $ do parallel_ (allOf)  -- This step prevents problems with the order in which the clients come online.
-                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toLocTm p ++ " is ready:"))
+                               (\p _ -> void $ getstr ("Press enter to indicate " ++ toValue p ++ " is ready:"))
                      forever $ mpc @Clients $ AndGate (InputWire p1) (InputWire p2)

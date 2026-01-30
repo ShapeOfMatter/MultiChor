@@ -63,15 +63,20 @@ import Data (TestArgs, reference)
 import Data.List (intercalate, transpose)
 import Data.List.Split (splitOn)
 import Data.Maybe (mapMaybe)
+import Data.Known.Knowable
+import Data.Known.Membership
 import Data.Proxy (Proxy (Proxy))
-import GHC.TypeLits (KnownSymbol, symbolVal)
 import Test.QuickCheck (Arbitrary, arbitrary, elements, listOf, listOf1)
 import Text.Read (readMaybe)
 
-$(mkLoc "client")
-$(mkLoc "coordinator")
-$(mkLoc "alice")
-$(mkLoc "bob")
+client :: forall ps. ExplicitMember "client" ps => Member "client" ps
+client = explicitMember
+coordinator :: forall ps. ExplicitMember "coordinator" ps => Member "coordinator" ps
+coordinator = explicitMember
+alice :: forall ps. ExplicitMember "alice" ps => Member "alice" ps
+alice = explicitMember
+bob :: forall ps. ExplicitMember "bob" ps => Member "bob" ps
+bob = explicitMember
 
 type Participants = ["client", "coordinator", "alice", "bob"]
 
@@ -83,10 +88,10 @@ type Transaction = [Action]
 
 newtype Args p q = Args [Transaction] deriving (Eq, Show, Read)
 
-instance (KnownSymbol p, KnownSymbol q) => TestArgs (Args p q) [[String]] where
+instance (Known Party p, Known Party q) => TestArgs (Args p q) [[String]] where
   reference (Args tx) = addCoordinator . transpose $ showAll <$> ref start tx
     where
-      start = (,0) <$> [symbolVal (Proxy @p), symbolVal (Proxy @q)]
+      start = (,0) <$> [toValue (Proxy @p), toValue (Proxy @q)]
       ref _ [] = []
       ref state (t : ts) =
         let (s', r) = refAs state t
@@ -105,8 +110,8 @@ instance (KnownSymbol p, KnownSymbol q) => TestArgs (Args p q) [[String]] where
       addCoordinator (clnt : servers) = clnt : [] : servers
       addCoordinator _ = error "this can't happen, right? I could enforce it by types, but it's a core..."
 
-instance (KnownSymbol p, KnownSymbol q) => Arbitrary (Args p q) where
-  arbitrary = (Args . (++ [[]]) <$>) . listOf . listOf1 $ (,) <$> elements [symbolVal $ Proxy @p, symbolVal $ Proxy @q] <*> arbitrary
+instance (Known Party p, Known Party q) => Arbitrary (Args p q) where
+  arbitrary = (Args . (++ [[]]) <$>) . listOf . listOf1 $ (,) <$> elements [toValue $ Proxy @p, toValue $ Proxy @q] <*> arbitrary
 
 -- | `validate` checks if a transaction can be executed while keeping balance >= 0
 -- returns if the transaction satisfies the property and the balance after the transaction

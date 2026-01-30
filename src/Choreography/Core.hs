@@ -26,14 +26,15 @@ module Choreography.Core
   )
 where
 
-import Choreography.Locations
 import Choreography.Network
 import Control.Monad.Freer
+import Data.Known.Knowable
+import Data.Known.Membership
 import Data.List (delete)
-import GHC.TypeLits
+
 
 -- | A single value known to many parties.
-data Located (ls :: [LocTy]) a
+data Located (ls :: [Party]) a
   = Wrap a
   | Empty
 
@@ -45,14 +46,14 @@ wrap = Wrap
 -- | Unwraps values known to the specified party.
 --   You should not be able to build such a function in normal code;
 --   these functions are afforded only for use in "local" computation.
-type Unwrap (q :: LocTy) = forall ls a. Member q ls -> Located ls a -> a
+type Unwrap (q :: Party) = forall ls a. Member q ls -> Located ls a -> a
 
 -- | Unwraps values known to the specified list of parties.
 --   You should not be able to build such a function in normal code;
 --   these functions are afforded only for use in "local" computation.
 --   (Could be dangerous if the list is empty,
 --   but the API is designed so that no value of type `Unwraps '[]` will ever actually get evaluated.)
-type Unwraps (qs :: [LocTy]) = forall ls a. Subset qs ls -> Located ls a -> a
+type Unwraps (qs :: [Party]) = forall ls a. Subset qs ls -> Located ls a -> a
 
 -- | Unwrap a `Located` value.
 --   Unwrapping a empty located value will throw an exception; THIS SHOULD NOT BE EXPORTED!
@@ -74,22 +75,22 @@ othersForget :: Subset ls owners -> Located owners a -> Located ls a
 othersForget _ Empty = Empty
 othersForget _ (Wrap a) = Wrap a
 
-data ChoreoSig (ps :: [LocTy]) m a where
+data ChoreoSig (ps :: [Party]) m a where
   Locally ::
-    (KnownSymbol l) =>
+    (Known Party l) =>
     (Unwrap l -> m a) ->
     ChoreoSig '[l] m a
   Congruently ::
-    (KnownSymbols ls) =>
+    (Known [Party] ls) =>
     (Unwraps ls -> a) ->
     ChoreoSig ls m a
   Broadcast ::
-    (Show a, Read a, KnownSymbol l) =>
+    (Show a, Read a, Known Party l) =>
     Member l ps -> -- from
     (Member l ls, Located ls a) -> -- value
     ChoreoSig ps m a
   Conclave ::
-    (KnownSymbols ls) =>
+    (Known [Party] ls) =>
     Subset ls ps ->
     Choreo ls m b ->
     ChoreoSig ps m (Located ls b)
@@ -112,52 +113,52 @@ runChoreo = interpFreer handler
           unwraps = unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
        in pure . f $ unwraps
     handler (Broadcast _ (p, a)) = pure $ unwrap p a
-    handler (Conclave (_ :: Subset ls (p ': ps)) c) = case tySpine @ls of
+    handler (Conclave (_ :: Subset ls (p ': ps)) c) = case tySpine @Party @ls of
       TyNil -> pure Empty
-      TyCons -> wrap <$> runChoreo c
+      TyCons _ _ -> wrap <$> runChoreo c
 
 -- | Endpoint projection.
 epp ::
   forall ps b m.
-  (Monad m, KnownSymbols ps) =>
+  (Monad m, Known [Party] ps) =>
   -- | A choreography
   Choreo ps m b ->
   -- | A `String` identifying a party.
   --   At present there is no enforcement that the party will actually be in the census of the choreography;
   --   some bugs may be possible if it is not.
-  LocTm ->
+  PartyName ->
   -- | Returns the implementation of the party's role in the choreography.
   Network m ps b
 epp c l' = if present then interpFreer handler c
-                      else error (show l' ++ " is not a member of census " ++ show census)
+                      else error (show l' <> " is not a member of census " <> show census)
   where
-    census = toLocs (refl @ps)
+    census = toValue (refl @ps)
     present = l' `elem` census
-    handler :: forall qs a. (KnownSymbols qs) => ChoreoSig qs m a -> Network m qs a
+    handler :: forall qs a. (Known [Party] qs) => ChoreoSig qs m a -> Network m qs a
     handler (Locally m) = run $ m unwrap
     handler (Congruently f) =
       let unwraps :: forall c ls. Subset qs ls -> Located ls c -> c
-          unwraps = case tySpine @qs of
+          unwraps = case tySpine @Party @qs of
             TyNil -> error "Undefined projection: the census is empty."
-            TyCons -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
+            TyCons _ _ -> unwrap . (\(Subset mx) -> mx First) -- wish i could write this better.
        in pure . f $ unwraps
     handler (Broadcast s (l, a)) = do
-      let sender = toLocTm s
-      let otherRecipients = sender `delete` toLocs (refl @qs)
+      let sender = toValue s
+      let otherRecipients = sender `delete` toValue (refl @qs)
       if sender == l'
         then do
           send (unwrap l a) otherRecipients
           pure . unwrap l $ a
         else recv sender
     handler (Conclave proof ch)
-      | l' `elem` toLocs proof = wrap <$> expand proof (interpFreer handler ch)
+      | l' `elem` toValue proof = wrap <$> expand proof (interpFreer handler ch)
       | otherwise = pure Empty
 
 -- | Access to the inner "local" monad.
 --   Since the type of `locally'` restricts the census to a single party, you'll usually want to use
 --   `Choreography.Choreography.locally` instead.
 locally' ::
-  (KnownSymbol l) =>
+  (Known Party l) =>
   -- | The local action(s), which can use an unwraper function.
   (Unwrap l -> m a) ->
   Choreo '[l] m a
@@ -166,7 +167,7 @@ locally' m = toFreer (Locally m)
 -- | Perform the exact same computation in replicate at all participating locations.
 --   The computation can not use anything local to an individual party, including their identity.
 congruently' ::
-  (KnownSymbols ls) =>
+  (Known [Party] ls) =>
   -- | The computation, which can use an unwraper function.
   (Unwraps ls -> a) ->
   Choreo ls m a
@@ -177,7 +178,7 @@ congruently' f = toFreer (Congruently f)
 
 -- | Communicate a value to all present parties.
 broadcast' ::
-  (Show a, Read a, KnownSymbol l) =>
+  (Show a, Read a, Known Party l) =>
   -- | Proof the sender is present
   Member l ps ->
   -- | Proof the sender knows the value, the value.
@@ -191,7 +192,7 @@ broadcast' l a = toFreer (Broadcast l a)
 -- | Lift a choreography of involving fewer parties into the larger party space.
 --   Adds a `Located ls` layer to the return type.
 conclave ::
-  (KnownSymbols ls) =>
+  (Known [Party] ls) =>
   Subset ls ps ->
   Choreo ls m a ->
   Choreo ps m (Located ls a)

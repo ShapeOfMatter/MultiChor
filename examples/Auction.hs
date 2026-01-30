@@ -5,7 +5,10 @@ import Choreography
 import Data (TestArgs, reference, unsafeQuietHead)
 import Data.Foldable (toList)
 import Data.Function (on)
+import Data.Known.Knowable
 import Data.List (groupBy, sortBy)
+import Data.Known.Membership
+import Data.Known.TypeIndexed
 import EasyMain (easyMain)
 import System.Random (randomRIO)
 import Test.QuickCheck (Arbitrary, arbitrary)
@@ -34,7 +37,7 @@ auction = do
   submittedBids <- gather buyers (seller @@ proctor @@ nobody) ownBid
   orderedBids <- congruently (seller @@ proctor @@ nobody) \un ->
     let bids = un refl submittedBids
-        collated = stackLeaves \b -> (toLocTm b, getLeaf bids b)
+        collated = pack @Buyers \b -> (toValue b, bids ! b)
         sorter a b = compare (snd b) (snd a)
     in sortBy sorter $ toList collated
   winners <- conclaveTo (seller @@ proctor @@ nobody) (First @@ nobody) do
@@ -50,12 +53,12 @@ auction = do
           let winners = fst <$>
                           (unsafeQuietHead $ groupBy (on (==) snd) $ un listedSecond orderedBids)
           (winners !!) <$> randomRIO (0, length winners - 1)
-        winner <- broadcast (listedSecond @Proctor, (singleton @Proctor, winner'))
+        winner <- broadcast (listedSecond @Proctor, (alone @Proctor, winner'))
         purely First \un ->
           let ((a, bid) : (b, _) : _) = un First orderedBids
               second = if a == winner then b else a
           in ((winner, bid), (second, bid))
-  ((wName, _), (_, sBid)) <- broadcast (seller, (singleton @Seller, winners))
+  ((wName, _), (_, sBid)) <- broadcast (seller, (alone @Seller, winners))
   parallel_ allOf \_ _ -> putOutput "Result:" (wName, sBid)
 
 
@@ -71,7 +74,7 @@ data Args = Args
   }
   deriving (Eq, Show, Read)
 
-instance TestArgs Args ([LocTm], Bid) where
+instance TestArgs Args ([PartyName], Bid) where
   reference Args {b1, b2, b3, b4, b5} =
     let bids@((_, wBid) : (_, sBid) : _) =
             sortBy (on (flip compare) snd) $

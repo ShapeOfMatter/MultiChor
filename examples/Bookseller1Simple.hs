@@ -9,10 +9,13 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
+import Data.Known.Membership
 import System.Environment
 
-$(mkLoc "buyer")
-$(mkLoc "seller")
+buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps
+buyer = explicitMember
+seller :: forall ps. ExplicitMember "seller" ps => Member "seller" ps
+seller = explicitMember
 
 type Participants = ["buyer", "seller"]
 

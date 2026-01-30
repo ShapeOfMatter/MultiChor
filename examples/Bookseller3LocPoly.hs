@@ -22,17 +22,20 @@ import CLI
 import Choreography
 import Choreography.Network.Http
 import Data (deliveryDateOf, priceOf)
-import GHC.TypeLits
+import Data.Known.Knowable
+import Data.Known.Membership
 import System.Environment
 
-$(mkLoc "buyer")
-$(mkLoc "seller")
+buyer :: forall ps. ExplicitMember "buyer" ps => Member "buyer" ps
+buyer = explicitMember
+seller :: forall ps. ExplicitMember "seller" ps => Member "seller" ps
+seller = explicitMember
 
 -- type Participants = ["buyer", "seller"]
 
 -- | `bookseller` is a choreography that implements the bookseller protocol.
 -- This version takes the name of the buyer as a parameter (`someBuyer`).
-bookseller :: (KnownSymbol a, KnownSymbols ps) => Member a ps -> Choreo ("seller" ': ps) (CLI m) ()
+bookseller :: (Known Party a, Known [Party] ps) => Member a ps -> Choreo ("seller" ': ps) (CLI m) ()
 bookseller someBuyer = do
   let theBuyer = inSuper consSet someBuyer
   database <- seller `_locally` getInput "Enter the book database (for `Read`):"
@@ -42,12 +45,12 @@ bookseller someBuyer = do
   -- the seller checks the price of the book and sends it to the buyer
   price <- (seller, \un -> return $ priceOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
-  inBuyerBudget <- theBuyer `locally` (\un -> return $ un singleton price <= un singleton buyer_budget)
+  inBuyerBudget <- theBuyer `locally` (\un -> return $ un alone price <= un alone buyer_budget)
   broadcast (theBuyer, inBuyerBudget) >>= \case
     True -> do
       deliveryDate <- (seller, \un -> return $ deliveryDateOf (un seller database) (un seller title)) ~~> theBuyer @@ nobody
 
-      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un singleton deliveryDate
+      theBuyer `locally_` \un -> putOutput "The book will be delivered on:" $ un alone deliveryDate
     False -> do
       theBuyer `_locally_` putNote "The book's price is out of the budget"
 
@@ -60,7 +63,7 @@ main = do
     _ -> error "unknown party"
   return ()
   where
-    choreo = bookseller $ singleton @"buyer"
+    choreo = bookseller $ alone @"buyer"
 
     cfg =
       mkHttpConfig

@@ -6,9 +6,13 @@
 -- and there should be enough tools here for you to write more as needed.
 module Choreography.Network where
 
-import Choreography.Locations (LocTm, Subset)
 import Control.Monad.Freer
 import Control.Monad.IO.Class
+import Data.Known.Membership (Subset)
+import GHC.TypeLits
+
+type Party = Symbol
+type PartyName = String
 
 -- * The Network monad
 
@@ -22,12 +26,12 @@ data NetworkSig m ps a where
   Send ::
     (Show a) =>
     a ->
-    [LocTm] ->
+    [PartyName] ->
     NetworkSig m ps ()
   -- | Receiving.
   Recv ::
     (Read a) =>
-    LocTm ->
+    PartyName ->
     NetworkSig m ps a
 
 -- | Monad that represents network programs.
@@ -40,11 +44,11 @@ run :: m a -> Network m ps a
 run m = toFreer $ Run m
 
 -- | Send a message to a receiver.
-send :: (Show a) => a -> [LocTm] -> Network m ps ()
+send :: (Show a) => a -> [PartyName] -> Network m ps ()
 send a ls = toFreer $ Send a ls
 
 -- | Receive a message from a sender.
-recv :: (Read a) => LocTm -> Network m ps a
+recv :: (Read a) => PartyName -> Network m ps a
 recv l = toFreer $ Recv l
 
 expand :: Subset ps qs -> Network m ps a -> Network m qs a
@@ -61,4 +65,4 @@ expand _ = interpFreer $ toFreer . handler
 -- carries necessary bookkeeping information, then defines @c@ as an instance
 -- of `Backend` and provides a `runNetwork` function.
 class Backend c where
-  runNetwork :: (MonadIO m) => c ps -> LocTm -> Network m ps a -> m a
+  runNetwork :: (MonadIO m) => c ps -> PartyName -> Network m ps a -> m a
